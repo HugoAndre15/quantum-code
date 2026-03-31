@@ -1,0 +1,206 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+    id            String         @id @default(cuid())
+    email         String         @unique
+    password      String
+    name          String
+    role          Role           @default(ADMIN)
+    refreshTokens RefreshToken[]
+    createdAt     DateTime       @default(now())
+    updatedAt     DateTime       @updatedAt
+}
+
+model RefreshToken {
+    id        String   @id @default(cuid())
+    token     String   @unique
+    userId    String
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    expiresAt DateTime
+    createdAt DateTime @default(now())
+}
+
+enum Role {
+    ADMIN
+    SUPER_ADMIN
+}
+
+// ─── Catalogues (tes offres) ─────────────────
+
+model Pack {
+    id          String      @id @default(cuid())
+    name        String      @unique
+    description String?
+    price       Float
+    type        PackType    @default(CLASSIQUE)
+    devTime     Float       @default(0) // heures estimées
+    position    Int         @default(0)
+    active      Boolean     @default(true)
+    features    String[]
+    clients     Client[]
+    devisItems  DevisItem[]
+    createdAt   DateTime    @default(now())
+    updatedAt   DateTime    @updatedAt
+}
+
+model ServiceOption {
+    id            String         @id @default(cuid())
+    name          String         @unique
+    description   String?
+    price         Float
+    category      String         @default("general")
+    devTime       Float          @default(0) // heures estimées
+    recurring     Boolean        @default(false)
+    recurringUnit String?        // "mois", "an"
+    active        Boolean        @default(true)
+    clientOptions ClientOption[]
+    devisItems    DevisItem[]
+    createdAt     DateTime       @default(now())
+    updatedAt     DateTime       @updatedAt
+}
+
+enum PackType {
+    CLASSIQUE
+    ADMIN_INTEGRE
+}
+
+// ─── Clients ─────────────────────────────────
+
+model Client {
+    id             String         @id @default(cuid())
+    company        String
+    trade          String
+    contactName    String
+    address        String?
+    phone          String?
+    email          String?
+    website        String?
+    status         ClientStatus   @default(A_CONTACTER)
+    notes          String?
+    budget         Float?
+    contactDate    DateTime       @default(now())
+    onlinePresence String[]       @default([])
+    packId         String?
+    pack           Pack?          @relation(fields: [packId], references: [id])
+    options        ClientOption[]
+    devis          Devis[]
+    factures       Facture[]
+    createdAt      DateTime       @default(now())
+    updatedAt      DateTime       @updatedAt
+}
+
+model ClientOption {
+    id              String        @id @default(cuid())
+    clientId        String
+    client          Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+    serviceOptionId String
+    serviceOption   ServiceOption @relation(fields: [serviceOptionId], references: [id])
+    notes           String?
+    createdAt       DateTime      @default(now())
+
+    @@unique([clientId, serviceOptionId])
+}
+
+enum ClientStatus {
+    A_CONTACTER
+    CONTACTE
+    DEVIS
+    FACTURE
+    EN_COURS
+    TERMINE
+    REFUSE
+}
+
+// ─── Devis & Factures ────────────────────────
+
+model Devis {
+    id          String      @id @default(cuid())
+    number      String      @unique // ex: DEV-2025-001
+    clientId    String
+    client      Client      @relation(fields: [clientId], references: [id])
+    status      DevisStatus @default(BROUILLON)
+    validUntil  DateTime?
+    notes       String?
+    totalHT     Float       @default(0)
+    devTime     Float       @default(0) // heures totales (interne)
+    items       DevisItem[]
+    facture     Facture?
+    createdAt   DateTime    @default(now())
+    updatedAt   DateTime    @updatedAt
+}
+
+model DevisItem {
+    id              String         @id @default(cuid())
+    devisId         String
+    devis           Devis          @relation(fields: [devisId], references: [id], onDelete: Cascade)
+    label           String
+    description     String?
+    quantity        Int            @default(1)
+    unitPrice       Float
+    devTime         Float          @default(0)
+    recurring       Boolean        @default(false)
+    recurringUnit   String?
+    packId          String?
+    pack            Pack?          @relation(fields: [packId], references: [id])
+    serviceOptionId String?
+    serviceOption   ServiceOption? @relation(fields: [serviceOptionId], references: [id])
+    createdAt       DateTime       @default(now())
+}
+
+model Facture {
+    id          String        @id @default(cuid())
+    number      String        @unique // ex: FAC-2025-001
+    devisId     String        @unique
+    devis       Devis         @relation(fields: [devisId], references: [id])
+    clientId    String
+    client      Client        @relation(fields: [clientId], references: [id])
+    status      FactureStatus @default(BROUILLON)
+    totalHT     Float         @default(0)
+    paidAt      DateTime?
+    notes       String?
+    createdAt   DateTime      @default(now())
+    updatedAt   DateTime      @updatedAt
+}
+
+enum DevisStatus {
+    BROUILLON
+    ENVOYE
+    ACCEPTE
+    REFUSE
+}
+
+enum FactureStatus {
+    BROUILLON
+    ENVOYEE
+    PAYEE
+    ANNULEE
+}
+
+// ─── Portfolio ───────────────────────────────
+
+model Project {
+    id          String   @id @default(cuid())
+    name        String
+    description String
+    tag         String
+    languages   String[]
+    link        String?
+    image       String?
+    position    Int      @default(0)
+    active      Boolean  @default(true)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+}

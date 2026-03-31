@@ -1,0 +1,23 @@
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# Overrides for local development with hot reload (no image build needed)
+
+services:
+  backend:
+    build:
+      target: deps
+    command: sh -c "npx prisma generate && npx prisma migrate deploy && npm run start:dev"
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/prisma:/app/prisma
+      - ./backend/prisma.config.ts:/app/prisma.config.ts
+
+  frontend:
+    build:
+      target: deps
+    command: npm run dev
+    volumes:
+      - ./frontend/pages:/app/pages
+      - ./frontend/components:/app/components
+      - ./frontend/data:/app/data
+      - ./frontend/styles:/app/styles
+      - ./frontend/public:/app/public

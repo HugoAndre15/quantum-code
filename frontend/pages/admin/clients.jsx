@@ -1,0 +1,1060 @@
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useAuth } from "../../context/AuthContext";
+import AdminLayout from "../../components/AdminLayout";
+
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+
+const STATUS_MAP = {
+  A_CONTACTER: { label: "À contacter", color: "#aaa" },
+  CONTACTE: { label: "Contacté", color: "var(--blue)" },
+  DEVIS: { label: "Devis", color: "var(--gold)" },
+  FACTURE: { label: "Facture", color: "#c084fc" },
+  EN_COURS: { label: "En cours", color: "var(--green)" },
+  TERMINE: { label: "Terminé", color: "#22c55e" },
+  REFUSE: { label: "Refusé", color: "#ff6b6b" },
+};
+
+const ONLINE_PRESENCE_OPTIONS = [
+  "Site web (ancien)",
+  "Facebook",
+  "Instagram",
+  "Google Business",
+  "Réseaux sociaux",
+  "Aucune",
+];
+
+const STEPS = [
+  { label: "Entreprise", icon: "1" },
+  { label: "Coordonnées", icon: "2" },
+  { label: "Projet", icon: "3" },
+  { label: "Récapitulatif", icon: "4" },
+];
+
+const EMPTY_FORM = {
+  company: "",
+  trade: "",
+  contactName: "",
+  address: "",
+  phone: "",
+  email: "",
+  website: "",
+  status: "A_CONTACTER",
+  notes: "",
+  budget: "",
+  contactDate: new Date().toISOString().slice(0, 10),
+  onlinePresence: [],
+  packId: "",
+  optionIds: [],
+};
+
+export default function ClientsPage() {
+  const { user, apiFetch } = useAuth();
+
+  const [clients, setClients] = useState([]);
+  const [packs, setPacks] = useState([]);
+  const [options, setOptions] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [filterStatus, setFilterStatus] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [step, setStep] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  // Address autocomplete
+  const [addrQuery, setAddrQuery] = useState("");
+  const [addrSuggestions, setAddrSuggestions] = useState([]);
+  const [showAddrDrop, setShowAddrDrop] = useState(false);
+  const addrTimeout = useRef(null);
+
+  const fetchClients = useCallback(async () => {
+    const url = filterStatus
+      ? `${API}/clients?status=${filterStatus}`
+      : `${API}/clients`;
+    const res = await apiFetch(url);
+    if (res.ok) setClients(await res.json());
+  }, [filterStatus, apiFetch]);
+
+  const fetchMeta = useCallback(async () => {
+    const [pRes, oRes, sRes] = await Promise.all([
+      apiFetch(`${API}/offers/packs`),
+      apiFetch(`${API}/offers/options`),
+      apiFetch(`${API}/clients/stats`),
+    ]);
+    if (pRes.ok) setPacks(await pRes.json());
+    if (oRes.ok) setOptions(await oRes.json());
+    if (sRes.ok) setStats(await sRes.json());
+  }, [apiFetch]);
+
+  useEffect(() => {
+    if (user) {
+      fetchClients();
+      fetchMeta();
+    }
+  }, [user, fetchClients, fetchMeta]);
+
+  /* ---------- Address autocomplete ---------- */
+  function handleAddrInput(value) {
+    setAddrQuery(value);
+    setForm((f) => ({ ...f, address: value }));
+    clearTimeout(addrTimeout.current);
+    if (value.length < 3) {
+      setAddrSuggestions([]);
+      return;
+    }
+    addrTimeout.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(value)}&limit=5`,
+        );
+        const data = await res.json();
+        setAddrSuggestions(
+          (data.features || []).map((f) => f.properties.label),
+        );
+        setShowAddrDrop(true);
+      } catch {
+        setAddrSuggestions([]);
+      }
+    }, 300);
+  }
+
+  function selectAddr(label) {
+    setForm((f) => ({ ...f, address: label }));
+    setAddrQuery(label);
+    setShowAddrDrop(false);
+  }
+
+  /* ---------- Online presence toggle ---------- */
+  function togglePresence(val) {
+    setForm((prev) => ({
+      ...prev,
+      onlinePresence: prev.onlinePresence.includes(val)
+        ? prev.onlinePresence.filter((v) => v !== val)
+        : [...prev.onlinePresence, val],
+    }));
+  }
+
+  /* ---------- Form open / close ---------- */
+  function openCreate() {
+    setEditing(null);
+    setForm(EMPTY_FORM);
+    setAddrQuery("");
+    setStep(0);
+    setError("");
+    setShowForm(true);
+  }
+
+  function openEdit(client) {
+    setEditing(client.id);
+    const addr = client.address || "";
+    setForm({
+      company: client.company || "",
+      trade: client.trade || "",
+      contactName: client.contactName || "",
+      address: addr,
+      phone: client.phone || "",
+      email: client.email || "",
+      website: client.website || "",
+      status: client.status || "A_CONTACTER",
+      notes: client.notes || "",
+      budget: client.budget != null ? String(client.budget) : "",
+      contactDate: client.contactDate ? client.contactDate.slice(0, 10) : "",
+      onlinePresence: Array.isArray(client.onlinePresence)
+        ? client.onlinePresence
+        : [],
+      packId: client.packId || "",
+      optionIds: client.options
+        ? client.options.map((o) => o.serviceOptionId)
+        : [],
+    });
+    setAddrQuery(addr);
+    setStep(0);
+    setError("");
+    setShowForm(true);
+  }
+
+  /* ---------- Submit ---------- */
+  async function handleSubmit() {
+    setSaving(true);
+    setError("");
+
+    const body = {
+      ...form,
+      budget: form.budget ? parseFloat(form.budget) : undefined,
+      contactDate: form.contactDate || undefined,
+      packId: form.packId || undefined,
+    };
+
+    const url = editing ? `${API}/clients/${editing}` : `${API}/clients`;
+    const method = editing ? "PUT" : "POST";
+
+    const res = await apiFetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      setShowForm(false);
+      fetchClients();
+      fetchMeta();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setError(data.message || "Erreur lors de la sauvegarde");
+    }
+    setSaving(false);
+  }
+
+  async function handleDelete(id) {
+    if (!confirm("Supprimer ce client ?")) return;
+    await apiFetch(`${API}/clients/${id}`, { method: "DELETE" });
+    fetchClients();
+    fetchMeta();
+  }
+
+  function toggleOption(optId) {
+    setForm((prev) => ({
+      ...prev,
+      optionIds: prev.optionIds.includes(optId)
+        ? prev.optionIds.filter((id) => id !== optId)
+        : [...prev.optionIds, optId],
+    }));
+  }
+
+  /* ---------- Step validation ---------- */
+  function canNext() {
+    if (step === 0) return form.company && form.trade && form.contactName;
+    return true;
+  }
+
+  function nextStep() {
+    if (step < STEPS.length - 1) setStep(step + 1);
+  }
+  function prevStep() {
+    if (step > 0) setStep(step - 1);
+  }
+
+  /* ---------- Styles ---------- */
+  const inputStyle = {
+    width: "100%",
+    padding: "8px 12px",
+    fontSize: 13,
+    background: "var(--black-3)",
+    border: "1px solid var(--border-2)",
+    borderRadius: "var(--r)",
+    color: "var(--white)",
+    outline: "none",
+  };
+
+  return (
+    <AdminLayout title="Clients">
+      {/* Stats row */}
+      {stats && (
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            marginBottom: 24,
+            flexWrap: "wrap",
+          }}
+        >
+          <StatBadge label="Total" value={stats.total} color="var(--white)" />
+          {stats.byStatus &&
+            Object.entries(stats.byStatus).map(([status, count]) => (
+              <StatBadge
+                key={status}
+                label={STATUS_MAP[status]?.label || status}
+                value={count}
+                color={STATUS_MAP[status]?.color || "#aaa"}
+              />
+            ))}
+        </div>
+      )}
+
+      {/* Filter + add button */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 20,
+          flexWrap: "wrap",
+          gap: 12,
+        }}
+      >
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <FilterBtn active={!filterStatus} onClick={() => setFilterStatus("")}>
+            Tous
+          </FilterBtn>
+          {Object.entries(STATUS_MAP).map(([key, { label }]) => (
+            <FilterBtn
+              key={key}
+              active={filterStatus === key}
+              onClick={() => setFilterStatus(key)}
+            >
+              {label}
+            </FilterBtn>
+          ))}
+        </div>
+        <button
+          onClick={openCreate}
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: "#fff",
+            background: "var(--blue)",
+            border: "none",
+            borderRadius: "var(--r)",
+            padding: "8px 18px",
+            cursor: "pointer",
+          }}
+        >
+          + Nouveau client
+        </button>
+      </div>
+
+      {/* Table */}
+      <div
+        style={{
+          overflowX: "auto",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--r-m)",
+        }}
+      >
+        <table
+          style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}
+        >
+          <thead>
+            <tr
+              style={{
+                background: "var(--black-2)",
+                color: "var(--grey-3)",
+                textAlign: "left",
+                fontSize: 11,
+                textTransform: "uppercase",
+                letterSpacing: ".05em",
+              }}
+            >
+              <th style={{ padding: "12px 16px" }}>Société</th>
+              <th style={{ padding: "12px 16px" }}>Contact</th>
+              <th style={{ padding: "12px 16px" }}>Métier</th>
+              <th style={{ padding: "12px 16px" }}>Tél</th>
+              <th style={{ padding: "12px 16px" }}>Status</th>
+              <th style={{ padding: "12px 16px" }}>Pack</th>
+              <th style={{ padding: "12px 16px" }}>Budget</th>
+              <th style={{ padding: "12px 16px" }}>Date</th>
+              <th style={{ padding: "12px 16px" }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {clients.length === 0 && (
+              <tr>
+                <td
+                  colSpan={9}
+                  style={{
+                    padding: 32,
+                    textAlign: "center",
+                    color: "var(--grey-3)",
+                  }}
+                >
+                  Aucun client
+                </td>
+              </tr>
+            )}
+            {clients.map((c) => (
+              <tr
+                key={c.id}
+                style={{
+                  borderTop: "1px solid var(--border)",
+                  color: "var(--white)",
+                }}
+              >
+                <td style={{ padding: "10px 16px", fontWeight: 600 }}>
+                  {c.company}
+                </td>
+                <td style={{ padding: "10px 16px" }}>{c.contactName}</td>
+                <td style={{ padding: "10px 16px", color: "var(--grey-3)" }}>
+                  {c.trade}
+                </td>
+                <td style={{ padding: "10px 16px", color: "var(--grey-3)" }}>
+                  {c.phone || "—"}
+                </td>
+                <td style={{ padding: "10px 16px" }}>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      padding: "3px 10px",
+                      borderRadius: 99,
+                      background: `${STATUS_MAP[c.status]?.color || "#aaa"}22`,
+                      color: STATUS_MAP[c.status]?.color || "#aaa",
+                    }}
+                  >
+                    {STATUS_MAP[c.status]?.label || c.status}
+                  </span>
+                </td>
+                <td style={{ padding: "10px 16px", color: "var(--gold)" }}>
+                  {c.pack?.name || "—"}
+                </td>
+                <td style={{ padding: "10px 16px", color: "var(--green)" }}>
+                  {c.budget != null ? `${c.budget}€` : "—"}
+                </td>
+                <td style={{ padding: "10px 16px", color: "var(--grey-3)" }}>
+                  {c.contactDate
+                    ? new Date(c.contactDate).toLocaleDateString("fr-FR")
+                    : "—"}
+                </td>
+                <td style={{ padding: "10px 16px" }}>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      onClick={() => openEdit(c)}
+                      style={{
+                        fontSize: 11,
+                        padding: "4px 10px",
+                        background: "var(--black-3)",
+                        border: "1px solid var(--border-2)",
+                        borderRadius: "var(--r)",
+                        color: "var(--blue)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Modifier
+                    </button>
+                    <button
+                      onClick={() => handleDelete(c.id)}
+                      style={{
+                        fontSize: 11,
+                        padding: "4px 10px",
+                        background: "var(--black-3)",
+                        border: "1px solid var(--border-2)",
+                        borderRadius: "var(--r)",
+                        color: "#ff6b6b",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ===== Multi-step Modal Form ===== */}
+      {showForm && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={(e) => e.target === e.currentTarget && setShowForm(false)}
+        >
+          <div
+            style={{
+              background: "var(--black-2)",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--r-m)",
+              padding: 32,
+              width: "100%",
+              maxWidth: 640,
+              maxHeight: "90vh",
+              overflowY: "auto",
+            }}
+          >
+            <h2
+              style={{
+                fontSize: 18,
+                fontWeight: 700,
+                color: "var(--white)",
+                marginBottom: 20,
+              }}
+            >
+              {editing ? "Modifier le client" : "Nouveau client"}
+            </h2>
+
+            {/* Stepper */}
+            <div style={{ display: "flex", gap: 0, marginBottom: 28 }}>
+              {STEPS.map((s, i) => (
+                <div
+                  key={i}
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    position: "relative",
+                  }}
+                >
+                  <div
+                    onClick={() => i < step && setStep(i)}
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: "50%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: i < step ? "pointer" : "default",
+                      background:
+                        i === step
+                          ? "var(--blue)"
+                          : i < step
+                            ? "var(--green)"
+                            : "var(--black-3)",
+                      color: i <= step ? "#fff" : "var(--grey-3)",
+                      border: `2px solid ${i === step ? "var(--blue)" : i < step ? "var(--green)" : "var(--border-2)"}`,
+                    }}
+                  >
+                    {i < step ? "✓" : s.icon}
+                  </div>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      color: i === step ? "var(--white)" : "var(--grey-3)",
+                      marginTop: 4,
+                      fontWeight: i === step ? 600 : 400,
+                    }}
+                  >
+                    {s.label}
+                  </span>
+                  {i < STEPS.length - 1 && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: 14,
+                        left: "calc(50% + 18px)",
+                        width: "calc(100% - 36px)",
+                        height: 2,
+                        background:
+                          i < step ? "var(--green)" : "var(--border-2)",
+                      }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {error && (
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "#ff6b6b",
+                  marginBottom: 16,
+                  padding: "8px 12px",
+                  background: "rgba(255,80,80,.1)",
+                  borderRadius: "var(--r)",
+                }}
+              >
+                {error}
+              </div>
+            )}
+
+            {/* Step 0: Entreprise */}
+            {step === 0 && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 16,
+                }}
+              >
+                <Field label="Société *">
+                  <input
+                    required
+                    style={inputStyle}
+                    value={form.company}
+                    onChange={(e) =>
+                      setForm({ ...form, company: e.target.value })
+                    }
+                  />
+                </Field>
+                <Field label="Métier *">
+                  <input
+                    required
+                    style={inputStyle}
+                    value={form.trade}
+                    onChange={(e) =>
+                      setForm({ ...form, trade: e.target.value })
+                    }
+                  />
+                </Field>
+                <Field label="Nom contact *">
+                  <input
+                    required
+                    style={inputStyle}
+                    value={form.contactName}
+                    onChange={(e) =>
+                      setForm({ ...form, contactName: e.target.value })
+                    }
+                  />
+                </Field>
+                <Field label="Site web">
+                  <input
+                    style={inputStyle}
+                    value={form.website}
+                    onChange={(e) =>
+                      setForm({ ...form, website: e.target.value })
+                    }
+                  />
+                </Field>
+              </div>
+            )}
+
+            {/* Step 1: Coordonnées */}
+            {step === 1 && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 16,
+                }}
+              >
+                <Field label="Email">
+                  <input
+                    type="email"
+                    style={inputStyle}
+                    value={form.email}
+                    onChange={(e) =>
+                      setForm({ ...form, email: e.target.value })
+                    }
+                  />
+                </Field>
+                <Field label="Téléphone">
+                  <input
+                    style={inputStyle}
+                    value={form.phone}
+                    onChange={(e) =>
+                      setForm({ ...form, phone: e.target.value })
+                    }
+                  />
+                </Field>
+                <div style={{ gridColumn: "1 / -1", position: "relative" }}>
+                  <Field label="Adresse">
+                    <input
+                      style={inputStyle}
+                      value={addrQuery}
+                      placeholder="Tapez une adresse..."
+                      onChange={(e) => handleAddrInput(e.target.value)}
+                      onFocus={() =>
+                        addrSuggestions.length > 0 && setShowAddrDrop(true)
+                      }
+                      onBlur={() =>
+                        setTimeout(() => setShowAddrDrop(false), 200)
+                      }
+                    />
+                  </Field>
+                  {showAddrDrop && addrSuggestions.length > 0 && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "100%",
+                        left: 0,
+                        right: 0,
+                        zIndex: 10,
+                        background: "var(--black-3)",
+                        border: "1px solid var(--border-2)",
+                        borderRadius: "0 0 var(--r) var(--r)",
+                        maxHeight: 180,
+                        overflowY: "auto",
+                      }}
+                    >
+                      {addrSuggestions.map((s, i) => (
+                        <div
+                          key={i}
+                          onMouseDown={() => selectAddr(s)}
+                          style={{
+                            padding: "8px 12px",
+                            fontSize: 12,
+                            color: "var(--white)",
+                            cursor: "pointer",
+                            borderTop: i ? "1px solid var(--border)" : "none",
+                          }}
+                          onMouseEnter={(e) =>
+                            (e.target.style.background = "var(--black-2)")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.target.style.background = "transparent")
+                          }
+                        >
+                          {s}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Projet */}
+            {step === 2 && (
+              <div style={{ display: "grid", gap: 16 }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 16,
+                  }}
+                >
+                  <Field label="Status">
+                    <select
+                      style={inputStyle}
+                      value={form.status}
+                      onChange={(e) =>
+                        setForm({ ...form, status: e.target.value })
+                      }
+                    >
+                      {Object.entries(STATUS_MAP).map(([k, { label }]) => (
+                        <option key={k} value={k}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Budget (€)">
+                    <input
+                      type="number"
+                      style={inputStyle}
+                      value={form.budget}
+                      onChange={(e) =>
+                        setForm({ ...form, budget: e.target.value })
+                      }
+                    />
+                  </Field>
+                  <Field label="Date de contact">
+                    <input
+                      type="date"
+                      style={inputStyle}
+                      value={form.contactDate}
+                      onChange={(e) =>
+                        setForm({ ...form, contactDate: e.target.value })
+                      }
+                    />
+                  </Field>
+                  <Field label="Pack">
+                    <select
+                      style={inputStyle}
+                      value={form.packId}
+                      onChange={(e) =>
+                        setForm({ ...form, packId: e.target.value })
+                      }
+                    >
+                      <option value="">— Aucun —</option>
+                      {packs.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.price}€)
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+
+                {/* Online presence multi-select */}
+                <Field label="Présence en ligne">
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 8,
+                      marginTop: 4,
+                    }}
+                  >
+                    {ONLINE_PRESENCE_OPTIONS.map((opt) => {
+                      const active = form.onlinePresence.includes(opt);
+                      return (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => togglePresence(opt)}
+                          style={{
+                            fontSize: 12,
+                            padding: "5px 12px",
+                            borderRadius: "var(--r)",
+                            cursor: "pointer",
+                            border: `1px solid ${active ? "var(--blue)" : "var(--border-2)"}`,
+                            background: active
+                              ? "rgba(45,111,255,.12)"
+                              : "transparent",
+                            color: active ? "var(--blue)" : "var(--grey-3)",
+                            fontWeight: active ? 600 : 400,
+                          }}
+                        >
+                          {active ? "✓ " : ""}
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Field>
+
+                {/* Options checkboxes */}
+                {options.length > 0 && (
+                  <Field label="Options">
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 8,
+                        marginTop: 4,
+                      }}
+                    >
+                      {options.map((opt) => {
+                        const active = form.optionIds.includes(opt.id);
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => toggleOption(opt.id)}
+                            style={{
+                              fontSize: 12,
+                              padding: "5px 12px",
+                              borderRadius: "var(--r)",
+                              cursor: "pointer",
+                              border: `1px solid ${active ? "var(--gold)" : "var(--border-2)"}`,
+                              background: active
+                                ? "rgba(240,192,64,.1)"
+                                : "transparent",
+                              color: active ? "var(--gold)" : "var(--grey-3)",
+                              fontWeight: active ? 600 : 400,
+                            }}
+                          >
+                            {active ? "✓ " : ""}
+                            {opt.name} ({opt.price}€)
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </Field>
+                )}
+
+                <Field label="Notes">
+                  <textarea
+                    style={{ ...inputStyle, minHeight: 60, resize: "vertical" }}
+                    value={form.notes}
+                    onChange={(e) =>
+                      setForm({ ...form, notes: e.target.value })
+                    }
+                  />
+                </Field>
+              </div>
+            )}
+
+            {/* Step 3: Récapitulatif */}
+            {step === 3 && (
+              <div style={{ display: "grid", gap: 12 }}>
+                <RecapRow label="Société" value={form.company} />
+                <RecapRow label="Métier" value={form.trade} />
+                <RecapRow label="Contact" value={form.contactName} />
+                <RecapRow label="Email" value={form.email} />
+                <RecapRow label="Téléphone" value={form.phone} />
+                <RecapRow label="Adresse" value={form.address} />
+                <RecapRow label="Site web" value={form.website} />
+                <RecapRow
+                  label="Status"
+                  value={STATUS_MAP[form.status]?.label || form.status}
+                  color={STATUS_MAP[form.status]?.color}
+                />
+                <RecapRow
+                  label="Budget"
+                  value={form.budget ? `${form.budget}€` : "—"}
+                />
+                <RecapRow
+                  label="Pack"
+                  value={packs.find((p) => p.id === form.packId)?.name || "—"}
+                />
+                <RecapRow
+                  label="Options"
+                  value={
+                    form.optionIds.length > 0
+                      ? form.optionIds
+                          .map((id) => options.find((o) => o.id === id)?.name)
+                          .filter(Boolean)
+                          .join(", ")
+                      : "—"
+                  }
+                />
+                <RecapRow
+                  label="Présence en ligne"
+                  value={
+                    form.onlinePresence.length > 0
+                      ? form.onlinePresence.join(", ")
+                      : "—"
+                  }
+                />
+                <RecapRow label="Notes" value={form.notes || "—"} />
+              </div>
+            )}
+
+            {/* Navigation */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginTop: 28,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => (step === 0 ? setShowForm(false) : prevStep())}
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  padding: "8px 18px",
+                  background: "var(--black-3)",
+                  border: "1px solid var(--border-2)",
+                  borderRadius: "var(--r)",
+                  color: "var(--grey-3)",
+                  cursor: "pointer",
+                }}
+              >
+                {step === 0 ? "Annuler" : "← Précédent"}
+              </button>
+
+              {step < STEPS.length - 1 ? (
+                <button
+                  type="button"
+                  onClick={nextStep}
+                  disabled={!canNext()}
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    padding: "8px 22px",
+                    background: "var(--blue)",
+                    border: "none",
+                    borderRadius: "var(--r)",
+                    color: "#fff",
+                    cursor: "pointer",
+                    opacity: canNext() ? 1 : 0.4,
+                  }}
+                >
+                  Suivant →
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={saving}
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    padding: "8px 22px",
+                    background: "var(--green)",
+                    border: "none",
+                    borderRadius: "var(--r)",
+                    color: "#fff",
+                    cursor: "pointer",
+                    opacity: saving ? 0.6 : 1,
+                  }}
+                >
+                  {saving
+                    ? "..."
+                    : editing
+                      ? "Mettre à jour"
+                      : "✓ Créer le client"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </AdminLayout>
+  );
+}
+
+/* ---------- Utility components ---------- */
+
+function Field({ label, children }) {
+  return (
+    <div style={{ marginBottom: 4 }}>
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          color: "var(--grey-3)",
+          textTransform: "uppercase",
+          letterSpacing: ".05em",
+          marginBottom: 4,
+          display: "block",
+        }}
+      >
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+function RecapRow({ label, value, color }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        padding: "6px 0",
+        borderBottom: "1px solid var(--border)",
+      }}
+    >
+      <span style={{ fontSize: 12, color: "var(--grey-3)" }}>{label}</span>
+      <span
+        style={{
+          fontSize: 12,
+          fontWeight: 600,
+          color: color || "var(--white)",
+          textAlign: "right",
+          maxWidth: "60%",
+          wordBreak: "break-word",
+        }}
+      >
+        {value || "—"}
+      </span>
+    </div>
+  );
+}
+
+function StatBadge({ label, value, color }) {
+  return (
+    <div
+      style={{
+        background: "var(--black-2)",
+        border: "1px solid var(--border)",
+        borderRadius: "var(--r)",
+        padding: "8px 16px",
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+      }}
+    >
+      <span style={{ fontSize: 11, color: "var(--grey-3)" }}>{label}</span>
+      <span style={{ fontSize: 14, fontWeight: 700, color }}>{value}</span>
+    </div>
+  );
+}
+
+function FilterBtn({ active, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        fontSize: 11,
+        fontWeight: 600,
+        padding: "5px 12px",
+        borderRadius: "var(--r)",
+        border: `1px solid ${active ? "var(--blue)" : "var(--border-2)"}`,
+        background: active ? "rgba(45,111,255,.12)" : "transparent",
+        color: active ? "var(--blue)" : "var(--grey-3)",
+        cursor: "pointer",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
