@@ -167,7 +167,7 @@ export default function OffersPage() {
       devTime: optForm.devTime ? parseFloat(optForm.devTime) : 0,
       category: optForm.category || "general",
       recurring: optForm.recurring,
-      recurringUnit: optForm.recurring ? (optForm.recurringUnit || "mois") : null,
+      recurringUnit: optForm.recurring ? optForm.recurringUnit || "mois" : null,
       active: optForm.active,
     };
 
@@ -302,12 +302,31 @@ export default function OffersPage() {
                       </span>
                     )}
                   </div>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 12, margin: "8px 0" }}>
-                    <span style={{ fontSize: 22, fontWeight: 700, color: "var(--gold)" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "baseline",
+                      gap: 12,
+                      margin: "8px 0",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 22,
+                        fontWeight: 700,
+                        color: "var(--gold)",
+                      }}
+                    >
                       {p.price}€
                     </span>
                     {p.devTime > 0 && (
-                      <span style={{ fontSize: 12, color: "var(--blue)", fontWeight: 600 }}>
+                      <span
+                        style={{
+                          fontSize: 12,
+                          color: "var(--blue)",
+                          fontWeight: 600,
+                        }}
+                      >
                         ⏱ {p.devTime}h
                       </span>
                     )}
@@ -441,7 +460,13 @@ export default function OffersPage() {
                     {o.price}€{o.recurring ? `/${o.recurringUnit}` : ""}
                   </span>
                   {o.devTime > 0 && (
-                    <span style={{ fontSize: 11, color: "var(--blue)", fontWeight: 600 }}>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: "var(--blue)",
+                        fontWeight: 600,
+                      }}
+                    >
                       ⏱ {o.devTime}h
                     </span>
                   )}
@@ -663,7 +688,13 @@ export default function OffersPage() {
                 type="checkbox"
                 checked={optForm.recurring}
                 onChange={(e) =>
-                  setOptForm({ ...optForm, recurring: e.target.checked, recurringUnit: e.target.checked ? (optForm.recurringUnit || "mois") : "" })
+                  setOptForm({
+                    ...optForm,
+                    recurring: e.target.checked,
+                    recurringUnit: e.target.checked
+                      ? optForm.recurringUnit || "mois"
+                      : "",
+                  })
                 }
               />
               Récurrent

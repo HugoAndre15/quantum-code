@@ -66,7 +66,10 @@ export default function PortfolioPage() {
       description: form.description,
       tag: form.tag,
       languages: form.languages
-        ? form.languages.split(",").map((l) => l.trim()).filter(Boolean)
+        ? form.languages
+            .split(",")
+            .map((l) => l.trim())
+            .filter(Boolean)
         : [],
       link: form.link || undefined,
       image: form.image || undefined,
@@ -112,10 +115,10 @@ export default function PortfolioPage() {
 
   const TAG_COLORS = {
     "Application web": "#2D6FFF",
-    "Vitrine": "#5DD8A0",
+    Vitrine: "#5DD8A0",
     "E-commerce": "#F0C040",
-    "SaaS": "#FF6B6B",
-    "Booking": "#A78BFA",
+    SaaS: "#FF6B6B",
+    Booking: "#A78BFA",
   };
 
   return (
@@ -140,7 +143,9 @@ export default function PortfolioPage() {
           >
             Projets ({projects.length})
           </h2>
-          <p style={{ fontSize: 12, color: "var(--grey-3)", margin: "4px 0 0" }}>
+          <p
+            style={{ fontSize: 12, color: "var(--grey-3)", margin: "4px 0 0" }}
+          >
             Gérez les projets affichés dans votre portfolio.
           </p>
         </div>

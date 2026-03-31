@@ -64,7 +64,7 @@ model ServiceOption {
     category      String         @default("general")
     devTime       Float          @default(0) // heures estimées
     recurring     Boolean        @default(false)
-    recurringUnit String?        // "mois", "an"
+    recurringUnit String? // "mois", "an"
     active        Boolean        @default(true)
     clientOptions ClientOption[]
     devisItems    DevisItem[]
@@ -127,19 +127,19 @@ enum ClientStatus {
 // ─── Devis & Factures ────────────────────────
 
 model Devis {
-    id          String      @id @default(cuid())
-    number      String      @unique // ex: DEV-2025-001
-    clientId    String
-    client      Client      @relation(fields: [clientId], references: [id])
-    status      DevisStatus @default(BROUILLON)
-    validUntil  DateTime?
-    notes       String?
-    totalHT     Float       @default(0)
-    devTime     Float       @default(0) // heures totales (interne)
-    items       DevisItem[]
-    facture     Facture?
-    createdAt   DateTime    @default(now())
-    updatedAt   DateTime    @updatedAt
+    id         String      @id @default(cuid())
+    number     String      @unique // ex: DEV-2025-001
+    clientId   String
+    client     Client      @relation(fields: [clientId], references: [id])
+    status     DevisStatus @default(BROUILLON)
+    validUntil DateTime?
+    notes      String?
+    totalHT    Float       @default(0)
+    devTime    Float       @default(0) // heures totales (interne)
+    items      DevisItem[]
+    facture    Facture?
+    createdAt  DateTime    @default(now())
+    updatedAt  DateTime    @updatedAt
 }
 
 model DevisItem {
@@ -161,18 +161,18 @@ model DevisItem {
 }
 
 model Facture {
-    id          String        @id @default(cuid())
-    number      String        @unique // ex: FAC-2025-001
-    devisId     String        @unique
-    devis       Devis         @relation(fields: [devisId], references: [id])
-    clientId    String
-    client      Client        @relation(fields: [clientId], references: [id])
-    status      FactureStatus @default(BROUILLON)
-    totalHT     Float         @default(0)
-    paidAt      DateTime?
-    notes       String?
-    createdAt   DateTime      @default(now())
-    updatedAt   DateTime      @updatedAt
+    id        String        @id @default(cuid())
+    number    String        @unique // ex: FAC-2025-001
+    devisId   String        @unique
+    devis     Devis         @relation(fields: [devisId], references: [id])
+    clientId  String
+    client    Client        @relation(fields: [clientId], references: [id])
+    status    FactureStatus @default(BROUILLON)
+    totalHT   Float         @default(0)
+    paidAt    DateTime?
+    notes     String?
+    createdAt DateTime      @default(now())
+    updatedAt DateTime      @updatedAt
 }
 
 enum DevisStatus {
