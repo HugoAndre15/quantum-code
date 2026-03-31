@@ -3,6 +3,13 @@ import { useAuth } from "../../context/AuthContext";
 import AdminLayout from "../../components/AdminLayout";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+const BACKEND_URL = API.replace("/api", "");
+
+function resolveImage(src) {
+  if (!src) return "";
+  if (src.startsWith("/uploads")) return `${BACKEND_URL}${src}`;
+  return src;
+}
 
 const EMPTY = {
   name: "",
@@ -23,6 +30,8 @@ export default function PortfolioPage() {
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState("");
 
   const fetchProjects = useCallback(async () => {
     const res = await apiFetch(`${API}/portfolio`);
@@ -37,6 +46,8 @@ export default function PortfolioPage() {
     setEditId(null);
     setForm(EMPTY);
     setError("");
+    setImageFile(null);
+    setImagePreview("");
     setShowForm(true);
   }
 
@@ -53,6 +64,8 @@ export default function PortfolioPage() {
       active: p.active !== false,
     });
     setError("");
+    setImageFile(null);
+    setImagePreview(p.image || "");
     setShowForm(true);
   }
 
@@ -60,6 +73,33 @@ export default function PortfolioPage() {
     e.preventDefault();
     setSaving(true);
     setError("");
+
+    let imageUrl = form.image || undefined;
+
+    // Upload image file if selected
+    if (imageFile) {
+      try {
+        const formData = new FormData();
+        formData.append("image", imageFile);
+        const uploadRes = await apiFetch(`${API}/portfolio/upload`, {
+          method: "POST",
+          body: formData,
+        });
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          imageUrl = uploadData.url;
+        } else {
+          const errData = await uploadRes.json().catch(() => ({}));
+          setError(errData.message || "Erreur lors de l'upload de l'image");
+          setSaving(false);
+          return;
+        }
+      } catch {
+        setError("Erreur lors de l'upload de l'image");
+        setSaving(false);
+        return;
+      }
+    }
 
     const body = {
       name: form.name,
@@ -72,7 +112,7 @@ export default function PortfolioPage() {
             .filter(Boolean)
         : [],
       link: form.link || undefined,
-      image: form.image || undefined,
+      image: imageUrl,
       position: parseInt(form.position) || 0,
       active: form.active,
     };
@@ -280,37 +320,110 @@ export default function PortfolioPage() {
               </div>
             </div>
 
-            {/* Lien + Image */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 14,
-                marginTop: 14,
-              }}
-            >
-              <div>
-                <label style={labelStyle}>Lien</label>
+            {/* Lien */}
+            <div style={{ marginTop: 14 }}>
+              <label style={labelStyle}>Lien</label>
+              <input
+                style={inputStyle}
+                value={form.link}
+                onChange={(e) => setForm({ ...form, link: e.target.value })}
+                placeholder="https://..."
+              />
+            </div>
+
+            {/* Image upload */}
+            <div style={{ marginTop: 14 }}>
+              <label style={labelStyle}>Image</label>
+              <div
+                style={{
+                  border: "2px dashed var(--border-2)",
+                  borderRadius: 8,
+                  padding: 16,
+                  textAlign: "center",
+                  cursor: "pointer",
+                  transition: "border-color .15s",
+                  position: "relative",
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.style.borderColor = "var(--blue)";
+                }}
+                onDragLeave={(e) => {
+                  e.currentTarget.style.borderColor = "var(--border-2)";
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.style.borderColor = "var(--border-2)";
+                  const file = e.dataTransfer.files[0];
+                  if (file && file.type.startsWith("image/")) {
+                    setImageFile(file);
+                    setImagePreview(URL.createObjectURL(file));
+                    setForm({ ...form, image: "" });
+                  }
+                }}
+                onClick={() => document.getElementById("portfolio-image-input")?.click()}
+              >
                 <input
-                  style={inputStyle}
-                  value={form.link}
-                  onChange={(e) => setForm({ ...form, link: e.target.value })}
-                  placeholder="https://..."
+                  id="portfolio-image-input"
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setImageFile(file);
+                      setImagePreview(URL.createObjectURL(file));
+                      setForm({ ...form, image: "" });
+                    }
+                  }}
                 />
-              </div>
-              <div>
-                <label style={labelStyle}>
-                  Image{" "}
-                  <span style={{ fontWeight: 400, color: "var(--grey-3)" }}>
-                    (URL ou chemin)
-                  </span>
-                </label>
-                <input
-                  style={inputStyle}
-                  value={form.image}
-                  onChange={(e) => setForm({ ...form, image: e.target.value })}
-                  placeholder="/images/projet.jpg"
-                />
+
+                {(imagePreview || form.image) ? (
+                  <div style={{ position: "relative", display: "inline-block" }}>
+                    <img
+                      src={
+                        imageFile
+                          ? imagePreview
+                          : resolveImage(form.image || imagePreview)
+                      }
+                      alt="Aperçu"
+                      style={{
+                        maxWidth: "100%",
+                        maxHeight: 150,
+                        borderRadius: 6,
+                        objectFit: "cover",
+                      }}
+                      onError={(e) => {
+                        e.target.style.display = "none";
+                      }}
+                    />
+                    <div style={{ marginTop: 8, fontSize: 11, color: "var(--grey-3)" }}>
+                      {imageFile ? imageFile.name : "Image actuelle"}
+                      {" — "}
+                      <span
+                        style={{ color: "var(--blue)", cursor: "pointer" }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setImageFile(null);
+                          setImagePreview("");
+                          setForm({ ...form, image: "" });
+                        }}
+                      >
+                        Supprimer
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize: 28, opacity: 0.3, marginBottom: 6 }}>📷</div>
+                    <div style={{ fontSize: 12, color: "var(--grey-3)" }}>
+                      Cliquez ou glissez une image ici
+                    </div>
+                    <div style={{ fontSize: 10, color: "var(--grey-3)", marginTop: 4, opacity: 0.6 }}>
+                      JPG, PNG, GIF, WebP, SVG — Max 5 Mo
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -460,7 +573,7 @@ export default function PortfolioPage() {
                   }}
                 >
                   <img
-                    src={p.image}
+                    src={resolveImage(p.image)}
                     alt={p.name}
                     style={{
                       width: "100%",

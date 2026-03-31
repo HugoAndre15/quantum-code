@@ -26,5 +26,8 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./
 
+# Create uploads directory
+RUN mkdir -p /app/uploads/portfolio
+
 EXPOSE 3001
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/src/main"]
+CMD ["sh", "-c", "npx prisma db push --skip-generate && node prisma/seed.js && node dist/src/main"]

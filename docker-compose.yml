@@ -38,6 +38,8 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-contact@quantumcode.dev}
       PORT: 3001
+    volumes:
+      - uploads_data:/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -57,3 +59,4 @@ services:
 
 volumes:
   pg_data:
+  uploads_data:
