@@ -38,6 +38,7 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-contact@quantumcode.dev}
       PORT: 3001
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     volumes:
       - uploads_data:/app/uploads
     depends_on:
@@ -53,7 +54,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3001/api
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api}
     depends_on:
       - backend
 
