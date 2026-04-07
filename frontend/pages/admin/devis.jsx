@@ -11,7 +11,7 @@ import {
   StatBadge,
 } from "../../components/admin/SharedUI";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+const API = "/api";
 
 const STATUS_MAP = {
   BROUILLON: { label: "Brouillon", color: "#aaa" },

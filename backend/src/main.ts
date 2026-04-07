@@ -1,5 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import * as cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { AppModule } from './app.module';
@@ -10,6 +12,12 @@ async function bootstrap() {
   });
 
   app.setGlobalPrefix('api');
+
+  // Security headers
+  app.use(helmet());
+
+  // Cookie parser for httpOnly auth cookies
+  app.use(cookieParser());
 
   // Increase body size limit for file uploads
   app.useBodyParser('json', { limit: '10mb' });
@@ -28,14 +36,13 @@ async function bootstrap() {
     }),
   );
 
-  const allowedOrigins = process.env.FRONTEND_URL
-    ? process.env.FRONTEND_URL.split(',').map((o) => o.trim())
+  // CORS — configurable via env
+  const allowedOrigins = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
     : ['http://localhost:3000'];
 
   app.enableCors({
     origin: allowedOrigins,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   });
 

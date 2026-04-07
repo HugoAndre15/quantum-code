@@ -14,7 +14,7 @@ import {
   TabBar,
 } from "../../components/admin/SharedUI";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+const API = "/api";
 
 const EMPTY_PACK = {
   name: "",

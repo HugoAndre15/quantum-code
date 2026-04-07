@@ -13,11 +13,13 @@ import {
 import { Response } from 'express';
 import { FacturesService } from './factures.service';
 import { UpdateFactureDto } from './dto/facture.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt.guard';
+import { JwtAuthGuard, RoleGuard } from '../auth/guards/jwt.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { PdfService } from '../pdf/pdf.service';
 import { MailService } from '../mail/mail.service';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RoleGuard)
+@Roles('ADMIN', 'SUPER_ADMIN')
 @Controller('factures')
 export class FacturesController {
   constructor(

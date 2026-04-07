@@ -12,12 +12,11 @@ import {
   PageHeader,
 } from "../../components/admin/SharedUI";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
-const BACKEND_URL = API.replace("/api", "");
+const API = "/api";
 
 function resolveImage(src) {
   if (!src) return "";
-  if (src.startsWith("/uploads")) return `${BACKEND_URL}${src}`;
+  if (src.startsWith("/uploads")) return `/api${src}`;
   return src;
 }
 
@@ -262,97 +261,118 @@ export default function PortfolioPage() {
 
             <div style={{ marginTop: 14 }}>
               <Field label="Image">
-              <div
-                style={{
-                  border: "2px dashed var(--border-2)",
-                  borderRadius: 8,
-                  padding: 16,
-                  textAlign: "center",
-                  cursor: "pointer",
-                  transition: "border-color .15s",
-                  position: "relative",
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.currentTarget.style.borderColor = "var(--blue)";
-                }}
-                onDragLeave={(e) => {
-                  e.currentTarget.style.borderColor = "var(--border-2)";
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  e.currentTarget.style.borderColor = "var(--border-2)";
-                  const file = e.dataTransfer.files[0];
-                  if (file && file.type.startsWith("image/")) {
-                    setImageFile(file);
-                    setImagePreview(URL.createObjectURL(file));
-                    setForm({ ...form, image: "" });
-                  }
-                }}
-                onClick={() => document.getElementById("portfolio-image-input")?.click()}
-              >
-                <input
-                  id="portfolio-image-input"
-                  type="file"
-                  accept="image/*"
-                  style={{ display: "none" }}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
+                <div
+                  style={{
+                    border: "2px dashed var(--border-2)",
+                    borderRadius: 8,
+                    padding: 16,
+                    textAlign: "center",
+                    cursor: "pointer",
+                    transition: "border-color .15s",
+                    position: "relative",
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.style.borderColor = "var(--blue)";
+                  }}
+                  onDragLeave={(e) => {
+                    e.currentTarget.style.borderColor = "var(--border-2)";
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.style.borderColor = "var(--border-2)";
+                    const file = e.dataTransfer.files[0];
+                    if (file && file.type.startsWith("image/")) {
                       setImageFile(file);
                       setImagePreview(URL.createObjectURL(file));
                       setForm({ ...form, image: "" });
                     }
                   }}
-                />
-
-                {(imagePreview || form.image) ? (
-                  <div style={{ position: "relative", display: "inline-block" }}>
-                    <img
-                      src={
-                        imageFile
-                          ? imagePreview
-                          : resolveImage(form.image || imagePreview)
+                  onClick={() =>
+                    document.getElementById("portfolio-image-input")?.click()
+                  }
+                >
+                  <input
+                    id="portfolio-image-input"
+                    type="file"
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setImageFile(file);
+                        setImagePreview(URL.createObjectURL(file));
+                        setForm({ ...form, image: "" });
                       }
-                      alt="Aperçu"
-                      style={{
-                        maxWidth: "100%",
-                        maxHeight: 150,
-                        borderRadius: 6,
-                        objectFit: "cover",
-                      }}
-                      onError={(e) => {
-                        e.target.style.display = "none";
-                      }}
-                    />
-                    <div style={{ marginTop: 8, fontSize: 11, color: "var(--grey-3)" }}>
-                      {imageFile ? imageFile.name : "Image actuelle"}
-                      {" — "}
-                      <span
-                        style={{ color: "var(--blue)", cursor: "pointer" }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setImageFile(null);
-                          setImagePreview("");
-                          setForm({ ...form, image: "" });
+                    }}
+                  />
+
+                  {imagePreview || form.image ? (
+                    <div
+                      style={{ position: "relative", display: "inline-block" }}
+                    >
+                      <img
+                        src={
+                          imageFile
+                            ? imagePreview
+                            : resolveImage(form.image || imagePreview)
+                        }
+                        alt="Aperçu"
+                        style={{
+                          maxWidth: "100%",
+                          maxHeight: 150,
+                          borderRadius: 6,
+                          objectFit: "cover",
+                        }}
+                        onError={(e) => {
+                          e.target.style.display = "none";
+                        }}
+                      />
+                      <div
+                        style={{
+                          marginTop: 8,
+                          fontSize: 11,
+                          color: "var(--grey-3)",
                         }}
                       >
-                        Supprimer
-                      </span>
+                        {imageFile ? imageFile.name : "Image actuelle"}
+                        {" — "}
+                        <span
+                          style={{ color: "var(--blue)", cursor: "pointer" }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setImageFile(null);
+                            setImagePreview("");
+                            setForm({ ...form, image: "" });
+                          }}
+                        >
+                          Supprimer
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div>
-                    <div style={{ fontSize: 28, opacity: 0.3, marginBottom: 6 }}>📷</div>
-                    <div style={{ fontSize: 12, color: "var(--grey-3)" }}>
-                      Cliquez ou glissez une image ici
+                  ) : (
+                    <div>
+                      <div
+                        style={{ fontSize: 28, opacity: 0.3, marginBottom: 6 }}
+                      >
+                        📷
+                      </div>
+                      <div style={{ fontSize: 12, color: "var(--grey-3)" }}>
+                        Cliquez ou glissez une image ici
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 10,
+                          color: "var(--grey-3)",
+                          marginTop: 4,
+                          opacity: 0.6,
+                        }}
+                      >
+                        JPG, PNG, GIF, WebP, SVG — Max 5 Mo
+                      </div>
                     </div>
-                    <div style={{ fontSize: 10, color: "var(--grey-3)", marginTop: 4, opacity: 0.6 }}>
-                      JPG, PNG, GIF, WebP, SVG — Max 5 Mo
-                    </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
               </Field>
             </div>
 
@@ -574,10 +594,18 @@ export default function PortfolioPage() {
 
               {/* Actions */}
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                <SmallBtn color="var(--blue)" onClick={() => openEdit(p)} title="Modifier">
+                <SmallBtn
+                  color="var(--blue)"
+                  onClick={() => openEdit(p)}
+                  title="Modifier"
+                >
                   ✎ Modifier
                 </SmallBtn>
-                <SmallBtn color="#ff6b6b" onClick={() => deleteProject(p.id)} title="Supprimer">
+                <SmallBtn
+                  color="#ff6b6b"
+                  onClick={() => deleteProject(p.id)}
+                  title="Supprimer"
+                >
                   🗑
                 </SmallBtn>
               </div>

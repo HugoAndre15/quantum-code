@@ -54,7 +54,12 @@ export class AuthService {
     return this.generateTokens(user.id, user.email, user.role);
   }
 
-  async refresh(userId: string, email: string, role: string) {
+  async refresh(userId: string, email: string, role: string, oldRefreshToken?: string) {
+    if (oldRefreshToken) {
+      await this.prisma.refreshToken.deleteMany({
+        where: { token: oldRefreshToken },
+      });
+    }
     return this.generateTokens(userId, email, role);
   }
 

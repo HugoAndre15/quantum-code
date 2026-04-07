@@ -15,7 +15,7 @@ import {
   InfoItem,
 } from "../../components/admin/SharedUI";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+const API = "/api";
 
 const STATUS_MAP = {
   A_CONTACTER: { label: "À contacter", color: "#aaa" },

@@ -4,7 +4,11 @@ export default function Document() {
   return (
     <Html lang="fr">
       <Head>
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" href="/images/high-resolution-color-logo (1).png" />
+        <link
+          rel="apple-touch-icon"
+          href="/images/high-resolution-color-logo (1).png"
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"

@@ -2,12 +2,12 @@
 import { useState, useEffect } from "react";
 import { gradients } from "../data/siteData";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
-const BACKEND_URL = API.replace("/api", "");
+const API = "/api";
+const BACKEND_URL = "";
 
 function resolveImage(src) {
   if (!src) return "";
-  if (src.startsWith("/uploads")) return `${BACKEND_URL}${src}`;
+  if (src.startsWith("/uploads")) return `/api${src}`;
   return src;
 }
 
