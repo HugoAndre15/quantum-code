@@ -9,6 +9,8 @@ import { FacturesModule } from './factures/factures.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
 import { PromoCodesModule } from './promo-codes/promo-codes.module';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 
 @Module({
   imports: [
@@ -23,5 +25,7 @@ import { PromoCodesModule } from './promo-codes/promo-codes.module';
     PortfolioModule,
     PromoCodesModule,
   ],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}
