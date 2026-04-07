@@ -7,7 +7,7 @@ import {
 } from "react";
 import { useRouter } from "next/router";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+const API = "/api";
 
 const AuthContext = createContext(null);
 
@@ -17,29 +17,20 @@ export function AuthProvider({ children }) {
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      fetchProfile(token);
-    } else {
-      setLoading(false);
-    }
+    fetchProfile();
   }, []);
 
-  async function fetchProfile(token) {
+  async function fetchProfile() {
     try {
       const res = await fetch(`${API}/auth/profile`, {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
       });
       if (res.ok) {
         const data = await res.json();
         setUser(data);
-      } else {
-        // Try refresh before giving up
+      } else if (res.status === 401) {
         const refreshed = await tryRefresh();
-        if (!refreshed) {
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
-        }
+        if (!refreshed) setUser(null);
       }
     } catch {
       // API unreachable
@@ -49,27 +40,19 @@ export function AuthProvider({ children }) {
   }
 
   async function tryRefresh() {
-    const refreshToken = localStorage.getItem("refreshToken");
-    if (!refreshToken) return false;
-
     try {
       const res = await fetch(`${API}/auth/refresh`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken }),
+        credentials: "include",
       });
       if (res.ok) {
         const data = await res.json();
-        localStorage.setItem("accessToken", data.accessToken);
-        localStorage.setItem("refreshToken", data.refreshToken);
         setUser(data.user);
         return true;
       }
     } catch {
       // ignore
     }
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
     setUser(null);
     return false;
   }
@@ -77,13 +60,12 @@ export function AuthProvider({ children }) {
   // Wrapper around fetch that auto-refreshes on 401
   const apiFetch = useCallback(
     async (url, options = {}) => {
-      const token = localStorage.getItem("accessToken");
       const opts = {
         ...options,
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
           ...options.headers,
-          Authorization: `Bearer ${token}`,
         },
       };
 
@@ -92,8 +74,6 @@ export function AuthProvider({ children }) {
       if (res.status === 401) {
         const refreshed = await tryRefresh();
         if (refreshed) {
-          const newToken = localStorage.getItem("accessToken");
-          opts.headers.Authorization = `Bearer ${newToken}`;
           res = await fetch(url, opts);
         } else {
           router.push("/login");
@@ -108,6 +88,7 @@ export function AuthProvider({ children }) {
   async function login(email, password) {
     const res = await fetch(`${API}/auth/login`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
@@ -118,31 +99,19 @@ export function AuthProvider({ children }) {
     }
 
     const data = await res.json();
-    localStorage.setItem("accessToken", data.accessToken);
-    localStorage.setItem("refreshToken", data.refreshToken);
     setUser(data.user);
     return data.user;
   }
 
   async function logout() {
-    const refreshToken = localStorage.getItem("refreshToken");
-    const accessToken = localStorage.getItem("accessToken");
-
     try {
       await fetch(`${API}/auth/logout`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ refreshToken }),
+        credentials: "include",
       });
     } catch {
       // ignore
     }
-
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
     setUser(null);
     router.push("/login");
   }

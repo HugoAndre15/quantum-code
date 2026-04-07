@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { gradients } from "../data/siteData";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+const API = "/api";
 
 // Grille featured : disposition [large, petite, petite, large]
 const FEATURED_LAYOUT = [

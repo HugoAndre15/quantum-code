@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import AdminLayout from "../../components/AdminLayout";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+const API = "/api";
 
 const EMPTY_PACK = {
   name: "",

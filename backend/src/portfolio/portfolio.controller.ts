@@ -9,7 +9,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { PortfolioService } from './portfolio.service';
-import { JwtAuthGuard } from '../auth/guards/jwt.guard';
+import { JwtAuthGuard, RoleGuard } from '../auth/guards/jwt.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('portfolio')
 export class PortfolioController {
@@ -20,19 +21,22 @@ export class PortfolioController {
     return this.portfolio.findAllPublic();
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   @Get()
   findAll() {
     return this.portfolio.findAll();
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.portfolio.findOne(id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   @Post()
   create(
     @Body()
@@ -50,7 +54,8 @@ export class PortfolioController {
     return this.portfolio.create(body);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   @Put(':id')
   update(
     @Param('id') id: string,
@@ -69,7 +74,8 @@ export class PortfolioController {
     return this.portfolio.update(id, body);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.portfolio.remove(id);

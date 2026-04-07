@@ -37,6 +37,7 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-contact@quantumcode.dev}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       PORT: 3001
     depends_on:
       db:
@@ -51,7 +52,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3001/api
+      INTERNAL_API_URL: http://backend:3001
     depends_on:
       - backend
 

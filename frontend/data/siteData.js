@@ -190,17 +190,17 @@ export const contactInfo = [
   {
     ico: "✉️",
     label: "Email",
-    value: "hello@quantumcode.dev",
+    value: "contact@quantum-code.fr",
   },
   {
     ico: "📞",
     label: "Téléphone",
-    value: "+33 6 XX XX XX XX",
+    value: "+33 6 03 68 11 98",
   },
   {
     ico: "📍",
     label: "Localisation",
-    value: "Oise, Hauts-de-France (remote OK)",
+    value: "Oise, Hauts-de-France",
   },
 ];
 

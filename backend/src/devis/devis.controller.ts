@@ -13,11 +13,13 @@ import {
 import { Response } from 'express';
 import { DevisService } from './devis.service';
 import { CreateDevisDto, UpdateDevisDto } from './dto/devis.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt.guard';
+import { JwtAuthGuard, RoleGuard } from '../auth/guards/jwt.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { PdfService } from '../pdf/pdf.service';
 import { MailService } from '../mail/mail.service';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RoleGuard)
+@Roles('ADMIN', 'SUPER_ADMIN')
 @Controller('devis')
 export class DevisController {
   constructor(

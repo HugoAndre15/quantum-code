@@ -16,9 +16,11 @@ import {
   CreateOptionDto,
   UpdateOptionDto,
 } from './dto/offers.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt.guard';
+import { JwtAuthGuard, RoleGuard } from '../auth/guards/jwt.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RoleGuard)
+@Roles('ADMIN', 'SUPER_ADMIN')
 @Controller('offers')
 export class OffersController {
   constructor(private offers: OffersService) {}

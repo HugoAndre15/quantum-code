@@ -1,11 +1,32 @@
 "use client";
-import { useState, useEffect } from "react";
-import Link from "next/link";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/router";
+import Image from "next/image";
 import { navLinks, siteConfig } from "../data/siteData";
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const clickCount = useRef(0);
+  const clickTimer = useRef(null);
+  const router = useRouter();
+
+  const handleLogoClick = useCallback(
+    (e) => {
+      e.preventDefault();
+      clickCount.current += 1;
+      if (clickTimer.current) clearTimeout(clickTimer.current);
+      if (clickCount.current >= 5) {
+        clickCount.current = 0;
+        router.push("/admin");
+      } else {
+        clickTimer.current = setTimeout(() => {
+          clickCount.current = 0;
+        }, 1500);
+      }
+    },
+    [router],
+  );
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 50);
@@ -16,10 +37,19 @@ export default function Navbar() {
   return (
     <>
       <nav className={`navbar${scrolled ? " scrolled" : ""}`}>
-        <a href="#" className="nav-logo">
-          <div className="nav-logo-mark">
-            <span>Q</span>
-          </div>
+        <a href="#" className="nav-logo" onClick={handleLogoClick}>
+          <Image
+            src="/images/high-resolution-color-logo (1).png"
+            alt={siteConfig.name}
+            width={36}
+            height={36}
+            style={{
+              objectFit: "cover",
+              objectPosition: "center 30%",
+              borderRadius: 6,
+            }}
+            priority
+          />
           Quantum <b>Code</b>
         </a>
 
@@ -32,10 +62,6 @@ export default function Navbar() {
         </div>
 
         <div className="nav-right">
-          <Link href="/login" className="nav-admin">
-            <div className="nav-admin-dot" />
-            Admin
-          </Link>
           <a
             href="#contact"
             className="btn btn-blue"
