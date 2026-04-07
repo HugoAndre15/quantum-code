@@ -37,6 +37,9 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-contact@quantumcode.dev}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@quantumcode.dev}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin2026!}
+      ADMIN_NAME: ${ADMIN_NAME:-Admin Quantum Code}
       PORT: 3001
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     volumes:

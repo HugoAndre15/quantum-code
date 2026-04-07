@@ -3,6 +3,13 @@ import { useState, useEffect } from "react";
 import { gradients } from "../data/siteData";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+const BACKEND_URL = API.replace("/api", "");
+
+function resolveImage(src) {
+  if (!src) return "";
+  if (src.startsWith("/uploads")) return `${BACKEND_URL}${src}`;
+  return src;
+}
 
 // Grille featured : disposition [large, petite, petite, large]
 const FEATURED_LAYOUT = [
@@ -56,7 +63,7 @@ export default function Portfolio() {
                 <div key={p.id || i} className={`proj ${layout.w} ${layout.h}`}>
                   {p.image ? (
                     <div className="proj-img">
-                      <img src={p.image} alt={p.name} />
+                      <img src={resolveImage(p.image)} alt={p.name} />
                     </div>
                   ) : (
                     <div
@@ -113,7 +120,7 @@ export default function Portfolio() {
                 >
                   {p.image ? (
                     <div className="pp-card-img">
-                      <img src={p.image} alt={p.name} />
+                      <img src={resolveImage(p.image)} alt={p.name} />
                     </div>
                   ) : (
                     <div

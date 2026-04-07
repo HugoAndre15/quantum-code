@@ -1,6 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import AdminLayout from "../../components/AdminLayout";
+import {
+  inputStyle,
+  Field,
+  Card,
+  SmallBtn,
+  Empty,
+  Modal,
+  ErrorMsg,
+  FormButtons,
+  PageHeader,
+  TabBar,
+} from "../../components/admin/SharedUI";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
@@ -198,69 +210,25 @@ export default function OffersPage() {
     fetchOptions();
   }
 
-  const inputStyle = {
-    width: "100%",
-    padding: "8px 12px",
-    fontSize: 13,
-    background: "var(--black-3)",
-    border: "1px solid var(--border-2)",
-    borderRadius: "var(--r)",
-    color: "var(--white)",
-    outline: "none",
-  };
-
   return (
     <AdminLayout title="Offres">
-      {/* Add button */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          marginBottom: 20,
-        }}
-      >
-        <button
-          onClick={tab === "packs" ? openCreatePack : openCreateOpt}
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: "#fff",
-            background: "var(--blue)",
-            border: "none",
-            borderRadius: "var(--r)",
-            padding: "8px 18px",
-            cursor: "pointer",
-          }}
-        >
-          + {tab === "packs" ? "Nouveau pack" : "Nouvelle option"}
-        </button>
-      </div>
+      {/* Header */}
+      <PageHeader
+        title={tab === "packs" ? "Packs" : "Options"}
+        subtitle="Gérez les packs et options de votre catalogue."
+        onAdd={tab === "packs" ? openCreatePack : openCreateOpt}
+        addLabel={tab === "packs" ? "Nouveau pack" : "Nouvelle option"}
+      />
+
       {/* Tabs */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
-        {["packs", "options"].map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              padding: "6px 16px",
-              borderRadius: "var(--r)",
-              border: `1px solid ${
-                tab === t ? "var(--blue)" : "var(--border-2)"
-              }`,
-              background: tab === t ? "rgba(45,111,255,.12)" : "transparent",
-              color: tab === t ? "var(--blue)" : "var(--grey-3)",
-              cursor: "pointer",
-              textTransform: "capitalize",
-            }}
-          >
-            {t === "packs"
-              ? `Packs (${packs.length})`
-              : `Options (${options.length})`}
-          </button>
-        ))}
-      </div>
+      <TabBar
+        tabs={[
+          { key: "packs", label: `Packs (${packs.length})` },
+          { key: "options", label: `Options (${options.length})` },
+        ]}
+        activeTab={tab}
+        onTabChange={setTab}
+      />
 
       {/* Packs list */}
       {tab === "packs" && (
@@ -370,11 +338,11 @@ export default function OffersPage() {
                   )}
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
-                  <SmallBtn color="var(--blue)" onClick={() => openEditPack(p)}>
-                    Modifier
+                  <SmallBtn color="var(--blue)" onClick={() => openEditPack(p)} title="Modifier">
+                    ✎ Modifier
                   </SmallBtn>
-                  <SmallBtn color="#ff6b6b" onClick={() => deletePack(p.id)}>
-                    ×
+                  <SmallBtn color="#ff6b6b" onClick={() => deletePack(p.id)} title="Supprimer">
+                    🗑
                   </SmallBtn>
                 </div>
               </div>
@@ -470,11 +438,11 @@ export default function OffersPage() {
                       ⏱ {o.devTime}h
                     </span>
                   )}
-                  <SmallBtn color="var(--blue)" onClick={() => openEditOpt(o)}>
-                    Modifier
+                  <SmallBtn color="var(--blue)" onClick={() => openEditOpt(o)} title="Modifier">
+                    ✎ Modifier
                   </SmallBtn>
-                  <SmallBtn color="#ff6b6b" onClick={() => deleteOpt(o.id)}>
-                    ×
+                  <SmallBtn color="#ff6b6b" onClick={() => deleteOpt(o.id)} title="Supprimer">
+                    🗑
                   </SmallBtn>
                 </div>
               </div>
@@ -745,170 +713,4 @@ export default function OffersPage() {
   );
 }
 
-// ─── Shared components ─────────────────────
-
-function Field({ label, children }) {
-  return (
-    <div style={{ marginBottom: 12 }}>
-      <span
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          color: "var(--grey-3)",
-          textTransform: "uppercase",
-          letterSpacing: ".05em",
-          marginBottom: 4,
-          display: "block",
-        }}
-      >
-        {label}
-      </span>
-      {children}
-    </div>
-  );
-}
-
-function Card({ children }) {
-  return (
-    <div
-      style={{
-        background: "var(--black-2)",
-        border: "1px solid var(--border)",
-        borderRadius: "var(--r-m)",
-        padding: "20px 24px",
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function SmallBtn({ color, onClick, children }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        fontSize: 11,
-        padding: "4px 10px",
-        background: "var(--black-3)",
-        border: "1px solid var(--border-2)",
-        borderRadius: "var(--r)",
-        color,
-        cursor: "pointer",
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Empty({ children }) {
-  return (
-    <div
-      style={{
-        padding: 48,
-        textAlign: "center",
-        color: "var(--grey-3)",
-        fontSize: 13,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function Modal({ onClose, children }) {
-  return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,.6)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div
-        style={{
-          background: "var(--black-2)",
-          border: "1px solid var(--border)",
-          borderRadius: "var(--r-m)",
-          padding: 32,
-          width: "100%",
-          maxWidth: 520,
-          maxHeight: "90vh",
-          overflowY: "auto",
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function ErrorMsg({ children }) {
-  return (
-    <div
-      style={{
-        fontSize: 12,
-        color: "#ff6b6b",
-        marginBottom: 16,
-        padding: "8px 12px",
-        background: "rgba(255,80,80,.1)",
-        borderRadius: "var(--r)",
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function FormButtons({ saving, onCancel, submitLabel }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        gap: 12,
-        justifyContent: "flex-end",
-        marginTop: 20,
-      }}
-    >
-      <button
-        type="button"
-        onClick={onCancel}
-        style={{
-          fontSize: 12,
-          fontWeight: 600,
-          padding: "8px 18px",
-          background: "var(--black-3)",
-          border: "1px solid var(--border-2)",
-          borderRadius: "var(--r)",
-          color: "var(--grey-3)",
-          cursor: "pointer",
-        }}
-      >
-        Annuler
-      </button>
-      <button
-        type="submit"
-        disabled={saving}
-        style={{
-          fontSize: 12,
-          fontWeight: 600,
-          padding: "8px 22px",
-          background: "var(--blue)",
-          border: "none",
-          borderRadius: "var(--r)",
-          color: "#fff",
-          cursor: "pointer",
-          opacity: saving ? 0.6 : 1,
-        }}
-      >
-        {saving ? "..." : submitLabel}
-      </button>
-    </div>
-  );
-}
+// Shared components imported from ../../components/admin/SharedUI

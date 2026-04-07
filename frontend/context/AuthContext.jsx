@@ -78,13 +78,17 @@ export function AuthProvider({ children }) {
   const apiFetch = useCallback(
     async (url, options = {}) => {
       const token = localStorage.getItem("accessToken");
+      const headers = {
+        ...options.headers,
+        Authorization: `Bearer ${token}`,
+      };
+      // Only set Content-Type if not FormData (let browser set multipart boundary)
+      if (!(options.body instanceof FormData)) {
+        headers["Content-Type"] = options.headers?.["Content-Type"] || "application/json";
+      }
       const opts = {
         ...options,
-        headers: {
-          "Content-Type": "application/json",
-          ...options.headers,
-          Authorization: `Bearer ${token}`,
-        },
+        headers,
       };
 
       let res = await fetch(url, opts);

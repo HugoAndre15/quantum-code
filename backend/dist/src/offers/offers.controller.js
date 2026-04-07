@@ -22,6 +22,12 @@ let OffersController = class OffersController {
     constructor(offers) {
         this.offers = offers;
     }
+    findPublicPacks() {
+        return this.offers.findActivePacks();
+    }
+    findPublicOptions() {
+        return this.offers.findActiveOptions();
+    }
     findAllPacks() {
         return this.offers.findAllPacks();
     }
@@ -49,12 +55,26 @@ let OffersController = class OffersController {
 };
 exports.OffersController = OffersController;
 __decorate([
+    (0, common_1.Get)('packs/public'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], OffersController.prototype, "findPublicPacks", null);
+__decorate([
+    (0, common_1.Get)('options/public'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], OffersController.prototype, "findPublicOptions", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_guard_1.JwtAuthGuard),
     (0, common_1.Get)('packs'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], OffersController.prototype, "findAllPacks", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_guard_1.JwtAuthGuard),
     (0, common_1.Post)('packs'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -62,6 +82,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], OffersController.prototype, "createPack", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_guard_1.JwtAuthGuard),
     (0, common_1.Put)('packs/:id'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
@@ -70,6 +91,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], OffersController.prototype, "updatePack", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_guard_1.JwtAuthGuard),
     (0, common_1.Delete)('packs/:id'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
@@ -77,6 +99,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], OffersController.prototype, "removePack", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_guard_1.JwtAuthGuard),
     (0, common_1.Get)('options'),
     __param(0, (0, common_1.Query)('category')),
     __metadata("design:type", Function),
@@ -84,6 +107,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], OffersController.prototype, "findAllOptions", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_guard_1.JwtAuthGuard),
     (0, common_1.Post)('options'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -91,6 +115,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], OffersController.prototype, "createOption", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_guard_1.JwtAuthGuard),
     (0, common_1.Put)('options/:id'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
@@ -99,6 +124,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], OffersController.prototype, "updateOption", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_guard_1.JwtAuthGuard),
     (0, common_1.Delete)('options/:id'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
@@ -106,7 +132,6 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], OffersController.prototype, "removeOption", null);
 exports.OffersController = OffersController = __decorate([
-    (0, common_1.UseGuards)(jwt_guard_1.JwtAuthGuard),
     (0, common_1.Controller)('offers'),
     __metadata("design:paramtypes", [offers_service_1.OffersService])
 ], OffersController);

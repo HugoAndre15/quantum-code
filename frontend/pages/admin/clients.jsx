@@ -2,6 +2,18 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/router";
 import { useAuth } from "../../context/AuthContext";
 import AdminLayout from "../../components/AdminLayout";
+import {
+  inputStyle as sharedInputStyle,
+  Field,
+  Modal,
+  ErrorMsg,
+  SmallBtn,
+  PageHeader,
+  Badge,
+  StatBadge,
+  FilterBtn,
+  InfoItem,
+} from "../../components/admin/SharedUI";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
@@ -225,16 +237,7 @@ export default function ClientsPage() {
   }
 
   /* ---------- Styles ---------- */
-  const inputStyle = {
-    width: "100%",
-    padding: "8px 12px",
-    fontSize: 13,
-    background: "var(--black-3)",
-    border: "1px solid var(--border-2)",
-    borderRadius: "var(--r)",
-    color: "var(--white)",
-    outline: "none",
-  };
+  const inputStyle = sharedInputStyle;
 
   return (
     <AdminLayout title="Clients">
@@ -368,18 +371,9 @@ export default function ClientsPage() {
                   {c.phone || "—"}
                 </td>
                 <td style={{ padding: "10px 16px" }}>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      padding: "3px 10px",
-                      borderRadius: 99,
-                      background: `${STATUS_MAP[c.status]?.color || "#aaa"}22`,
-                      color: STATUS_MAP[c.status]?.color || "#aaa",
-                    }}
-                  >
+                  <Badge color={STATUS_MAP[c.status]?.color || "#aaa"}>
                     {STATUS_MAP[c.status]?.label || c.status}
-                  </span>
+                  </Badge>
                 </td>
                 <td style={{ padding: "10px 16px", color: "var(--grey-3)" }}>
                   {c.contactDate
@@ -388,48 +382,27 @@ export default function ClientsPage() {
                 </td>
                 <td style={{ padding: "10px 16px" }}>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button
+                    <SmallBtn
+                      color="var(--green)"
                       onClick={() => router.push(`/admin/clients/${c.id}`)}
-                      style={{
-                        fontSize: 11,
-                        padding: "4px 10px",
-                        background: "var(--black-3)",
-                        border: "1px solid var(--border-2)",
-                        borderRadius: "var(--r)",
-                        color: "var(--green)",
-                        cursor: "pointer",
-                      }}
+                      title="Voir la fiche"
                     >
-                      Voir
-                    </button>
-                    <button
+                      👁 Voir
+                    </SmallBtn>
+                    <SmallBtn
+                      color="var(--blue)"
                       onClick={() => openEdit(c)}
-                      style={{
-                        fontSize: 11,
-                        padding: "4px 10px",
-                        background: "var(--black-3)",
-                        border: "1px solid var(--border-2)",
-                        borderRadius: "var(--r)",
-                        color: "var(--blue)",
-                        cursor: "pointer",
-                      }}
+                      title="Modifier"
                     >
-                      Modifier
-                    </button>
-                    <button
+                      ✎ Modifier
+                    </SmallBtn>
+                    <SmallBtn
+                      color="#ff6b6b"
                       onClick={() => handleDelete(c.id)}
-                      style={{
-                        fontSize: 11,
-                        padding: "4px 10px",
-                        background: "var(--black-3)",
-                        border: "1px solid var(--border-2)",
-                        borderRadius: "var(--r)",
-                        color: "#ff6b6b",
-                        cursor: "pointer",
-                      }}
+                      title="Supprimer"
                     >
-                      ×
-                    </button>
+                      🗑
+                    </SmallBtn>
                   </div>
                 </td>
               </tr>
@@ -1152,26 +1125,7 @@ export default function ClientsPage() {
 
 /* ---------- Utility components ---------- */
 
-function Field({ label, children }) {
-  return (
-    <div style={{ marginBottom: 4 }}>
-      <span
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          color: "var(--grey-3)",
-          textTransform: "uppercase",
-          letterSpacing: ".05em",
-          marginBottom: 4,
-          display: "block",
-        }}
-      >
-        {label}
-      </span>
-      {children}
-    </div>
-  );
-}
+// Field, StatBadge, FilterBtn, InfoItem are imported from SharedUI
 
 function RecapRow({ label, value, color }) {
   return (
@@ -1200,54 +1154,4 @@ function RecapRow({ label, value, color }) {
   );
 }
 
-function StatBadge({ label, value, color }) {
-  return (
-    <div
-      style={{
-        background: "var(--black-2)",
-        border: "1px solid var(--border)",
-        borderRadius: "var(--r)",
-        padding: "8px 16px",
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-      }}
-    >
-      <span style={{ fontSize: 11, color: "var(--grey-3)" }}>{label}</span>
-      <span style={{ fontSize: 14, fontWeight: 700, color }}>{value}</span>
-    </div>
-  );
-}
-
-function FilterBtn({ active, onClick, children }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        fontSize: 11,
-        fontWeight: 600,
-        padding: "5px 12px",
-        borderRadius: "var(--r)",
-        border: `1px solid ${active ? "var(--blue)" : "var(--border-2)"}`,
-        background: active ? "rgba(45,111,255,.12)" : "transparent",
-        color: active ? "var(--blue)" : "var(--grey-3)",
-        cursor: "pointer",
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-function InfoItem({ label, value }) {
-  return (
-    <div>
-      <div style={{ fontSize: 10, fontWeight: 600, color: "var(--grey-3)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 2 }}>
-        {label}
-      </div>
-      <div style={{ fontSize: 13, color: value ? "var(--white)" : "var(--grey-3)" }}>
-        {value || "—"}
-      </div>
-    </div>
-  );
-}
+// StatBadge, FilterBtn, InfoItem imported from SharedUI

@@ -92,8 +92,9 @@ __decorate([
 ], CreateClientDto.prototype, "contactDate", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    __metadata("design:type", Array)
 ], CreateClientDto.prototype, "onlinePresence", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -180,8 +181,9 @@ __decorate([
 ], UpdateClientDto.prototype, "contactDate", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    __metadata("design:type", Array)
 ], UpdateClientDto.prototype, "onlinePresence", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
