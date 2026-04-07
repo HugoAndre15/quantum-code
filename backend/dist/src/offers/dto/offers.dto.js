@@ -9,12 +9,16 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UpdateOptionDto = exports.CreateOptionDto = exports.UpdatePackDto = exports.CreatePackDto = void 0;
+exports.UpdateOptionDto = exports.CreateOptionDto = exports.UpdatePackDto = exports.CreatePackDto = exports.PackType = void 0;
 const class_validator_1 = require("class-validator");
+const client_1 = require("@prisma/client");
+Object.defineProperty(exports, "PackType", { enumerable: true, get: function () { return client_1.PackType; } });
 class CreatePackDto {
     name;
     description;
     price;
+    type;
+    devTime;
     position;
     active;
     features;
@@ -35,6 +39,16 @@ __decorate([
 ], CreatePackDto.prototype, "price", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(client_1.PackType),
+    __metadata("design:type", String)
+], CreatePackDto.prototype, "type", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreatePackDto.prototype, "devTime", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsInt)(),
     __metadata("design:type", Number)
 ], CreatePackDto.prototype, "position", void 0);
@@ -53,6 +67,8 @@ class UpdatePackDto {
     name;
     description;
     price;
+    type;
+    devTime;
     position;
     active;
     features;
@@ -75,6 +91,16 @@ __decorate([
 ], UpdatePackDto.prototype, "price", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(client_1.PackType),
+    __metadata("design:type", String)
+], UpdatePackDto.prototype, "type", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], UpdatePackDto.prototype, "devTime", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsInt)(),
     __metadata("design:type", Number)
 ], UpdatePackDto.prototype, "position", void 0);
@@ -94,6 +120,9 @@ class CreateOptionDto {
     description;
     price;
     category;
+    devTime;
+    recurring;
+    recurringUnit;
     active;
 }
 exports.CreateOptionDto = CreateOptionDto;
@@ -117,6 +146,21 @@ __decorate([
 ], CreateOptionDto.prototype, "category", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateOptionDto.prototype, "devTime", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], CreateOptionDto.prototype, "recurring", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateOptionDto.prototype, "recurringUnit", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], CreateOptionDto.prototype, "active", void 0);
@@ -125,6 +169,9 @@ class UpdateOptionDto {
     description;
     price;
     category;
+    devTime;
+    recurring;
+    recurringUnit;
     active;
 }
 exports.UpdateOptionDto = UpdateOptionDto;
@@ -148,6 +195,21 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdateOptionDto.prototype, "category", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], UpdateOptionDto.prototype, "devTime", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], UpdateOptionDto.prototype, "recurring", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateOptionDto.prototype, "recurringUnit", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsBoolean)(),

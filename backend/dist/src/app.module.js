@@ -13,6 +13,11 @@ const prisma_module_1 = require("./prisma/prisma.module");
 const auth_module_1 = require("./auth/auth.module");
 const clients_module_1 = require("./clients/clients.module");
 const offers_module_1 = require("./offers/offers.module");
+const devis_module_1 = require("./devis/devis.module");
+const factures_module_1 = require("./factures/factures.module");
+const dashboard_module_1 = require("./dashboard/dashboard.module");
+const portfolio_module_1 = require("./portfolio/portfolio.module");
+const promo_codes_module_1 = require("./promo-codes/promo-codes.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -24,6 +29,11 @@ exports.AppModule = AppModule = __decorate([
             auth_module_1.AuthModule,
             clients_module_1.ClientsModule,
             offers_module_1.OffersModule,
+            devis_module_1.DevisModule,
+            factures_module_1.FacturesModule,
+            dashboard_module_1.DashboardModule,
+            portfolio_module_1.PortfolioModule,
+            promo_codes_module_1.PromoCodesModule,
         ],
     })
 ], AppModule);

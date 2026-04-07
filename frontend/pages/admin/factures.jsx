@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import AdminLayout from "../../components/AdminLayout";
+import {
+  Card,
+  SmallBtn,
+  Empty,
+  Badge,
+  PageHeader,
+  TabBar,
+  StatBadge,
+} from "../../components/admin/SharedUI";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
@@ -75,6 +84,8 @@ export default function FacturesPage() {
     }
   };
 
+  const [statusFilter, setStatusFilter] = useState("ALL");
+
   // ─── Styles ───────────────────────────────
   const card = {
     background: "var(--black-2)",
@@ -109,167 +120,228 @@ export default function FacturesPage() {
     }),
   });
 
-  const badge = (color) => ({
-    display: "inline-block",
-    padding: "2px 10px",
-    borderRadius: 20,
-    fontSize: 11,
-    fontWeight: 600,
-    background: `${color}18`,
-    color,
-  });
+  // Stats
+  const stats = {
+    total: factures.length,
+    brouillon: factures.filter((f) => f.status === "BROUILLON").length,
+    envoyee: factures.filter((f) => f.status === "ENVOYEE").length,
+    payee: factures.filter((f) => f.status === "PAYEE").length,
+    annulee: factures.filter((f) => f.status === "ANNULEE").length,
+    totalPaid: factures
+      .filter((f) => f.status === "PAYEE")
+      .reduce((s, f) => s + f.totalHT, 0),
+    totalPending: factures
+      .filter((f) => f.status === "ENVOYEE")
+      .reduce((s, f) => s + f.totalHT, 0),
+  };
 
-  // ─── KPI Cards ────────────────────────────
-  const totalFactures = factures.length;
-  const totalPaid = factures
-    .filter((f) => f.status === "PAYEE")
-    .reduce((s, f) => s + f.totalHT, 0);
-  const totalPending = factures
-    .filter((f) => f.status === "ENVOYEE")
-    .reduce((s, f) => s + f.totalHT, 0);
-  const paidCount = factures.filter((f) => f.status === "PAYEE").length;
+  const STATUS_TABS = [
+    { key: "ALL", label: "Toutes" },
+    { key: "BROUILLON", label: "Brouillons" },
+    { key: "ENVOYEE", label: "Envoyées" },
+    { key: "PAYEE", label: "Payées" },
+    { key: "ANNULEE", label: "Annulées" },
+  ];
 
-  const renderKPIs = () => (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-        gap: 12,
-        marginBottom: 24,
-      }}
-    >
-      {[
-        {
-          label: "Total factures",
-          value: totalFactures,
-          color: "var(--white)",
-        },
-        { label: "Encaissé", value: `${totalPaid}€`, color: "var(--green)" },
-        {
-          label: "En attente",
-          value: `${totalPending}€`,
-          color: "var(--gold)",
-        },
-        { label: "Payées", value: paidCount, color: "var(--green)" },
-      ].map((kpi, i) => (
-        <div key={i} style={{ ...card, padding: 16 }}>
-          <div
-            style={{
-              fontSize: 11,
-              color: "var(--grey-3)",
-              marginBottom: 6,
-              textTransform: "uppercase",
-              letterSpacing: ".04em",
-            }}
-          >
-            {kpi.label}
-          </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: kpi.color }}>
-            {kpi.value}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+  const filteredFactures =
+    statusFilter === "ALL"
+      ? factures
+      : factures.filter((f) => f.status === statusFilter);
 
   // ─── List View ────────────────────────────
   const renderList = () => (
     <div>
-      {renderKPIs()}
-
-      <div style={{ color: "var(--grey-3)", fontSize: 13, marginBottom: 16 }}>
-        {factures.length} facture{factures.length !== 1 ? "s" : ""}
-        <span style={{ fontSize: 11, marginLeft: 8, opacity: 0.6 }}>
-          Les factures sont créées depuis les devis acceptés
-        </span>
+      {/* Stats */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
+        <StatBadge label="Total" value={stats.total} color="var(--white)" />
+        <StatBadge label="Encaissé" value={`${stats.totalPaid}€`} color="var(--green)" />
+        <StatBadge label="En attente" value={`${stats.totalPending}€`} color="var(--gold)" />
+        <StatBadge label="Payées" value={stats.payee} color="var(--green)" />
+        <StatBadge label="Annulées" value={stats.annulee} color="#ff6b6b" />
       </div>
 
-      {factures.length === 0 ? (
-        <div
-          style={{
-            ...card,
-            textAlign: "center",
-            padding: 60,
-            color: "var(--grey-3)",
-          }}
-        >
+      <PageHeader
+        title="Factures"
+        subtitle="Les factures sont créées depuis les devis acceptés"
+        count={filteredFactures.length}
+      />
+
+      <TabBar
+        tabs={STATUS_TABS}
+        activeTab={statusFilter}
+        onTabChange={setStatusFilter}
+      />
+
+      {filteredFactures.length === 0 ? (
+        <Empty>
           <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.3 }}>▥</div>
           <div style={{ fontSize: 14, marginBottom: 6 }}>Aucune facture</div>
           <div style={{ fontSize: 12, opacity: 0.6 }}>
-            Acceptez un devis puis transformez-le en facture
+            {statusFilter === "ALL"
+              ? "Acceptez un devis puis transformez-le en facture"
+              : "Aucune facture avec ce statut"}
           </div>
-        </div>
+        </Empty>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {factures.map((f) => {
+          {filteredFactures.map((f) => {
             const st = STATUS_MAP[f.status] || STATUS_MAP.BROUILLON;
             return (
-              <div
-                key={f.id}
-                style={{
-                  ...card,
-                  padding: "14px 20px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 16,
-                  cursor: "pointer",
-                  transition: "border-color .15s",
-                }}
-                onClick={() => setViewing(f)}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.borderColor = "var(--blue)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.borderColor = "var(--border)")
-                }
-              >
-                <div style={{ flex: "0 0 110px" }}>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "var(--white)",
-                    }}
-                  >
-                    {f.number}
-                  </div>
-                  <div style={{ fontSize: 10, color: "var(--grey-3)" }}>
-                    Devis: {f.devis?.number}
-                  </div>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, color: "var(--white)" }}>
-                    {f.client?.company}
-                  </div>
-                  <div style={{ fontSize: 11, color: "var(--grey-3)" }}>
-                    {f.client?.contactName}
-                  </div>
-                </div>
-                <div style={{ flex: "0 0 100px", textAlign: "right" }}>
-                  <div
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 700,
-                      color: "var(--gold)",
-                    }}
-                  >
-                    {f.totalHT}€
-                  </div>
-                </div>
-                <div style={{ flex: "0 0 100px", textAlign: "right" }}>
-                  <span style={badge(st.color)}>{st.label}</span>
-                </div>
+              <Card key={f.id} hoverable>
                 <div
                   style={{
-                    flex: "0 0 90px",
-                    textAlign: "right",
-                    fontSize: 11,
-                    color: "var(--grey-3)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 16,
+                    flexWrap: "wrap",
                   }}
                 >
-                  {new Date(f.createdAt).toLocaleDateString("fr-FR")}
+                  {/* Number */}
+                  <div style={{ flex: "0 0 110px" }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "var(--white)",
+                      }}
+                    >
+                      {f.number}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 10,
+                        color: "var(--grey-3)",
+                        marginTop: 2,
+                      }}
+                    >
+                      Devis: {f.devis?.number}
+                    </div>
+                  </div>
+
+                  {/* Client */}
+                  <div style={{ flex: 1, minWidth: 120 }}>
+                    <div style={{ fontSize: 13, color: "var(--white)" }}>
+                      {f.client?.company}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--grey-3)" }}>
+                      {f.client?.contactName}
+                    </div>
+                  </div>
+
+                  {/* Amount */}
+                  <div style={{ flex: "0 0 90px", textAlign: "right" }}>
+                    <div
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: "var(--gold)",
+                      }}
+                    >
+                      {f.totalHT}€
+                    </div>
+                  </div>
+
+                  {/* Date */}
+                  <div
+                    style={{
+                      flex: "0 0 80px",
+                      textAlign: "right",
+                      fontSize: 11,
+                      color: "var(--grey-3)",
+                    }}
+                  >
+                    {new Date(f.createdAt).toLocaleDateString("fr-FR")}
+                  </div>
+
+                  {/* Status badge */}
+                  <div style={{ flex: "0 0 90px", textAlign: "center" }}>
+                    <Badge color={st.color}>{st.label}</Badge>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div
+                    style={{
+                      flex: "0 0 auto",
+                      display: "flex",
+                      gap: 6,
+                      alignItems: "center",
+                    }}
+                  >
+                    <SmallBtn
+                      color="var(--blue)"
+                      onClick={() => setViewing(f)}
+                      title="Voir le détail"
+                    >
+                      👁 Voir
+                    </SmallBtn>
+                    <SmallBtn
+                      color="var(--gold)"
+                      onClick={() => downloadPdf(f.id, f.number)}
+                      title="Télécharger le PDF"
+                    >
+                      📄 PDF
+                    </SmallBtn>
+                    {f.status === "BROUILLON" && (
+                      <SmallBtn
+                        color="var(--blue)"
+                        onClick={() => updateStatus(f.id, "ENVOYEE")}
+                        title="Marquer comme envoyée"
+                      >
+                        ✉ Envoyer
+                      </SmallBtn>
+                    )}
+                    {f.status === "ENVOYEE" && (
+                      <SmallBtn
+                        color="var(--green)"
+                        onClick={() => updateStatus(f.id, "PAYEE")}
+                        title="Marquer comme payée"
+                      >
+                        ✓ Payée
+                      </SmallBtn>
+                    )}
+                    {f.status !== "PAYEE" && f.status !== "ANNULEE" && (
+                      <SmallBtn
+                        color="#ff6b6b"
+                        onClick={() => {
+                          if (confirm("Annuler cette facture ?"))
+                            updateStatus(f.id, "ANNULEE");
+                        }}
+                        title="Annuler"
+                      >
+                        ✗
+                      </SmallBtn>
+                    )}
+                    {f.status !== "PAYEE" && f.status !== "ANNULEE" && (
+                      <SmallBtn
+                        color="#ff6b6b"
+                        onClick={() => {
+                          if (confirm("Supprimer cette facture ?"))
+                            deleteFacture(f.id);
+                        }}
+                        title="Supprimer"
+                      >
+                        🗑
+                      </SmallBtn>
+                    )}
+                  </div>
                 </div>
-              </div>
+                {/* Paid date */}
+                {f.paidAt && (
+                  <div
+                    style={{
+                      marginTop: 8,
+                      fontSize: 11,
+                      color: "var(--green)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    ✓ Payée le{" "}
+                    {new Date(f.paidAt).toLocaleDateString("fr-FR")}
+                  </div>
+                )}
+              </Card>
             );
           })}
         </div>
@@ -331,7 +403,7 @@ export default function FacturesPage() {
                 </div>
               )}
             </div>
-            <span style={badge(st.color)}>{st.label}</span>
+            <Badge color={st.color}>{st.label}</Badge>
           </div>
 
           {/* Items */}

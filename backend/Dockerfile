@@ -30,4 +30,4 @@ COPY --from=builder /app/prisma.config.ts ./
 RUN mkdir -p /app/uploads/portfolio
 
 EXPOSE 3001
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node prisma/seed.js && node dist/src/main"]
+CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/prisma/seed.js && node dist/src/main"]
