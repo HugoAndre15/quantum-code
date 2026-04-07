@@ -1,6 +1,33 @@
-import { packs, options, steps } from "../data/siteData";
+import { useState, useEffect } from "react";
+import { steps } from "../data/siteData";
+
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
 export default function Tarifs({ onToast }) {
+  const [packs, setPacks] = useState([]);
+  const [options, setOptions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchOffers() {
+      try {
+        const [packsRes, optsRes] = await Promise.all([
+          fetch(`${API}/offers/packs/public`),
+          fetch(`${API}/offers/options/public`),
+        ]);
+        if (packsRes.ok) setPacks(await packsRes.json());
+        if (optsRes.ok) {
+          const allOpts = await optsRes.json();
+          setOptions(allOpts.filter((o) => !o.recurring));
+        }
+      } catch {
+        // fallback vide
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchOffers();
+  }, []);
   const scrollToContact = () => {
     onToast?.("On vous répond sous 24h !");
     document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" });
@@ -23,29 +50,32 @@ export default function Tarifs({ onToast }) {
 
         {/* Packs */}
         <div className="packs-layout">
-          {packs.map((p, i) => (
-            <div key={i} className={`pack-card${p.popular ? " popular" : ""}`}>
-              {p.popular && (
-                <div className="pack-popular-badge">Le plus choisi</div>
-              )}
-              <div className="pack-label">PACK</div>
-              <div className="pack-name">{p.name}</div>
-              <div className="pack-price">
-                <span className="pack-price-num">{p.price}€</span>
+          {packs.map((p, i) => {
+            const isPopular = packs.length >= 2 && i === Math.floor(packs.length / 2);
+            return (
+              <div key={p.id || i} className={`pack-card${isPopular ? " popular" : ""}`}>
+                {isPopular && (
+                  <div className="pack-popular-badge">Le plus choisi</div>
+                )}
+                <div className="pack-label">PACK</div>
+                <div className="pack-name">{p.name}</div>
+                <div className="pack-price">
+                  <span className="pack-price-num">{p.price}€</span>
+                </div>
+                <ul className="pack-features">
+                  {(p.features || []).map((f, fi) => (
+                    <li key={fi} className="pack-feature">
+                      <span className="pack-dot" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <button className="btn btn-blue" onClick={scrollToContact}>
+                  Choisir ce pack
+                </button>
               </div>
-              <ul className="pack-features">
-                {p.features.map((f, fi) => (
-                  <li key={fi} className="pack-feature">
-                    <span className="pack-dot" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <button className="btn btn-blue" onClick={scrollToContact}>
-                Choisir ce pack
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Options + Comment ça marche */}
@@ -61,8 +91,8 @@ export default function Tarifs({ onToast }) {
             </p>
             <div className="options-grid">
               {options.map((o, i) => (
-                <div key={i} className="option-card">
-                  <div className="option-label">{o.label}</div>
+                <div key={o.id || i} className="option-card">
+                  <div className="option-label">{o.name || o.label}</div>
                   <div className="option-price">{o.price}€</div>
                 </div>
               ))}

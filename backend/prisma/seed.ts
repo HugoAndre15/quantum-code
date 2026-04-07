@@ -1,20 +1,30 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
 
 const prisma = new PrismaClient();
 
 async function main() {
   // ─── Admin user ─────────────────────────────
-  const email = 'admin@quantumcode.dev';
+  const email = process.env.ADMIN_EMAIL ?? 'admin@quantumcode.dev';
+  const password = process.env.ADMIN_PASSWORD ?? 'Admin2026!';
+  const name = process.env.ADMIN_NAME ?? 'Admin Quantum Code';
+
+  if (!process.env.ADMIN_PASSWORD) {
+    console.warn('⚠️  ADMIN_PASSWORD not set in .env, using default password.');
+  }
+
   const exists = await prisma.user.findUnique({ where: { email } });
 
   if (!exists) {
-    const hash = await bcrypt.hash('Admin2026!', 12);
+    const hash = await bcrypt.hash(password, 12);
     const admin = await prisma.user.create({
       data: {
         email,
         password: hash,
-        name: 'Admin Quantum Code',
+        name,
         role: 'SUPER_ADMIN',
       },
     });
@@ -114,6 +124,51 @@ async function main() {
       create: rec,
     });
     console.log(`  ✅ Récurrent "${rec.name}" — ${rec.price}€/${rec.recurringUnit}`);
+  }
+
+  // ─── Codes Promo ────────────────────────────
+  console.log('\n🌱 Seeding codes promo...');
+  const promoCodes = [
+    {
+      code: 'BIENVENUE10',
+      name: 'Bienvenue',
+      description: 'Réduction de bienvenue pour les nouveaux clients',
+      discountType: 'PERCENTAGE' as const,
+      discountValue: 10,
+      active: true,
+    },
+    {
+      code: 'NOEL2025',
+      name: 'Promo de Noël',
+      description: "Offre spéciale fêtes de fin d'année",
+      discountType: 'PERCENTAGE' as const,
+      discountValue: 15,
+      startDate: new Date('2025-12-01'),
+      endDate: new Date('2025-12-31'),
+      maxUses: 50,
+      active: true,
+    },
+    {
+      code: 'ETE50',
+      name: "Soldes d'été",
+      description: "Réduction fixe pour l'été",
+      discountType: 'FIXED_VALUE' as const,
+      discountValue: 50,
+      minAmount: 300,
+      startDate: new Date('2026-06-01'),
+      endDate: new Date('2026-08-31'),
+      active: true,
+    },
+  ];
+
+  for (const promo of promoCodes) {
+    const existing = await prisma.promoCode.findUnique({ where: { code: promo.code } });
+    if (!existing) {
+      await prisma.promoCode.create({ data: promo });
+      console.log(`  ✅ Code promo "${promo.code}" — ${promo.discountType === 'PERCENTAGE' ? promo.discountValue + '%' : promo.discountValue + '€'}`);
+    } else {
+      console.log(`  ℹ️  Code promo "${promo.code}" existe déjà`);
+    }
   }
 
   console.log('\n✨ Seed terminé !');

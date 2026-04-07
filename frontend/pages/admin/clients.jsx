@@ -1,6 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/router";
 import { useAuth } from "../../context/AuthContext";
 import AdminLayout from "../../components/AdminLayout";
+import {
+  inputStyle as sharedInputStyle,
+  Field,
+  Modal,
+  ErrorMsg,
+  SmallBtn,
+  PageHeader,
+  Badge,
+  StatBadge,
+  FilterBtn,
+  InfoItem,
+} from "../../components/admin/SharedUI";
 
 const API = "/api";
 
@@ -26,7 +39,7 @@ const ONLINE_PRESENCE_OPTIONS = [
 const STEPS = [
   { label: "Entreprise", icon: "1" },
   { label: "Coordonnées", icon: "2" },
-  { label: "Projet", icon: "3" },
+  { label: "Infos", icon: "3" },
   { label: "Récapitulatif", icon: "4" },
 ];
 
@@ -40,19 +53,15 @@ const EMPTY_FORM = {
   website: "",
   status: "A_CONTACTER",
   notes: "",
-  budget: "",
   contactDate: new Date().toISOString().slice(0, 10),
   onlinePresence: [],
-  packId: "",
-  optionIds: [],
 };
 
 export default function ClientsPage() {
   const { user, apiFetch } = useAuth();
+  const router = useRouter();
 
   const [clients, setClients] = useState([]);
-  const [packs, setPacks] = useState([]);
-  const [options, setOptions] = useState([]);
   const [stats, setStats] = useState(null);
   const [filterStatus, setFilterStatus] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -61,6 +70,8 @@ export default function ClientsPage() {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [viewingClient, setViewingClient] = useState(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   // Address autocomplete
   const [addrQuery, setAddrQuery] = useState("");
@@ -77,13 +88,7 @@ export default function ClientsPage() {
   }, [filterStatus, apiFetch]);
 
   const fetchMeta = useCallback(async () => {
-    const [pRes, oRes, sRes] = await Promise.all([
-      apiFetch(`${API}/offers/packs`),
-      apiFetch(`${API}/offers/options`),
-      apiFetch(`${API}/clients/stats`),
-    ]);
-    if (pRes.ok) setPacks(await pRes.json());
-    if (oRes.ok) setOptions(await oRes.json());
+    const sRes = await apiFetch(`${API}/clients/stats`);
     if (sRes.ok) setStats(await sRes.json());
   }, [apiFetch]);
 
@@ -158,14 +163,9 @@ export default function ClientsPage() {
       website: client.website || "",
       status: client.status || "A_CONTACTER",
       notes: client.notes || "",
-      budget: client.budget != null ? String(client.budget) : "",
       contactDate: client.contactDate ? client.contactDate.slice(0, 10) : "",
       onlinePresence: Array.isArray(client.onlinePresence)
         ? client.onlinePresence
-        : [],
-      packId: client.packId || "",
-      optionIds: client.options
-        ? client.options.map((o) => o.serviceOptionId)
         : [],
     });
     setAddrQuery(addr);
@@ -181,9 +181,7 @@ export default function ClientsPage() {
 
     const body = {
       ...form,
-      budget: form.budget ? parseFloat(form.budget) : undefined,
       contactDate: form.contactDate || undefined,
-      packId: form.packId || undefined,
     };
 
     const url = editing ? `${API}/clients/${editing}` : `${API}/clients`;
@@ -213,13 +211,16 @@ export default function ClientsPage() {
     fetchMeta();
   }
 
-  function toggleOption(optId) {
-    setForm((prev) => ({
-      ...prev,
-      optionIds: prev.optionIds.includes(optId)
-        ? prev.optionIds.filter((id) => id !== optId)
-        : [...prev.optionIds, optId],
-    }));
+  async function viewClient(id) {
+    setLoadingDetail(true);
+    try {
+      const res = await apiFetch(`${API}/clients/${id}`);
+      if (res.ok) {
+        setViewingClient(await res.json());
+      }
+    } finally {
+      setLoadingDetail(false);
+    }
   }
 
   /* ---------- Step validation ---------- */
@@ -236,16 +237,7 @@ export default function ClientsPage() {
   }
 
   /* ---------- Styles ---------- */
-  const inputStyle = {
-    width: "100%",
-    padding: "8px 12px",
-    fontSize: 13,
-    background: "var(--black-3)",
-    border: "1px solid var(--border-2)",
-    borderRadius: "var(--r)",
-    color: "var(--white)",
-    outline: "none",
-  };
+  const inputStyle = sharedInputStyle;
 
   return (
     <AdminLayout title="Clients">
@@ -341,8 +333,6 @@ export default function ClientsPage() {
               <th style={{ padding: "12px 16px" }}>Métier</th>
               <th style={{ padding: "12px 16px" }}>Tél</th>
               <th style={{ padding: "12px 16px" }}>Status</th>
-              <th style={{ padding: "12px 16px" }}>Pack</th>
-              <th style={{ padding: "12px 16px" }}>Budget</th>
               <th style={{ padding: "12px 16px" }}>Date</th>
               <th style={{ padding: "12px 16px" }}></th>
             </tr>
@@ -351,7 +341,7 @@ export default function ClientsPage() {
             {clients.length === 0 && (
               <tr>
                 <td
-                  colSpan={9}
+                  colSpan={7}
                   style={{
                     padding: 32,
                     textAlign: "center",
@@ -381,24 +371,9 @@ export default function ClientsPage() {
                   {c.phone || "—"}
                 </td>
                 <td style={{ padding: "10px 16px" }}>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      padding: "3px 10px",
-                      borderRadius: 99,
-                      background: `${STATUS_MAP[c.status]?.color || "#aaa"}22`,
-                      color: STATUS_MAP[c.status]?.color || "#aaa",
-                    }}
-                  >
+                  <Badge color={STATUS_MAP[c.status]?.color || "#aaa"}>
                     {STATUS_MAP[c.status]?.label || c.status}
-                  </span>
-                </td>
-                <td style={{ padding: "10px 16px", color: "var(--gold)" }}>
-                  {c.pack?.name || "—"}
-                </td>
-                <td style={{ padding: "10px 16px", color: "var(--green)" }}>
-                  {c.budget != null ? `${c.budget}€` : "—"}
+                  </Badge>
                 </td>
                 <td style={{ padding: "10px 16px", color: "var(--grey-3)" }}>
                   {c.contactDate
@@ -407,34 +382,27 @@ export default function ClientsPage() {
                 </td>
                 <td style={{ padding: "10px 16px" }}>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button
+                    <SmallBtn
+                      color="var(--green)"
+                      onClick={() => router.push(`/admin/clients/${c.id}`)}
+                      title="Voir la fiche"
+                    >
+                      👁 Voir
+                    </SmallBtn>
+                    <SmallBtn
+                      color="var(--blue)"
                       onClick={() => openEdit(c)}
-                      style={{
-                        fontSize: 11,
-                        padding: "4px 10px",
-                        background: "var(--black-3)",
-                        border: "1px solid var(--border-2)",
-                        borderRadius: "var(--r)",
-                        color: "var(--blue)",
-                        cursor: "pointer",
-                      }}
+                      title="Modifier"
                     >
-                      Modifier
-                    </button>
-                    <button
+                      ✎ Modifier
+                    </SmallBtn>
+                    <SmallBtn
+                      color="#ff6b6b"
                       onClick={() => handleDelete(c.id)}
-                      style={{
-                        fontSize: 11,
-                        padding: "4px 10px",
-                        background: "var(--black-3)",
-                        border: "1px solid var(--border-2)",
-                        borderRadius: "var(--r)",
-                        color: "#ff6b6b",
-                        cursor: "pointer",
-                      }}
+                      title="Supprimer"
                     >
-                      ×
-                    </button>
+                      🗑
+                    </SmallBtn>
                   </div>
                 </td>
               </tr>
@@ -695,7 +663,7 @@ export default function ClientsPage() {
               </div>
             )}
 
-            {/* Step 2: Projet */}
+            {/* Step 2: Infos complémentaires */}
             {step === 2 && (
               <div style={{ display: "grid", gap: 16 }}>
                 <div
@@ -720,16 +688,6 @@ export default function ClientsPage() {
                       ))}
                     </select>
                   </Field>
-                  <Field label="Budget (€)">
-                    <input
-                      type="number"
-                      style={inputStyle}
-                      value={form.budget}
-                      onChange={(e) =>
-                        setForm({ ...form, budget: e.target.value })
-                      }
-                    />
-                  </Field>
                   <Field label="Date de contact">
                     <input
                       type="date"
@@ -739,22 +697,6 @@ export default function ClientsPage() {
                         setForm({ ...form, contactDate: e.target.value })
                       }
                     />
-                  </Field>
-                  <Field label="Pack">
-                    <select
-                      style={inputStyle}
-                      value={form.packId}
-                      onChange={(e) =>
-                        setForm({ ...form, packId: e.target.value })
-                      }
-                    >
-                      <option value="">— Aucun —</option>
-                      {packs.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} ({p.price}€)
-                        </option>
-                      ))}
-                    </select>
                   </Field>
                 </div>
 
@@ -796,46 +738,6 @@ export default function ClientsPage() {
                   </div>
                 </Field>
 
-                {/* Options checkboxes */}
-                {options.length > 0 && (
-                  <Field label="Options">
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: 8,
-                        marginTop: 4,
-                      }}
-                    >
-                      {options.map((opt) => {
-                        const active = form.optionIds.includes(opt.id);
-                        return (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            onClick={() => toggleOption(opt.id)}
-                            style={{
-                              fontSize: 12,
-                              padding: "5px 12px",
-                              borderRadius: "var(--r)",
-                              cursor: "pointer",
-                              border: `1px solid ${active ? "var(--gold)" : "var(--border-2)"}`,
-                              background: active
-                                ? "rgba(240,192,64,.1)"
-                                : "transparent",
-                              color: active ? "var(--gold)" : "var(--grey-3)",
-                              fontWeight: active ? 600 : 400,
-                            }}
-                          >
-                            {active ? "✓ " : ""}
-                            {opt.name} ({opt.price}€)
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </Field>
-                )}
-
                 <Field label="Notes">
                   <textarea
                     style={{ ...inputStyle, minHeight: 60, resize: "vertical" }}
@@ -862,25 +764,6 @@ export default function ClientsPage() {
                   label="Status"
                   value={STATUS_MAP[form.status]?.label || form.status}
                   color={STATUS_MAP[form.status]?.color}
-                />
-                <RecapRow
-                  label="Budget"
-                  value={form.budget ? `${form.budget}€` : "—"}
-                />
-                <RecapRow
-                  label="Pack"
-                  value={packs.find((p) => p.id === form.packId)?.name || "—"}
-                />
-                <RecapRow
-                  label="Options"
-                  value={
-                    form.optionIds.length > 0
-                      ? form.optionIds
-                          .map((id) => options.find((o) => o.id === id)?.name)
-                          .filter(Boolean)
-                          .join(", ")
-                      : "—"
-                  }
                 />
                 <RecapRow
                   label="Présence en ligne"
@@ -966,32 +849,283 @@ export default function ClientsPage() {
           </div>
         </div>
       )}
+
+      {/* ===== Client Detail Modal ===== */}
+      {viewingClient && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={(e) => e.target === e.currentTarget && setViewingClient(null)}
+        >
+          <div
+            style={{
+              background: "var(--black-2)",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--r-m)",
+              padding: 32,
+              width: "100%",
+              maxWidth: 720,
+              maxHeight: "90vh",
+              overflowY: "auto",
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+              <div>
+                <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--white)", margin: 0 }}>
+                  {viewingClient.company}
+                </h2>
+                <div style={{ fontSize: 13, color: "var(--grey-3)", marginTop: 4 }}>
+                  {viewingClient.trade} — {viewingClient.contactName}
+                </div>
+              </div>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "3px 10px",
+                  borderRadius: 99,
+                  background: `${STATUS_MAP[viewingClient.status]?.color || "#aaa"}22`,
+                  color: STATUS_MAP[viewingClient.status]?.color || "#aaa",
+                }}
+              >
+                {STATUS_MAP[viewingClient.status]?.label || viewingClient.status}
+              </span>
+            </div>
+
+            {/* Infos client */}
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 12,
+              marginBottom: 24,
+              padding: 16,
+              background: "var(--black-3)",
+              borderRadius: 8,
+              border: "1px solid var(--border)",
+            }}>
+              <InfoItem label="Email" value={viewingClient.email} />
+              <InfoItem label="Téléphone" value={viewingClient.phone} />
+              <InfoItem label="Adresse" value={viewingClient.address} />
+              <InfoItem label="Site web" value={viewingClient.website} />
+              <InfoItem label="Date de contact" value={viewingClient.contactDate ? new Date(viewingClient.contactDate).toLocaleDateString("fr-FR") : null} />
+              <InfoItem
+                label="Présence en ligne"
+                value={viewingClient.onlinePresence?.length > 0 ? viewingClient.onlinePresence.join(", ") : null}
+              />
+            </div>
+
+            {viewingClient.notes && (
+              <div style={{
+                padding: 14,
+                background: "var(--black-3)",
+                borderRadius: 8,
+                border: "1px solid var(--border)",
+                marginBottom: 24,
+              }}>
+                <div style={{ fontSize: 11, color: "var(--grey-3)", marginBottom: 4, textTransform: "uppercase", letterSpacing: ".05em" }}>
+                  Notes
+                </div>
+                <div style={{ fontSize: 13, color: "var(--white)", whiteSpace: "pre-wrap" }}>
+                  {viewingClient.notes}
+                </div>
+              </div>
+            )}
+
+            {/* Devis liés */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "var(--white)",
+                marginBottom: 10,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}>
+                <span style={{ fontSize: 16 }}>▤</span> Devis
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "2px 8px",
+                  borderRadius: 99,
+                  background: "rgba(45,111,255,.12)",
+                  color: "var(--blue)",
+                }}>
+                  {viewingClient.devis?.length || 0}
+                </span>
+              </div>
+              {(!viewingClient.devis || viewingClient.devis.length === 0) ? (
+                <div style={{ fontSize: 12, color: "var(--grey-3)", padding: "12px 0" }}>
+                  Aucun devis pour ce client
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {viewingClient.devis.map((d) => {
+                    const st = { BROUILLON: { label: "Brouillon", color: "#aaa" }, ENVOYE: { label: "Envoyé", color: "var(--blue)" }, ACCEPTE: { label: "Accepté", color: "var(--green)" }, REFUSE: { label: "Refusé", color: "#ff6b6b" } };
+                    const ds = st[d.status] || st.BROUILLON;
+                    return (
+                      <div key={d.id} style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "10px 14px",
+                        background: "var(--black-3)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                      }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--white)" }}>{d.number}</div>
+                          <div style={{ fontSize: 11, color: "var(--grey-3)" }}>
+                            {new Date(d.createdAt).toLocaleDateString("fr-FR")}
+                            {d.items?.length > 0 && ` — ${d.items.length} ligne${d.items.length > 1 ? "s" : ""}`}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--gold)" }}>
+                            {d.totalHT}€
+                          </span>
+                          <span style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            padding: "2px 8px",
+                            borderRadius: 99,
+                            background: `${ds.color}18`,
+                            color: ds.color,
+                          }}>
+                            {ds.label}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Factures liées */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "var(--white)",
+                marginBottom: 10,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}>
+                <span style={{ fontSize: 16 }}>💳</span> Factures
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "2px 8px",
+                  borderRadius: 99,
+                  background: "rgba(93,216,160,.12)",
+                  color: "var(--green)",
+                }}>
+                  {viewingClient.factures?.length || 0}
+                </span>
+              </div>
+              {(!viewingClient.factures || viewingClient.factures.length === 0) ? (
+                <div style={{ fontSize: 12, color: "var(--grey-3)", padding: "12px 0" }}>
+                  Aucune facture pour ce client
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {viewingClient.factures.map((f) => {
+                    const fs = { BROUILLON: { label: "Brouillon", color: "#aaa" }, ENVOYEE: { label: "Envoyée", color: "var(--blue)" }, PAYEE: { label: "Payée", color: "var(--green)" }, ANNULEE: { label: "Annulée", color: "#ff6b6b" } };
+                    const fst = fs[f.status] || fs.BROUILLON;
+                    return (
+                      <div key={f.id} style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "10px 14px",
+                        background: "var(--black-3)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                      }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--white)" }}>{f.number}</div>
+                          <div style={{ fontSize: 11, color: "var(--grey-3)" }}>
+                            {new Date(f.createdAt).toLocaleDateString("fr-FR")}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--gold)" }}>
+                            {f.totalHT}€
+                          </span>
+                          <span style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            padding: "2px 8px",
+                            borderRadius: 99,
+                            background: `${fst.color}18`,
+                            color: fst.color,
+                          }}>
+                            {fst.label}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button
+                onClick={() => {
+                  setViewingClient(null);
+                  openEdit(viewingClient);
+                }}
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  padding: "8px 18px",
+                  background: "var(--blue)",
+                  border: "none",
+                  borderRadius: "var(--r)",
+                  color: "#fff",
+                  cursor: "pointer",
+                }}
+              >
+                ✏ Modifier
+              </button>
+              <button
+                onClick={() => setViewingClient(null)}
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  padding: "8px 18px",
+                  background: "var(--black-3)",
+                  border: "1px solid var(--border-2)",
+                  borderRadius: "var(--r)",
+                  color: "var(--grey-3)",
+                  cursor: "pointer",
+                }}
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }
 
 /* ---------- Utility components ---------- */
 
-function Field({ label, children }) {
-  return (
-    <div style={{ marginBottom: 4 }}>
-      <span
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          color: "var(--grey-3)",
-          textTransform: "uppercase",
-          letterSpacing: ".05em",
-          marginBottom: 4,
-          display: "block",
-        }}
-      >
-        {label}
-      </span>
-      {children}
-    </div>
-  );
-}
+// Field, StatBadge, FilterBtn, InfoItem are imported from SharedUI
 
 function RecapRow({ label, value, color }) {
   return (
@@ -1020,41 +1154,4 @@ function RecapRow({ label, value, color }) {
   );
 }
 
-function StatBadge({ label, value, color }) {
-  return (
-    <div
-      style={{
-        background: "var(--black-2)",
-        border: "1px solid var(--border)",
-        borderRadius: "var(--r)",
-        padding: "8px 16px",
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-      }}
-    >
-      <span style={{ fontSize: 11, color: "var(--grey-3)" }}>{label}</span>
-      <span style={{ fontSize: 14, fontWeight: 700, color }}>{value}</span>
-    </div>
-  );
-}
-
-function FilterBtn({ active, onClick, children }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        fontSize: 11,
-        fontWeight: 600,
-        padding: "5px 12px",
-        borderRadius: "var(--r)",
-        border: `1px solid ${active ? "var(--blue)" : "var(--border-2)"}`,
-        background: active ? "rgba(45,111,255,.12)" : "transparent",
-        color: active ? "var(--blue)" : "var(--grey-3)",
-        cursor: "pointer",
-      }}
-    >
-      {children}
-    </button>
-  );
-}
+// StatBadge, FilterBtn, InfoItem imported from SharedUI

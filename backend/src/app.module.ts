@@ -10,6 +10,8 @@ import { DevisModule } from './devis/devis.module';
 import { FacturesModule } from './factures/factures.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
+import { PromoCodesModule } from './promo-codes/promo-codes.module';
+
 
 @Module({
   imports: [
@@ -29,8 +31,9 @@ import { PortfolioModule } from './portfolio/portfolio.module';
     FacturesModule,
     DashboardModule,
     PortfolioModule,
+    PromoCodesModule,
   ],
-  providers: [
+providers: [
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,

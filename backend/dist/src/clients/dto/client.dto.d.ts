@@ -19,7 +19,7 @@ export declare class CreateClientDto {
     notes?: string;
     budget?: number;
     contactDate?: string;
-    onlinePresence?: string;
+    onlinePresence?: string[];
     packId?: string;
     optionIds?: string[];
 }
@@ -35,7 +35,7 @@ export declare class UpdateClientDto {
     notes?: string;
     budget?: number;
     contactDate?: string;
-    onlinePresence?: string;
+    onlinePresence?: string[];
     packId?: string;
     optionIds?: string[];
 }

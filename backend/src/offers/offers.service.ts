@@ -11,6 +11,22 @@ import {
 export class OffersService {
   constructor(private prisma: PrismaService) {}
 
+  // ─── Public ─────────────────────────────────
+
+  async findActivePacks() {
+    return this.prisma.pack.findMany({
+      where: { active: true },
+      orderBy: { position: 'asc' },
+    });
+  }
+
+  async findActiveOptions() {
+    return this.prisma.serviceOption.findMany({
+      where: { active: true },
+      orderBy: { name: 'asc' },
+    });
+  }
+
   // ─── Packs ──────────────────────────────────
 
   async findAllPacks() {

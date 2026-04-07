@@ -17,6 +17,18 @@ let OffersService = class OffersService {
     constructor(prisma) {
         this.prisma = prisma;
     }
+    async findActivePacks() {
+        return this.prisma.pack.findMany({
+            where: { active: true },
+            orderBy: { position: 'asc' },
+        });
+    }
+    async findActiveOptions() {
+        return this.prisma.serviceOption.findMany({
+            where: { active: true },
+            orderBy: { name: 'asc' },
+        });
+    }
     async findAllPacks() {
         return this.prisma.pack.findMany({
             orderBy: { position: 'asc' },

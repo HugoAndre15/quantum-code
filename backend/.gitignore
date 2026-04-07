@@ -1,5 +1,11 @@
 node_modules
+dist
+
 # Keep environment variables out of version control
 .env
 
 /generated/prisma
+
+# Uploaded files
+/uploads/*
+!/uploads/portfolio/.gitkeep

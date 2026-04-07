@@ -204,3 +204,27 @@ model Project {
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
 }
+
+// ─── Codes Promo ─────────────────────────────
+
+model PromoCode {
+    id            String        @id @default(cuid())
+    code          String        @unique
+    name          String
+    description   String?
+    discountType  DiscountType  @default(PERCENTAGE)
+    discountValue Float         // % ou valeur fixe en €
+    minAmount     Float?        // montant minimum d'achat
+    maxUses       Int?          // nombre max d'utilisations (null = illimité)
+    currentUses   Int           @default(0)
+    startDate     DateTime?     // début de validité
+    endDate       DateTime?     // fin de validité
+    active        Boolean       @default(true)
+    createdAt     DateTime      @default(now())
+    updatedAt     DateTime      @updatedAt
+}
+
+enum DiscountType {
+    PERCENTAGE
+    FIXED_VALUE
+}

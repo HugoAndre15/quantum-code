@@ -60,11 +60,13 @@ export function AuthProvider({ children }) {
   // Wrapper around fetch that auto-refreshes on 401
   const apiFetch = useCallback(
     async (url, options = {}) => {
-      const opts = {
+const opts = {
         ...options,
         credentials: "include",
         headers: {
-          "Content-Type": "application/json",
+          ...(!(options.body instanceof FormData) && {
+            "Content-Type": options.headers?.["Content-Type"] || "application/json",
+          }),
           ...options.headers,
         },
       };

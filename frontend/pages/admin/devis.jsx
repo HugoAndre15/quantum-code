@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import AdminLayout from "../../components/AdminLayout";
+import {
+  Card,
+  SmallBtn,
+  Empty,
+  Badge,
+  PageHeader,
+  TabBar,
+  StatBadge,
+} from "../../components/admin/SharedUI";
 
 const API = "/api";
 
@@ -242,6 +251,8 @@ export default function DevisPage() {
       c.contactName.toLowerCase().includes(clientSearch.toLowerCase()),
   );
 
+  const [statusFilter, setStatusFilter] = useState("ALL");
+
   // ─── Styles ───────────────────────────────
   const card = {
     background: "var(--black-2)",
@@ -287,124 +298,218 @@ export default function DevisPage() {
     outline: "none",
   };
 
-  const badge = (color) => ({
-    display: "inline-block",
-    padding: "2px 10px",
-    borderRadius: 20,
-    fontSize: 11,
-    fontWeight: 600,
-    background: `${color}18`,
-    color,
-  });
+  // Filtered list
+  const filteredDevis =
+    statusFilter === "ALL"
+      ? devisList
+      : devisList.filter((d) => d.status === statusFilter);
+
+  // Stats
+  const stats = {
+    total: devisList.length,
+    brouillon: devisList.filter((d) => d.status === "BROUILLON").length,
+    envoye: devisList.filter((d) => d.status === "ENVOYE").length,
+    accepte: devisList.filter((d) => d.status === "ACCEPTE").length,
+    refuse: devisList.filter((d) => d.status === "REFUSE").length,
+    totalHT: devisList.reduce((s, d) => s + (d.totalHT || 0), 0),
+  };
+
+  const STATUS_TABS = [
+    { key: "ALL", label: "Tous" },
+    { key: "BROUILLON", label: "Brouillons" },
+    { key: "ENVOYE", label: "Envoyés" },
+    { key: "ACCEPTE", label: "Acceptés" },
+    { key: "REFUSE", label: "Refusés" },
+  ];
 
   // ─── List View ────────────────────────────
   const renderList = () => (
     <div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 24,
-        }}
-      >
-        <div style={{ color: "var(--grey-3)", fontSize: 13 }}>
-          {devisList.length} devis
-        </div>
-        <button
-          style={btn("primary")}
-          onClick={() => {
-            resetForm();
-            setShowForm(true);
-          }}
-        >
-          + Nouveau devis
-        </button>
+      {/* Stats */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
+        <StatBadge label="Total" value={stats.total} color="var(--white)" />
+        <StatBadge label="Brouillons" value={stats.brouillon} color="#aaa" />
+        <StatBadge label="Envoyés" value={stats.envoye} color="var(--blue)" />
+        <StatBadge label="Acceptés" value={stats.accepte} color="var(--green)" />
+        <StatBadge label="Refusés" value={stats.refuse} color="#ff6b6b" />
+        <StatBadge label="Total HT" value={`${stats.totalHT}€`} color="var(--gold)" />
       </div>
 
-      {devisList.length === 0 ? (
-        <div
-          style={{
-            ...card,
-            textAlign: "center",
-            padding: 60,
-            color: "var(--grey-3)",
-          }}
-        >
+      <PageHeader
+        title="Devis"
+        count={filteredDevis.length}
+        onAdd={() => { resetForm(); setShowForm(true); }}
+        addLabel="Nouveau devis"
+      />
+
+      <TabBar
+        tabs={STATUS_TABS}
+        activeTab={statusFilter}
+        onTabChange={setStatusFilter}
+      />
+
+      {filteredDevis.length === 0 ? (
+        <Empty>
           <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.3 }}>▤</div>
           <div style={{ fontSize: 14, marginBottom: 6 }}>Aucun devis</div>
           <div style={{ fontSize: 12, opacity: 0.6 }}>
-            Créez votre premier devis avec le bouton ci-dessus
+            {statusFilter === "ALL"
+              ? "Créez votre premier devis avec le bouton ci-dessus"
+              : "Aucun devis avec ce statut"}
           </div>
-        </div>
+        </Empty>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {devisList.map((d) => {
+          {filteredDevis.map((d) => {
             const st = STATUS_MAP[d.status] || STATUS_MAP.BROUILLON;
             return (
-              <div
-                key={d.id}
-                style={{
-                  ...card,
-                  padding: "14px 20px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 16,
-                  cursor: "pointer",
-                  transition: "border-color .15s",
-                }}
-                onClick={() => setViewing(d)}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.borderColor = "var(--blue)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.borderColor = "var(--border)")
-                }
-              >
-                <div style={{ flex: "0 0 110px" }}>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "var(--white)",
-                    }}
-                  >
-                    {d.number}
-                  </div>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, color: "var(--white)" }}>
-                    {d.client?.company}
-                  </div>
-                  <div style={{ fontSize: 11, color: "var(--grey-3)" }}>
-                    {d.client?.contactName}
-                  </div>
-                </div>
-                <div style={{ flex: "0 0 100px", textAlign: "right" }}>
-                  <div
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 700,
-                      color: "var(--gold)",
-                    }}
-                  >
-                    {d.totalHT}€
-                  </div>
-                </div>
-                <div style={{ flex: "0 0 100px", textAlign: "right" }}>
-                  <span style={badge(st.color)}>{st.label}</span>
-                </div>
+              <Card key={d.id} hoverable>
                 <div
                   style={{
-                    flex: "0 0 90px",
-                    textAlign: "right",
-                    fontSize: 11,
-                    color: "var(--grey-3)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 16,
+                    flexWrap: "wrap",
                   }}
                 >
-                  {new Date(d.createdAt).toLocaleDateString("fr-FR")}
+                  {/* Number */}
+                  <div style={{ flex: "0 0 110px" }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "var(--white)",
+                      }}
+                    >
+                      {d.number}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 10,
+                        color: "var(--grey-3)",
+                        marginTop: 2,
+                      }}
+                    >
+                      {new Date(d.createdAt).toLocaleDateString("fr-FR")}
+                    </div>
+                  </div>
+
+                  {/* Client */}
+                  <div style={{ flex: 1, minWidth: 120 }}>
+                    <div style={{ fontSize: 13, color: "var(--white)" }}>
+                      {d.client?.company}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--grey-3)" }}>
+                      {d.client?.contactName}
+                    </div>
+                  </div>
+
+                  {/* Amount */}
+                  <div style={{ flex: "0 0 90px", textAlign: "right" }}>
+                    <div
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: "var(--gold)",
+                      }}
+                    >
+                      {d.totalHT}€
+                    </div>
+                  </div>
+
+                  {/* Status badge */}
+                  <div style={{ flex: "0 0 90px", textAlign: "center" }}>
+                    <Badge color={st.color}>{st.label}</Badge>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div
+                    style={{
+                      flex: "0 0 auto",
+                      display: "flex",
+                      gap: 6,
+                      alignItems: "center",
+                    }}
+                  >
+                    <SmallBtn
+                      color="var(--blue)"
+                      onClick={() => setViewing(d)}
+                      title="Voir le détail"
+                    >
+                      👁 Voir
+                    </SmallBtn>
+                    <SmallBtn
+                      color="var(--gold)"
+                      onClick={() => downloadPdf(d.id, d.number)}
+                      title="Télécharger le PDF"
+                    >
+                      📄 PDF
+                    </SmallBtn>
+                    {d.status === "BROUILLON" && (
+                      <SmallBtn
+                        color="var(--blue)"
+                        onClick={() => updateStatus(d.id, "ENVOYE")}
+                        title="Marquer comme envoyé"
+                      >
+                        ✉ Envoyer
+                      </SmallBtn>
+                    )}
+                    {d.status === "ENVOYE" && (
+                      <>
+                        <SmallBtn
+                          color="var(--green)"
+                          onClick={() => updateStatus(d.id, "ACCEPTE")}
+                          title="Marquer comme accepté"
+                        >
+                          ✓ Accepter
+                        </SmallBtn>
+                        <SmallBtn
+                          color="#ff6b6b"
+                          onClick={() => updateStatus(d.id, "REFUSE")}
+                          title="Marquer comme refusé"
+                        >
+                          ✗ Refuser
+                        </SmallBtn>
+                      </>
+                    )}
+                    {d.status === "ACCEPTE" && !d.facture && (
+                      <SmallBtn
+                        color="var(--green)"
+                        onClick={() => transformToFacture(d.id)}
+                        title="Transformer en facture"
+                      >
+                        → Facture
+                      </SmallBtn>
+                    )}
+                    {d.status === "BROUILLON" && (
+                      <SmallBtn
+                        color="#ff6b6b"
+                        onClick={() => {
+                          if (confirm("Supprimer ce devis ?")) deleteDevis(d.id);
+                        }}
+                        title="Supprimer"
+                      >
+                        🗑
+                      </SmallBtn>
+                    )}
+                  </div>
                 </div>
-              </div>
+                {/* Facture link if exists */}
+                {d.facture && (
+                  <div
+                    style={{
+                      marginTop: 8,
+                      fontSize: 11,
+                      color: "var(--green)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    ✓ Facture {d.facture.number} créée
+                  </div>
+                )}
+              </Card>
             );
           })}
         </div>
@@ -460,7 +565,7 @@ export default function DevisPage() {
                 </div>
               )}
             </div>
-            <span style={badge(st.color)}>{st.label}</span>
+            <Badge color={st.color}>{st.label}</Badge>
           </div>
 
           {/* Items */}

@@ -1,8 +1,24 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import AdminLayout from "../../components/AdminLayout";
+import {
+  inputStyle,
+  Field,
+  SmallBtn,
+  Empty,
+  Modal,
+  ErrorMsg,
+  FormButtons,
+  PageHeader,
+} from "../../components/admin/SharedUI";
 
 const API = "/api";
+
+function resolveImage(src) {
+  if (!src) return "";
+  if (src.startsWith("/uploads")) return `/api${src}`;
+  return src;
+}
 
 const EMPTY = {
   name: "",
@@ -23,6 +39,8 @@ export default function PortfolioPage() {
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState("");
 
   const fetchProjects = useCallback(async () => {
     const res = await apiFetch(`${API}/portfolio`);
@@ -37,6 +55,8 @@ export default function PortfolioPage() {
     setEditId(null);
     setForm(EMPTY);
     setError("");
+    setImageFile(null);
+    setImagePreview("");
     setShowForm(true);
   }
 
@@ -53,6 +73,8 @@ export default function PortfolioPage() {
       active: p.active !== false,
     });
     setError("");
+    setImageFile(null);
+    setImagePreview(p.image || "");
     setShowForm(true);
   }
 
@@ -60,6 +82,33 @@ export default function PortfolioPage() {
     e.preventDefault();
     setSaving(true);
     setError("");
+
+    let imageUrl = form.image || undefined;
+
+    // Upload image file if selected
+    if (imageFile) {
+      try {
+        const formData = new FormData();
+        formData.append("image", imageFile);
+        const uploadRes = await apiFetch(`${API}/portfolio/upload`, {
+          method: "POST",
+          body: formData,
+        });
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          imageUrl = uploadData.url;
+        } else {
+          const errData = await uploadRes.json().catch(() => ({}));
+          setError(errData.message || "Erreur lors de l'upload de l'image");
+          setSaving(false);
+          return;
+        }
+      } catch {
+        setError("Erreur lors de l'upload de l'image");
+        setSaving(false);
+        return;
+      }
+    }
 
     const body = {
       name: form.name,
@@ -72,7 +121,7 @@ export default function PortfolioPage() {
             .filter(Boolean)
         : [],
       link: form.link || undefined,
-      image: form.image || undefined,
+      image: imageUrl,
       position: parseInt(form.position) || 0,
       active: form.active,
     };
@@ -102,16 +151,7 @@ export default function PortfolioPage() {
     fetchProjects();
   }
 
-  const inputStyle = {
-    width: "100%",
-    padding: "8px 12px",
-    fontSize: 13,
-    background: "var(--black-3)",
-    border: "1px solid var(--border-2)",
-    borderRadius: "var(--r)",
-    color: "var(--white)",
-    outline: "none",
-  };
+  // inputStyle imported from SharedUI
 
   const TAG_COLORS = {
     "Application web": "#2D6FFF",
@@ -124,74 +164,18 @@ export default function PortfolioPage() {
   return (
     <AdminLayout title="Portfolio">
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 24,
-        }}
-      >
-        <div>
-          <h2
-            style={{
-              fontSize: 18,
-              fontWeight: 700,
-              color: "var(--white)",
-              margin: 0,
-            }}
-          >
-            Projets ({projects.length})
-          </h2>
-          <p
-            style={{ fontSize: 12, color: "var(--grey-3)", margin: "4px 0 0" }}
-          >
-            Gérez les projets affichés dans votre portfolio.
-          </p>
-        </div>
-        <button
-          onClick={openCreate}
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: "#fff",
-            background: "var(--blue)",
-            border: "none",
-            borderRadius: "var(--r)",
-            padding: "8px 18px",
-            cursor: "pointer",
-          }}
-        >
-          + Nouveau projet
-        </button>
-      </div>
+      <PageHeader
+        title="Projets"
+        count={projects.length}
+        subtitle="Gérez les projets affichés dans votre portfolio."
+        onAdd={openCreate}
+        addLabel="Nouveau projet"
+      />
 
       {/* ─── Modal formulaire ─────────────── */}
       {showForm && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,.6)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
-          onClick={(e) => e.target === e.currentTarget && setShowForm(false)}
-        >
-          <form
-            onSubmit={handleSubmit}
-            style={{
-              background: "var(--black-2)",
-              border: "1px solid var(--border)",
-              borderRadius: 10,
-              padding: 28,
-              width: 520,
-              maxHeight: "85vh",
-              overflowY: "auto",
-            }}
-          >
+        <Modal onClose={() => setShowForm(false)} maxWidth={520}>
+          <form onSubmit={handleSubmit}>
             <h3
               style={{
                 fontSize: 16,
@@ -203,45 +187,32 @@ export default function PortfolioPage() {
               {editId ? "Modifier le projet" : "Nouveau projet"}
             </h3>
 
-            {error && (
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "#ff6b6b",
-                  background: "rgba(255,80,80,.1)",
-                  padding: "8px 12px",
-                  borderRadius: 6,
-                  marginBottom: 16,
-                }}
-              >
-                {error}
-              </div>
-            )}
+            {error && <ErrorMsg>{error}</ErrorMsg>}
 
             {/* Nom */}
-            <label style={labelStyle}>Nom du projet *</label>
-            <input
-              required
-              style={inputStyle}
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Mon Calcul Impôt"
-            />
+            <Field label="Nom du projet *">
+              <input
+                required
+                style={inputStyle}
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Mon Calcul Impôt"
+              />
+            </Field>
 
             {/* Description */}
-            <label style={{ ...labelStyle, marginTop: 14 }}>
-              Description courte *
-            </label>
-            <textarea
-              required
-              rows={2}
-              style={{ ...inputStyle, resize: "vertical" }}
-              value={form.description}
-              onChange={(e) =>
-                setForm({ ...form, description: e.target.value })
-              }
-              placeholder="Simulateur d'impôt en ligne..."
-            />
+            <Field label="Description courte *">
+              <textarea
+                required
+                rows={2}
+                style={{ ...inputStyle, resize: "vertical" }}
+                value={form.description}
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
+                placeholder="Simulateur d'impôt en ligne..."
+              />
+            </Field>
 
             {/* Tag + Langages */}
             <div
@@ -253,65 +224,135 @@ export default function PortfolioPage() {
               }}
             >
               <div>
-                <label style={labelStyle}>Tag *</label>
-                <input
-                  required
-                  style={inputStyle}
-                  value={form.tag}
-                  onChange={(e) => setForm({ ...form, tag: e.target.value })}
-                  placeholder="Vitrine, SaaS, E-commerce..."
-                />
+                <Field label="Tag *">
+                  <input
+                    required
+                    style={inputStyle}
+                    value={form.tag}
+                    onChange={(e) => setForm({ ...form, tag: e.target.value })}
+                    placeholder="Vitrine, SaaS, E-commerce..."
+                  />
+                </Field>
               </div>
               <div>
-                <label style={labelStyle}>
-                  Langages / Techs{" "}
-                  <span style={{ fontWeight: 400, color: "var(--grey-3)" }}>
-                    (virgule)
-                  </span>
-                </label>
-                <input
-                  style={inputStyle}
-                  value={form.languages}
-                  onChange={(e) =>
-                    setForm({ ...form, languages: e.target.value })
-                  }
-                  placeholder="Next.js, React, Prisma"
-                />
+                <Field label="Langages / Techs (virgule)">
+                  <input
+                    style={inputStyle}
+                    value={form.languages}
+                    onChange={(e) =>
+                      setForm({ ...form, languages: e.target.value })
+                    }
+                    placeholder="Next.js, React, Prisma"
+                  />
+                </Field>
               </div>
             </div>
 
-            {/* Lien + Image */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 14,
-                marginTop: 14,
-              }}
-            >
-              <div>
-                <label style={labelStyle}>Lien</label>
+            <div style={{ marginTop: 14 }}>
+              <Field label="Lien">
                 <input
                   style={inputStyle}
                   value={form.link}
                   onChange={(e) => setForm({ ...form, link: e.target.value })}
                   placeholder="https://..."
                 />
-              </div>
-              <div>
-                <label style={labelStyle}>
-                  Image{" "}
-                  <span style={{ fontWeight: 400, color: "var(--grey-3)" }}>
-                    (URL ou chemin)
-                  </span>
-                </label>
+              </Field>
+            </div>
+
+            <div style={{ marginTop: 14 }}>
+              <Field label="Image">
+              <div
+                style={{
+                  border: "2px dashed var(--border-2)",
+                  borderRadius: 8,
+                  padding: 16,
+                  textAlign: "center",
+                  cursor: "pointer",
+                  transition: "border-color .15s",
+                  position: "relative",
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.style.borderColor = "var(--blue)";
+                }}
+                onDragLeave={(e) => {
+                  e.currentTarget.style.borderColor = "var(--border-2)";
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.style.borderColor = "var(--border-2)";
+                  const file = e.dataTransfer.files[0];
+                  if (file && file.type.startsWith("image/")) {
+                    setImageFile(file);
+                    setImagePreview(URL.createObjectURL(file));
+                    setForm({ ...form, image: "" });
+                  }
+                }}
+                onClick={() => document.getElementById("portfolio-image-input")?.click()}
+              >
                 <input
-                  style={inputStyle}
-                  value={form.image}
-                  onChange={(e) => setForm({ ...form, image: e.target.value })}
-                  placeholder="/images/projet.jpg"
+                  id="portfolio-image-input"
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setImageFile(file);
+                      setImagePreview(URL.createObjectURL(file));
+                      setForm({ ...form, image: "" });
+                    }
+                  }}
                 />
+
+                {(imagePreview || form.image) ? (
+                  <div style={{ position: "relative", display: "inline-block" }}>
+                    <img
+                      src={
+                        imageFile
+                          ? imagePreview
+                          : resolveImage(form.image || imagePreview)
+                      }
+                      alt="Aperçu"
+                      style={{
+                        maxWidth: "100%",
+                        maxHeight: 150,
+                        borderRadius: 6,
+                        objectFit: "cover",
+                      }}
+                      onError={(e) => {
+                        e.target.style.display = "none";
+                      }}
+                    />
+                    <div style={{ marginTop: 8, fontSize: 11, color: "var(--grey-3)" }}>
+                      {imageFile ? imageFile.name : "Image actuelle"}
+                      {" — "}
+                      <span
+                        style={{ color: "var(--blue)", cursor: "pointer" }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setImageFile(null);
+                          setImagePreview("");
+                          setForm({ ...form, image: "" });
+                        }}
+                      >
+                        Supprimer
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize: 28, opacity: 0.3, marginBottom: 6 }}>📷</div>
+                    <div style={{ fontSize: 12, color: "var(--grey-3)" }}>
+                      Cliquez ou glissez une image ici
+                    </div>
+                    <div style={{ fontSize: 10, color: "var(--grey-3)", marginTop: 4, opacity: 0.6 }}>
+                      JPG, PNG, GIF, WebP, SVG — Max 5 Mo
+                    </div>
+                  </div>
+                )}
               </div>
+              </Field>
             </div>
 
             {/* Position + Actif */}
@@ -324,15 +365,16 @@ export default function PortfolioPage() {
               }}
             >
               <div>
-                <label style={labelStyle}>Position</label>
-                <input
-                  type="number"
-                  style={inputStyle}
-                  value={form.position}
-                  onChange={(e) =>
-                    setForm({ ...form, position: e.target.value })
-                  }
-                />
+                <Field label="Position">
+                  <input
+                    type="number"
+                    style={inputStyle}
+                    value={form.position}
+                    onChange={(e) =>
+                      setForm({ ...form, position: e.target.value })
+                    }
+                  />
+                </Field>
               </div>
               <div
                 style={{
@@ -357,61 +399,18 @@ export default function PortfolioPage() {
             </div>
 
             {/* Buttons */}
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                justifyContent: "flex-end",
-                marginTop: 24,
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                style={{
-                  fontSize: 12,
-                  padding: "8px 18px",
-                  borderRadius: "var(--r)",
-                  border: "1px solid var(--border-2)",
-                  background: "transparent",
-                  color: "var(--grey-3)",
-                  cursor: "pointer",
-                }}
-              >
-                Annuler
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  padding: "8px 24px",
-                  borderRadius: "var(--r)",
-                  border: "none",
-                  background: "var(--blue)",
-                  color: "#fff",
-                  cursor: saving ? "not-allowed" : "pointer",
-                  opacity: saving ? 0.6 : 1,
-                }}
-              >
-                {saving ? "..." : editId ? "Modifier" : "Créer"}
-              </button>
-            </div>
+            <FormButtons
+              saving={saving}
+              onCancel={() => setShowForm(false)}
+              submitLabel={editId ? "Modifier" : "Créer"}
+            />
           </form>
-        </div>
+        </Modal>
       )}
 
       {/* ─── Liste des projets ────────────── */}
       {projects.length === 0 && !showForm && (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "60px 20px",
-            color: "var(--grey-3)",
-            fontSize: 13,
-          }}
-        >
+        <Empty>
           Aucun projet dans le portfolio.
           <br />
           <button
@@ -428,7 +427,7 @@ export default function PortfolioPage() {
           >
             Ajouter un premier projet
           </button>
-        </div>
+        </Empty>
       )}
 
       <div style={{ display: "grid", gap: 14 }}>
@@ -460,7 +459,7 @@ export default function PortfolioPage() {
                   }}
                 >
                   <img
-                    src={p.image}
+                    src={resolveImage(p.image)}
                     alt={p.name}
                     style={{
                       width: "100%",
@@ -574,34 +573,12 @@ export default function PortfolioPage() {
 
               {/* Actions */}
               <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                <button
-                  onClick={() => openEdit(p)}
-                  style={{
-                    fontSize: 11,
-                    padding: "5px 12px",
-                    borderRadius: "var(--r)",
-                    border: "1px solid var(--border-2)",
-                    background: "transparent",
-                    color: "var(--grey-2)",
-                    cursor: "pointer",
-                  }}
-                >
-                  ✏️
-                </button>
-                <button
-                  onClick={() => deleteProject(p.id)}
-                  style={{
-                    fontSize: 11,
-                    padding: "5px 12px",
-                    borderRadius: "var(--r)",
-                    border: "1px solid rgba(255,80,80,.2)",
-                    background: "transparent",
-                    color: "#ff6b6b",
-                    cursor: "pointer",
-                  }}
-                >
+                <SmallBtn color="var(--blue)" onClick={() => openEdit(p)} title="Modifier">
+                  ✎ Modifier
+                </SmallBtn>
+                <SmallBtn color="#ff6b6b" onClick={() => deleteProject(p.id)} title="Supprimer">
                   🗑
-                </button>
+                </SmallBtn>
               </div>
             </div>
           );
@@ -611,10 +588,4 @@ export default function PortfolioPage() {
   );
 }
 
-const labelStyle = {
-  display: "block",
-  fontSize: 11,
-  fontWeight: 600,
-  color: "var(--grey-2)",
-  marginBottom: 4,
-};
+// labelStyle replaced by shared Field component

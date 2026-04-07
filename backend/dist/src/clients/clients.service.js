@@ -37,6 +37,13 @@ let ClientsService = class ClientsService {
             include: {
                 pack: true,
                 options: { include: { serviceOption: true } },
+                devis: {
+                    include: { items: true },
+                    orderBy: { createdAt: 'desc' },
+                },
+                factures: {
+                    orderBy: { createdAt: 'desc' },
+                },
             },
         });
         if (!client)
