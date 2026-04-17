@@ -7,6 +7,7 @@ import Ticker from "../components/Ticker";
 import About from "../components/About";
 import Portfolio from "../components/Portfolio";
 import Tarifs from "../components/Tarifs";
+import PriceSimulator from "../components/PriceSimulator";
 import Contact from "../components/Contact";
 import Footer from "../components/Footer";
 import Toast from "../components/Toast";
@@ -57,6 +58,7 @@ export default function Home() {
       <About />
       <Portfolio />
       <Tarifs onToast={showToast} />
+      <PriceSimulator />
       <Contact onToast={showToast} />
       <Footer />
       <Toast />

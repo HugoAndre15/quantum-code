@@ -43,6 +43,7 @@ img{display:block;max-width:100%;height:auto}
 .btn-outline{background:transparent;color:var(--grey);border-color:var(--border-2)}.btn-outline:hover{border-color:var(--blue);color:var(--blue)}
 .btn-ghost{background:transparent;color:var(--grey-3);border-color:transparent;padding-left:0}.btn-ghost:hover{color:var(--gold)}
 .btn-ghost .arr{transition:transform .2s;display:inline-block}.btn-ghost:hover .arr{transform:translateX(4px)}
+.btn-gold{background:var(--gold);color:var(--black);border-color:var(--gold);font-weight:700}.btn-gold:hover{background:#F5D97A;border-color:#F5D97A}
 
 /* ═══ NAV ═══ */
 .navbar{position:fixed;top:0;left:0;right:0;z-index:200;height:var(--nav-h);display:flex;align-items:center;justify-content:space-between;padding:0 52px;border-bottom:1px solid transparent;transition:background .4s,border-color .4s,backdrop-filter .4s}
@@ -176,6 +177,15 @@ h1.hero-title .serif-word{font-family:var(--font-serif),Georgia,serif;font-style
 .s-label.gold{color:var(--gold)}
 .s-label.gold::before{background:var(--gold)}
 
+/* — Base card — */
+.base-card{background:var(--black-3);border:1px solid var(--border);border-radius:var(--r-l);padding:32px;text-align:center;margin-top:48px;max-width:480px;margin-left:auto;margin-right:auto}
+.base-card-label{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--grey-4);margin-bottom:6px}
+.base-card-name{font-size:22px;font-weight:700;color:var(--white);margin-bottom:16px}
+.base-card-price{margin-bottom:12px}
+.base-card-price-num{font-size:38px;font-weight:700;color:var(--gold);letter-spacing:-.03em}
+.base-card-detail{font-size:13px;color:var(--grey-3);margin-bottom:8px}
+.base-card-desc{font-size:13px;color:var(--grey-3);line-height:1.5}
+
 /* — Packs grid — */
 .packs-layout{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:56px}
 .pack-card{background:var(--black-3);border:1px solid var(--border);border-radius:var(--r-l);padding:40px 32px 32px;display:flex;flex-direction:column;align-items:center;text-align:center;transition:border-color .3s,transform .3s;position:relative;overflow:hidden}
@@ -210,6 +220,115 @@ h1.hero-title .serif-word{font-family:var(--font-serif),Georgia,serif;font-style
 .step-title{font-size:17px;font-weight:700;color:var(--white);margin-bottom:6px}
 .step-desc{font-size:14px;color:var(--grey-3);line-height:1.6}
 .tarifs-footnote{text-align:center;margin-top:32px;font-size:13px;color:var(--grey-4)}
+
+/* ═══ PRICE SIMULATOR ═══ */
+.simulator-section{border-top:1px solid var(--border);background:var(--black)}
+.simulator-header{text-align:center;display:flex;flex-direction:column;align-items:center;margin-bottom:48px}
+.simulator-header .s-label{justify-content:center}
+.simulator-card{background:var(--black-2);border:1px solid var(--border);border-radius:var(--r-l);padding:40px;max-width:800px;margin:0 auto}
+
+/* Progress */
+.sim-progress{display:flex;align-items:center;margin-bottom:36px;gap:4px}
+.sim-step-indicator{display:flex;align-items:center;gap:8px;flex:1}
+.sim-step-dot{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;background:var(--black-3);color:var(--grey-3);border:2px solid var(--border);transition:all .25s;flex-shrink:0}
+.sim-step-indicator.active .sim-step-dot{background:var(--blue);color:#fff;border-color:var(--blue)}
+.sim-step-indicator.done .sim-step-dot{background:var(--green);color:#fff;border-color:var(--green)}
+.sim-step-label{font-size:12px;color:var(--grey-3);font-weight:500;white-space:nowrap}
+.sim-step-indicator.active .sim-step-label{color:var(--white);font-weight:600}
+.sim-step-line{flex:1;height:2px;background:var(--border);border-radius:1px;transition:background .25s}
+.sim-step-line.active{background:var(--blue)}
+
+/* Step content */
+.sim-step-content{min-height:200px}
+.sim-step-title{font-size:20px;font-weight:700;color:var(--white);margin-bottom:6px}
+.sim-step-desc{font-size:14px;color:var(--grey-3);line-height:1.6;margin-bottom:24px}
+
+/* Mode selection */
+.sim-mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.sim-mode-card{background:var(--black-3);border:2px solid var(--border);border-radius:var(--r-m);padding:28px 24px;text-align:center;cursor:pointer;transition:all .2s}
+.sim-mode-card:hover{border-color:var(--border-2)}
+.sim-mode-card.selected{border-color:var(--blue);background:rgba(45,111,255,.06)}
+.sim-mode-icon{font-size:36px;margin-bottom:12px}
+.sim-mode-name{font-size:18px;font-weight:700;color:var(--white);margin-bottom:8px}
+.sim-mode-desc{font-size:13px;color:var(--grey-3);line-height:1.5}
+
+/* Pack selection */
+.sim-packs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.sim-pack-card{background:var(--black-3);border:2px solid var(--border);border-radius:var(--r-m);padding:24px 20px;cursor:pointer;transition:all .2s;position:relative}
+.sim-pack-card:hover{border-color:var(--border-2)}
+.sim-pack-card.selected{border-color:var(--blue);background:rgba(45,111,255,.06)}
+.sim-check{position:absolute;top:12px;right:12px;width:24px;height:24px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;font-weight:700}
+.sim-pack-name{font-size:17px;font-weight:700;color:var(--white);margin-bottom:6px}
+.sim-pack-price{font-size:28px;font-weight:800;color:var(--gold);margin-bottom:8px;letter-spacing:-.02em}
+.sim-pack-desc{font-size:12px;color:var(--grey-3);line-height:1.5;margin-bottom:12px}
+.sim-pack-includes{display:flex;flex-direction:column;gap:6px}
+.sim-pack-pages{font-size:12px;color:var(--blue);font-weight:600}
+.sim-pack-opts{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.sim-included-tag{font-size:10px;padding:2px 8px;border-radius:20px;background:rgba(93,216,160,.1);color:var(--green);font-weight:600}
+
+/* Base summary (custom mode) */
+.sim-base-summary{background:var(--black-3);border:1px solid var(--border);border-radius:var(--r-m);padding:28px;text-align:center}
+.sim-base-name{font-size:18px;font-weight:700;color:var(--white);margin-bottom:8px}
+.sim-base-price{font-size:36px;font-weight:800;color:var(--gold);margin-bottom:8px;letter-spacing:-.02em}
+.sim-base-detail{font-size:13px;color:var(--grey-3)}
+
+/* Pages selector */
+.sim-pages-block{margin-bottom:28px;background:var(--black-3);border:1px solid var(--border);border-radius:var(--r-m);padding:20px 24px}
+.sim-pages-label{font-size:14px;font-weight:600;color:var(--white);margin-bottom:12px}
+.sim-pages-control{display:flex;align-items:center;gap:16px;margin-bottom:8px}
+.sim-pages-btn{width:36px;height:36px;border-radius:50%;border:1px solid var(--border-2);background:var(--black-2);color:var(--white);font-size:18px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.sim-pages-btn:hover{border-color:var(--blue);color:var(--blue)}
+.sim-pages-count{font-size:24px;font-weight:800;color:var(--white);min-width:40px;text-align:center}
+.sim-pages-info{font-size:12px;color:var(--grey-3)}
+.sim-pages-extra{color:var(--gold);font-weight:600}
+
+/* Options grid */
+.sim-options-block{margin-bottom:20px}
+.sim-options-label{font-size:14px;font-weight:600;color:var(--white);margin-bottom:12px}
+.sim-options-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.sim-option-card{background:var(--black-3);border:2px solid var(--border);border-radius:var(--r);padding:14px 16px;cursor:pointer;transition:all .15s}
+.sim-option-card:hover{border-color:var(--border-2)}
+.sim-option-card.selected{border-color:var(--blue);background:rgba(45,111,255,.06)}
+.sim-option-card.included{border-color:var(--green);background:rgba(93,216,160,.06);cursor:default;opacity:.8}
+.sim-option-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.sim-option-name{font-size:13px;font-weight:600;color:var(--white)}
+.sim-option-price{font-size:13px;font-weight:700;color:var(--gold)}
+.sim-option-price.included{color:var(--green);font-size:11px}
+.sim-option-desc{font-size:11px;color:var(--grey-3);line-height:1.4}
+
+/* Recap */
+.sim-recap{background:var(--black-3);border:1px solid var(--border);border-radius:var(--r-m);padding:24px;margin-bottom:20px}
+.sim-recap-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px;color:var(--white)}
+.sim-recap-price{font-weight:600;color:var(--gold)}
+.sim-recap-included{padding:12px 0;border-bottom:1px solid var(--border)}
+.sim-recap-included-label{font-size:11px;font-weight:600;color:var(--grey-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.sim-recap-included-item{font-size:13px;color:var(--green);padding:2px 0}
+.sim-recap-total{display:flex;justify-content:space-between;padding:16px 0 0;margin-top:4px;border-top:2px solid var(--border-2);font-size:16px;font-weight:700;color:var(--white)}
+.sim-recap-total-price{font-size:24px;font-weight:800;color:var(--gold);letter-spacing:-.02em}
+.sim-disclaimer{font-size:12px;color:var(--grey-4);line-height:1.5;margin-bottom:24px;font-style:italic}
+
+/* CTA & Nav */
+.sim-cta{display:flex;flex-direction:column;align-items:center;gap:12px}
+.sim-cta .btn{width:100%;max-width:360px}
+.sim-reset-btn{font-size:13px;color:var(--grey-3);background:none;border:none;cursor:pointer;text-decoration:underline;transition:color .2s}
+.sim-reset-btn:hover{color:var(--white)}
+.sim-nav{display:flex;justify-content:space-between;margin-top:28px;gap:12px}
+.sim-nav-btn{padding:10px 24px;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
+.sim-nav-btn.prev{background:transparent;border:1px solid var(--border-2);color:var(--grey-3)}
+.sim-nav-btn.prev:hover{color:var(--white);border-color:var(--white)}
+.sim-nav-btn.next{background:var(--blue);border:none;color:#fff;margin-left:auto}
+.sim-nav-btn.next:disabled{opacity:.4;cursor:not-allowed}
+.sim-nav-btn.next:not(:disabled):hover{background:var(--blue-2)}
+
+/* Simulator responsive */
+@media(max-width:768px){
+  .simulator-card{padding:24px 20px}
+  .sim-mode-grid{grid-template-columns:1fr}
+  .sim-packs-grid{grid-template-columns:1fr}
+  .sim-options-grid{grid-template-columns:1fr}
+  .sim-progress{flex-wrap:wrap;gap:8px}
+  .sim-step-line{display:none}
+}
 
 /* — Responsive — */
 @media(max-width:1024px){
