@@ -15,6 +15,7 @@ import {
   UpdatePackDto,
   CreateOptionDto,
   UpdateOptionDto,
+  UpdatePricingBaseDto,
 } from './dto/offers.dto';
 import { JwtAuthGuard, RoleGuard } from '../auth/guards/jwt.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -33,6 +34,27 @@ export class OffersController {
   @Get('options/public')
   findPublicOptions() {
     return this.offers.findActiveOptions();
+  }
+
+  @Get('pricing/public')
+  getPublicPricing() {
+    return this.offers.getPublicPricing();
+  }
+
+  // ─── Pricing Base ──────────────────────────
+
+  @UseGuards(JwtAuthGuard, RoleGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Get('pricing-base')
+  getPricingBase() {
+    return this.offers.getPricingBase();
+  }
+
+  @UseGuards(JwtAuthGuard, RoleGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Put('pricing-base')
+  updatePricingBase(@Body() dto: UpdatePricingBaseDto) {
+    return this.offers.updatePricingBase(dto);
   }
 
   // ─── Packs ──────────────────────────────────

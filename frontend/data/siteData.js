@@ -61,6 +61,7 @@ export const navLinks = [
   { href: "#apropos", label: "À propos" },
   { href: "#portfolio", label: "Portfolio" },
   { href: "#tarifs", label: "Tarifs" },
+  { href: "#simulateur", label: "Simulateur" },
   { href: "#contact", label: "Contact" },
 ];
 

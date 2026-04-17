@@ -24,6 +24,19 @@ const EMPTY_PACK = {
   position: "0",
   active: true,
   features: "",
+  includedPages: "0",
+  includedOptionIds: [],
+};
+
+const EMPTY_BASE = {
+  name: "",
+  basePrice: "",
+  pagePrice: "",
+  basePages: "",
+  devTimeBase: "",
+  devTimePage: "",
+  description: "",
+  active: true,
 };
 const EMPTY_OPT = {
   name: "",
@@ -53,8 +66,30 @@ export default function OffersPage() {
   const [editOpt, setEditOpt] = useState(null);
   const [optForm, setOptForm] = useState(EMPTY_OPT);
 
+  // Pricing Base
+  const [baseForm, setBaseForm] = useState(EMPTY_BASE);
+  const [baseSaving, setBaseSaving] = useState(false);
+  const [baseError, setBaseError] = useState("");
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const fetchBase = useCallback(async () => {
+    const res = await apiFetch(`${API}/offers/pricing-base`);
+    if (res.ok) {
+      const data = await res.json();
+      setBaseForm({
+        name: data.name || "",
+        basePrice: data.basePrice != null ? String(data.basePrice) : "",
+        pagePrice: data.pagePrice != null ? String(data.pagePrice) : "",
+        basePages: data.basePages != null ? String(data.basePages) : "",
+        devTimeBase: data.devTimeBase != null ? String(data.devTimeBase) : "",
+        devTimePage: data.devTimePage != null ? String(data.devTimePage) : "",
+        description: data.description || "",
+        active: data.active !== false,
+      });
+    }
+  }, [apiFetch]);
 
   const fetchPacks = useCallback(async () => {
     const res = await apiFetch(`${API}/offers/packs`);
@@ -70,8 +105,36 @@ export default function OffersPage() {
     if (user) {
       fetchPacks();
       fetchOptions();
+      fetchBase();
     }
-  }, [user, fetchPacks, fetchOptions]);
+  }, [user, fetchPacks, fetchOptions, fetchBase]);
+
+  // ─── Base handler ─────────────────────
+  async function handleBaseSubmit(e) {
+    e.preventDefault();
+    setBaseSaving(true);
+    setBaseError("");
+    const body = {
+      name: baseForm.name,
+      basePrice: parseFloat(baseForm.basePrice),
+      pagePrice: parseFloat(baseForm.pagePrice),
+      basePages: parseInt(baseForm.basePages) || 0,
+      devTimeBase: baseForm.devTimeBase ? parseFloat(baseForm.devTimeBase) : 0,
+      devTimePage: baseForm.devTimePage ? parseFloat(baseForm.devTimePage) : 0,
+      description: baseForm.description || undefined,
+      active: baseForm.active,
+    };
+    const res = await apiFetch(`${API}/offers/pricing-base`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setBaseError(data.message || "Erreur");
+    }
+    setBaseSaving(false);
+  }
 
   // ─── Pack handlers ────────────────────
   function openCreatePack() {
@@ -91,6 +154,10 @@ export default function OffersPage() {
       position: p.position != null ? String(p.position) : "0",
       active: p.active !== false,
       features: (p.features || []).join(", "),
+      includedPages: p.includedPages != null ? String(p.includedPages) : "0",
+      includedOptionIds: (p.includedOptions || []).map(
+        (io) => io.serviceOption?.id || io.serviceOptionId
+      ),
     });
     setError("");
     setShowPackForm(true);
@@ -114,6 +181,8 @@ export default function OffersPage() {
             .map((f) => f.trim())
             .filter(Boolean)
         : [],
+      includedPages: parseInt(packForm.includedPages) || 0,
+      includedOptionIds: packForm.includedOptionIds || [],
     };
 
     const url = editPack
@@ -210,25 +279,133 @@ export default function OffersPage() {
     fetchOptions();
   }
 
+  const headerProps = {
+    packs: { title: "Packs", onAdd: openCreatePack, addLabel: "Nouveau pack" },
+    options: { title: "Options", onAdd: openCreateOpt, addLabel: "Nouvelle option" },
+    base: { title: "Tarification de base" },
+  };
+
   return (
     <AdminLayout title="Offres">
       {/* Header */}
       <PageHeader
-        title={tab === "packs" ? "Packs" : "Options"}
+        title={headerProps[tab].title}
         subtitle="Gérez les packs et options de votre catalogue."
-        onAdd={tab === "packs" ? openCreatePack : openCreateOpt}
-        addLabel={tab === "packs" ? "Nouveau pack" : "Nouvelle option"}
+        onAdd={headerProps[tab].onAdd}
+        addLabel={headerProps[tab].addLabel}
       />
 
       {/* Tabs */}
       <TabBar
         tabs={[
+          { key: "base", label: "Base" },
           { key: "packs", label: `Packs (${packs.length})` },
           { key: "options", label: `Options (${options.length})` },
         ]}
         activeTab={tab}
         onTabChange={setTab}
       />
+
+      {/* Base tab */}
+      {tab === "base" && (
+        <Card>
+          {baseError && <ErrorMsg>{baseError}</ErrorMsg>}
+          <form onSubmit={handleBaseSubmit}>
+            <Field label="Nom *">
+              <input
+                required
+                style={inputStyle}
+                value={baseForm.name}
+                onChange={(e) => setBaseForm({ ...baseForm, name: e.target.value })}
+              />
+            </Field>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+              <Field label="Prix de base (€) *">
+                <input
+                  required
+                  type="number"
+                  step="0.01"
+                  style={inputStyle}
+                  value={baseForm.basePrice}
+                  onChange={(e) => setBaseForm({ ...baseForm, basePrice: e.target.value })}
+                />
+              </Field>
+              <Field label="Prix par page (€) *">
+                <input
+                  required
+                  type="number"
+                  step="0.01"
+                  style={inputStyle}
+                  value={baseForm.pagePrice}
+                  onChange={(e) => setBaseForm({ ...baseForm, pagePrice: e.target.value })}
+                />
+              </Field>
+              <Field label="Pages incluses *">
+                <input
+                  required
+                  type="number"
+                  step="1"
+                  style={inputStyle}
+                  value={baseForm.basePages}
+                  onChange={(e) => setBaseForm({ ...baseForm, basePages: e.target.value })}
+                />
+              </Field>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <Field label="Temps de dev base (h)">
+                <input
+                  type="number"
+                  step="0.5"
+                  style={inputStyle}
+                  placeholder="0"
+                  value={baseForm.devTimeBase}
+                  onChange={(e) => setBaseForm({ ...baseForm, devTimeBase: e.target.value })}
+                />
+              </Field>
+              <Field label="Temps de dev par page (h)">
+                <input
+                  type="number"
+                  step="0.5"
+                  style={inputStyle}
+                  placeholder="0"
+                  value={baseForm.devTimePage}
+                  onChange={(e) => setBaseForm({ ...baseForm, devTimePage: e.target.value })}
+                />
+              </Field>
+            </div>
+            <Field label="Description">
+              <textarea
+                style={{ ...inputStyle, minHeight: 80, resize: "vertical" }}
+                value={baseForm.description}
+                onChange={(e) => setBaseForm({ ...baseForm, description: e.target.value })}
+              />
+            </Field>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: 12,
+                color: "var(--grey-3)",
+                margin: "12px 0",
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={baseForm.active}
+                onChange={(e) => setBaseForm({ ...baseForm, active: e.target.checked })}
+              />
+              Actif
+            </label>
+            <FormButtons
+              saving={baseSaving}
+              onCancel={() => fetchBase()}
+              submitLabel="Enregistrer"
+            />
+          </form>
+        </Card>
+      )}
 
       {/* Packs list */}
       {tab === "packs" && (
@@ -332,6 +509,37 @@ export default function OffersPage() {
                           }}
                         >
                           {f}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {p.includedPages > 0 && (
+                    <div style={{ fontSize: 12, color: "var(--blue)", marginTop: 6 }}>
+                      📄 {p.includedPages} page{p.includedPages > 1 ? "s" : ""} incluse{p.includedPages > 1 ? "s" : ""}
+                    </div>
+                  )}
+                  {p.includedOptions && p.includedOptions.length > 0 && (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 6,
+                        marginTop: 6,
+                      }}
+                    >
+                      {p.includedOptions.map((io, i) => (
+                        <span
+                          key={i}
+                          style={{
+                            fontSize: 11,
+                            padding: "2px 8px",
+                            borderRadius: "var(--r)",
+                            background: "rgba(139,92,246,.12)",
+                            color: "#a78bfa",
+                            border: "1px solid rgba(139,92,246,.25)",
+                          }}
+                        >
+                          {io.serviceOption?.name || "Option"}
                         </span>
                       ))}
                     </div>
@@ -526,6 +734,26 @@ export default function OffersPage() {
                 />
               </Field>
             </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 16,
+              }}
+            >
+              <Field label="Pages incluses">
+                <input
+                  type="number"
+                  step="1"
+                  min="0"
+                  style={inputStyle}
+                  value={packForm.includedPages}
+                  onChange={(e) =>
+                    setPackForm({ ...packForm, includedPages: e.target.value })
+                  }
+                />
+              </Field>
+            </div>
             <Field label="Features (séparées par des virgules)">
               <input
                 style={inputStyle}
@@ -536,6 +764,53 @@ export default function OffersPage() {
                 }
               />
             </Field>
+            {options.length > 0 && (
+              <div style={{ margin: "16px 0" }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--white)",
+                    marginBottom: 8,
+                  }}
+                >
+                  Options incluses
+                </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 6,
+                  }}
+                >
+                  {options.map((opt) => (
+                    <label
+                      key={opt.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        fontSize: 12,
+                        color: "var(--grey-3)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={packForm.includedOptionIds.includes(opt.id)}
+                        onChange={(e) => {
+                          const ids = e.target.checked
+                            ? [...packForm.includedOptionIds, opt.id]
+                            : packForm.includedOptionIds.filter((id) => id !== opt.id);
+                          setPackForm({ ...packForm, includedOptionIds: ids });
+                        }}
+                      />
+                      {opt.name} ({opt.price}€)
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
             <label
               style={{
                 display: "flex",

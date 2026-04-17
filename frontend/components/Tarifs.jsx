@@ -4,6 +4,7 @@ import { steps } from "../data/siteData";
 const API = "/api";
 
 export default function Tarifs({ onToast }) {
+  const [base, setBase] = useState(null);
   const [packs, setPacks] = useState([]);
   const [options, setOptions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -11,14 +12,12 @@ export default function Tarifs({ onToast }) {
   useEffect(() => {
     async function fetchOffers() {
       try {
-        const [packsRes, optsRes] = await Promise.all([
-          fetch(`${API}/offers/packs/public`),
-          fetch(`${API}/offers/options/public`),
-        ]);
-        if (packsRes.ok) setPacks(await packsRes.json());
-        if (optsRes.ok) {
-          const allOpts = await optsRes.json();
-          setOptions(allOpts.filter((o) => !o.recurring));
+        const res = await fetch(`${API}/offers/pricing/public`);
+        if (res.ok) {
+          const data = await res.json();
+          setBase(data.base);
+          setPacks(data.packs || []);
+          setOptions((data.options || []).filter((o) => !o.recurring));
         }
       } catch {
         // fallback vide
@@ -28,9 +27,14 @@ export default function Tarifs({ onToast }) {
     }
     fetchOffers();
   }, []);
+
   const scrollToContact = () => {
     onToast?.("On vous répond sous 24h !");
     document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const scrollToSimulator = () => {
+    document.getElementById("simulateur")?.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
@@ -48,10 +52,30 @@ export default function Tarifs({ onToast }) {
           </p>
         </div>
 
+        {/* Base card */}
+        {base && (
+          <div className="base-card">
+            <div className="base-card-label">BASE</div>
+            <div className="base-card-name">{base.name}</div>
+            <div className="base-card-price">
+              <span className="base-card-price-num">{base.basePrice}€</span>
+            </div>
+            <div className="base-card-detail">
+              {base.basePages} page{base.basePages > 1 ? "s" : ""} incluse{base.basePages > 1 ? "s" : ""} · {base.pagePrice}€/page supplémentaire
+            </div>
+            {base.description && (
+              <div className="base-card-desc">{base.description}</div>
+            )}
+          </div>
+        )}
+
         {/* Packs */}
         <div className="packs-layout">
           {packs.map((p, i) => {
             const isPopular = packs.length >= 2 && i === Math.floor(packs.length / 2);
+            const includedOpts = (p.includedOptions || [])
+              .map((io) => io.serviceOption)
+              .filter(Boolean);
             return (
               <div key={p.id || i} className={`pack-card${isPopular ? " popular" : ""}`}>
                 {isPopular && (
@@ -63,6 +87,18 @@ export default function Tarifs({ onToast }) {
                   <span className="pack-price-num">{p.price}€</span>
                 </div>
                 <ul className="pack-features">
+                  {p.includedPages > 0 && (
+                    <li className="pack-feature">
+                      <span className="pack-dot" />
+                      {p.includedPages} page{p.includedPages > 1 ? "s" : ""} incluse{p.includedPages > 1 ? "s" : ""}
+                    </li>
+                  )}
+                  {includedOpts.map((o) => (
+                    <li key={o.id} className="pack-feature">
+                      <span className="pack-dot" />
+                      {o.name}
+                    </li>
+                  ))}
                   {(p.features || []).map((f, fi) => (
                     <li key={fi} className="pack-feature">
                       <span className="pack-dot" />
@@ -113,6 +149,12 @@ export default function Tarifs({ onToast }) {
               ))}
             </div>
           </div>
+        </div>
+
+        <div style={{ textAlign: "center", marginTop: 32 }}>
+          <button className="btn btn-gold" onClick={scrollToSimulator}>
+            🧮 Simuler mon budget →
+          </button>
         </div>
 
         <p className="tarifs-footnote">

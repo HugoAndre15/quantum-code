@@ -42,22 +42,26 @@ export default function DevisPage() {
   const [selectedClientId, setSelectedClientId] = useState("");
   const [selectedPackId, setSelectedPackId] = useState("");
   const [selectedOptionIds, setSelectedOptionIds] = useState([]);
-  const [extraPages, setExtraPages] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const [notes, setNotes] = useState("");
   const [validUntil, setValidUntil] = useState("");
   const [clientSearch, setClientSearch] = useState("");
+  const [base, setBase] = useState(null);
+  const [surMesure, setSurMesure] = useState(false);
 
   const load = useCallback(async () => {
-    const [dRes, cRes, pRes, oRes] = await Promise.all([
+    const [dRes, cRes, pRes, oRes, bRes] = await Promise.all([
       apiFetch(`${API}/devis`),
       apiFetch(`${API}/clients`),
       apiFetch(`${API}/offers/packs`),
       apiFetch(`${API}/offers/options`),
+      apiFetch(`${API}/offers/pricing-base`),
     ]);
     if (dRes.ok) setDevisList(await dRes.json());
     if (cRes.ok) setClients(await cRes.json());
     if (pRes.ok) setPacks((await pRes.json()).filter((pk) => pk.active));
     if (oRes.ok) setOptions((await oRes.json()).filter((opt) => opt.active));
+    if (bRes.ok) setBase(await bRes.json());
   }, [apiFetch]);
 
   useEffect(() => {
@@ -69,30 +73,34 @@ export default function DevisPage() {
   const recurringOptions = options.filter((o) => o.recurring);
   const selectedPack = packs.find((p) => p.id === selectedPackId);
   const selectedOpts = options.filter((o) => selectedOptionIds.includes(o.id));
-  const pageSuppOption = options.find((o) => o.name === "Page supplémentaire");
+  const packIncludedOptionIds = selectedPack
+    ? (selectedPack.includedOptions || []).map((io) => io.serviceOption.id)
+    : [];
+  const minPages = selectedPack
+    ? selectedPack.includedPages || 0
+    : base?.basePages || 0;
+  const extraPagesCount = Math.max(0, totalPages - minPages);
 
   const computeTotal = () => {
-    let total = selectedPack ? selectedPack.price : 0;
+    let total = selectedPack
+      ? selectedPack.price
+      : base?.basePrice || 0;
+    total += extraPagesCount * (base?.pagePrice || 0);
     for (const opt of selectedOpts) {
       if (!opt.recurring) {
-        if (opt.name === "Page supplémentaire") {
-          total += opt.price * extraPages;
-        } else {
-          total += opt.price;
-        }
+        total += opt.price;
       }
     }
     return total;
   };
 
   const computeDevTime = () => {
-    let hours = selectedPack ? selectedPack.devTime || 0 : 0;
+    let hours = selectedPack
+      ? selectedPack.devTime || 0
+      : base?.devTimeBase || 0;
+    hours += extraPagesCount * (base?.devTimePage || 0);
     for (const opt of selectedOpts) {
-      if (opt.name === "Page supplémentaire") {
-        hours += (opt.devTime || 0) * extraPages;
-      } else {
-        hours += opt.devTime || 0;
-      }
+      hours += opt.devTime || 0;
     }
     return hours;
   };
@@ -111,62 +119,15 @@ export default function DevisPage() {
     setSelectedClientId("");
     setSelectedPackId("");
     setSelectedOptionIds([]);
-    setExtraPages(0);
+    setTotalPages(0);
     setNotes("");
     setValidUntil("");
     setClientSearch("");
+    setSurMesure(false);
     setStep(0);
   };
 
   const handleSubmit = async () => {
-    const items = [];
-
-    if (selectedPack) {
-      items.push({
-        label: `Pack ${selectedPack.name}`,
-        description: selectedPack.description,
-        unitPrice: selectedPack.price,
-        devTime: selectedPack.devTime || 0,
-        packId: selectedPack.id,
-        quantity: 1,
-      });
-    }
-
-    for (const opt of selectedOpts) {
-      if (opt.name === "Page supplémentaire" && extraPages > 0) {
-        items.push({
-          label: opt.name,
-          description: opt.description,
-          unitPrice: opt.price,
-          devTime: opt.devTime || 0,
-          serviceOptionId: opt.id,
-          quantity: extraPages,
-          recurring: false,
-        });
-      } else if (opt.recurring) {
-        items.push({
-          label: opt.name,
-          description: `${opt.price}€/${opt.recurringUnit}`,
-          unitPrice: opt.price,
-          devTime: 0,
-          serviceOptionId: opt.id,
-          quantity: 1,
-          recurring: true,
-          recurringUnit: opt.recurringUnit,
-        });
-      } else if (opt.name !== "Page supplémentaire") {
-        items.push({
-          label: opt.name,
-          description: opt.description,
-          unitPrice: opt.price,
-          devTime: opt.devTime || 0,
-          serviceOptionId: opt.id,
-          quantity: 1,
-          recurring: false,
-        });
-      }
-    }
-
     await apiFetch(`${API}/devis`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -174,7 +135,9 @@ export default function DevisPage() {
         clientId: selectedClientId,
         notes,
         validUntil: validUntil || undefined,
-        items,
+        packId: selectedPackId || undefined,
+        optionIds: selectedOptionIds,
+        pages: totalPages,
       }),
     });
 
@@ -239,6 +202,7 @@ export default function DevisPage() {
   };
 
   const toggleOption = (id) => {
+    if (packIncludedOptionIds.includes(id)) return;
     setSelectedOptionIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
@@ -946,7 +910,7 @@ export default function DevisPage() {
         </div>
       )}
 
-      {/* Step 1: Pack */}
+      {/* Step 1: Pack / Base */}
       {step === 1 && (
         <div style={card}>
           <div
@@ -957,12 +921,12 @@ export default function DevisPage() {
               marginBottom: 4,
             }}
           >
-            Choisir un pack
+            Choisir un pack ou sur mesure
           </div>
           <div
             style={{ fontSize: 12, color: "var(--grey-3)", marginBottom: 20 }}
           >
-            Sélectionnez une offre de base ou un pack complet
+            Sélectionnez un pack complet ou partez sur mesure
           </div>
 
           <div
@@ -972,12 +936,118 @@ export default function DevisPage() {
               gap: 12,
             }}
           >
+            {/* Sur mesure card */}
+            <div
+              onClick={() => {
+                setSurMesure(true);
+                setSelectedPackId("");
+                setTotalPages(base?.basePages || 0);
+                setSelectedOptionIds((prev) =>
+                  prev.filter((id) => !packIncludedOptionIds.includes(id)),
+                );
+              }}
+              style={{
+                padding: 18,
+                borderRadius: 10,
+                border: `2px solid ${surMesure && !selectedPackId ? "var(--blue)" : "var(--border)"}`,
+                background:
+                  surMesure && !selectedPackId
+                    ? "rgba(45,111,255,.06)"
+                    : "var(--black-3)",
+                cursor: "pointer",
+                transition: "all .15s",
+                position: "relative",
+              }}
+            >
+              {surMesure && !selectedPackId && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 10,
+                    right: 10,
+                    width: 22,
+                    height: 22,
+                    borderRadius: "50%",
+                    background: "var(--blue)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 12,
+                    color: "#fff",
+                    fontWeight: 700,
+                  }}
+                >
+                  ✓
+                </div>
+              )}
+              <div
+                style={{
+                  fontSize: 10,
+                  textTransform: "uppercase",
+                  letterSpacing: ".06em",
+                  color: "var(--grey-3)",
+                  marginBottom: 6,
+                }}
+              >
+                Personnalisé
+              </div>
+              <div
+                style={{
+                  fontSize: 16,
+                  fontWeight: 700,
+                  color: "var(--white)",
+                  marginBottom: 4,
+                }}
+              >
+                Sur mesure
+              </div>
+              <div
+                style={{
+                  fontSize: 22,
+                  fontWeight: 800,
+                  color: "var(--gold)",
+                  marginBottom: 8,
+                }}
+              >
+                {base?.basePrice || 0}€
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "var(--grey-3)",
+                  lineHeight: 1.5,
+                }}
+              >
+                Base avec {base?.basePages || 0} page
+                {(base?.basePages || 0) > 1 ? "s" : ""} incluse
+                {(base?.basePages || 0) > 1 ? "s" : ""}. Ajoutez les options de
+                votre choix.
+              </div>
+            </div>
+
+            {/* Pack cards */}
             {packs.map((p) => {
               const isSelected = selectedPackId === p.id;
               return (
                 <div
                   key={p.id}
-                  onClick={() => setSelectedPackId(isSelected ? "" : p.id)}
+                  onClick={() => {
+                    if (isSelected) {
+                      setSelectedPackId("");
+                      setSurMesure(false);
+                      setTotalPages(0);
+                    } else {
+                      setSelectedPackId(p.id);
+                      setSurMesure(false);
+                      setTotalPages(p.includedPages || 0);
+                      const newIncluded = (p.includedOptions || []).map(
+                        (io) => io.serviceOption.id,
+                      );
+                      setSelectedOptionIds((prev) =>
+                        prev.filter((id) => !newIncluded.includes(id)),
+                      );
+                    }
+                  }}
                   style={{
                     padding: 18,
                     borderRadius: 10,
@@ -1051,6 +1121,33 @@ export default function DevisPage() {
                   >
                     {p.description}
                   </div>
+                  {(p.includedPages > 0 ||
+                    (p.includedOptions || []).length > 0) && (
+                    <div
+                      style={{
+                        marginTop: 10,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 3,
+                      }}
+                    >
+                      {p.includedPages > 0 && (
+                        <div style={{ fontSize: 11, color: "var(--blue)" }}>
+                          • {p.includedPages} page
+                          {p.includedPages > 1 ? "s" : ""} incluse
+                          {p.includedPages > 1 ? "s" : ""}
+                        </div>
+                      )}
+                      {(p.includedOptions || []).map((io) => (
+                        <div
+                          key={io.serviceOption.id}
+                          style={{ fontSize: 11, color: "var(--blue)" }}
+                        >
+                          • {io.serviceOption.name} inclus
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {p.features?.length > 0 && (
                     <div
                       style={{
@@ -1096,6 +1193,78 @@ export default function DevisPage() {
             Personnalisez le devis avec des options supplémentaires
           </div>
 
+          {/* Page counter */}
+          <div
+            style={{
+              marginBottom: 20,
+              padding: 16,
+              background: "var(--black-3)",
+              borderRadius: 8,
+              border: "1px solid var(--border)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: "var(--grey-3)",
+                marginBottom: 10,
+                textTransform: "uppercase",
+                letterSpacing: ".05em",
+              }}
+            >
+              Nombre de pages
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <button
+                style={{
+                  ...btn("ghost"),
+                  padding: "4px 12px",
+                  fontSize: 14,
+                }}
+                onClick={() =>
+                  setTotalPages(Math.max(minPages, totalPages - 1))
+                }
+              >
+                −
+              </button>
+              <span
+                style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: "var(--white)",
+                  minWidth: 30,
+                  textAlign: "center",
+                }}
+              >
+                {totalPages}
+              </span>
+              <button
+                style={{
+                  ...btn("ghost"),
+                  padding: "4px 12px",
+                  fontSize: 14,
+                }}
+                onClick={() => setTotalPages(totalPages + 1)}
+              >
+                +
+              </button>
+              <span
+                style={{
+                  fontSize: 12,
+                  color: "var(--grey-3)",
+                  marginLeft: 8,
+                }}
+              >
+                ({minPages} incluse{minPages > 1 ? "s" : ""}
+                {extraPagesCount > 0
+                  ? `, +${extraPagesCount} suppl. = ${extraPagesCount * (base?.pagePrice || 0)}€`
+                  : ""}
+                )
+              </span>
+            </div>
+          </div>
+
           {/* One-time options */}
           <div style={{ marginBottom: 20 }}>
             <div
@@ -1118,24 +1287,23 @@ export default function DevisPage() {
               }}
             >
               {oneTimeOptions.map((opt) => {
+                const isIncluded = packIncludedOptionIds.includes(opt.id);
                 const isSelected = selectedOptionIds.includes(opt.id);
-                const isPageSupp = opt.name === "Page supplémentaire";
                 return (
                   <div
                     key={opt.id}
-                    onClick={() => {
-                      toggleOption(opt.id);
-                      if (isPageSupp && !isSelected) setExtraPages(1);
-                      if (isPageSupp && isSelected) setExtraPages(0);
-                    }}
+                    onClick={() => toggleOption(opt.id)}
                     style={{
                       padding: 14,
                       borderRadius: 8,
-                      border: `2px solid ${isSelected ? "var(--blue)" : "var(--border)"}`,
-                      background: isSelected
-                        ? "rgba(45,111,255,.06)"
-                        : "var(--black-3)",
-                      cursor: "pointer",
+                      border: `2px solid ${isIncluded ? "var(--green)" : isSelected ? "var(--blue)" : "var(--border)"}`,
+                      background: isIncluded
+                        ? "rgba(93,216,160,.06)"
+                        : isSelected
+                          ? "rgba(45,111,255,.06)"
+                          : "var(--black-3)",
+                      cursor: isIncluded ? "default" : "pointer",
+                      opacity: isIncluded ? 0.7 : 1,
                       transition: "all .15s",
                     }}
                   >
@@ -1156,80 +1324,31 @@ export default function DevisPage() {
                       >
                         {opt.name}
                       </span>
-                      <span
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 700,
-                          color: "var(--gold)",
-                        }}
-                      >
-                        {opt.price}€
-                      </span>
-                    </div>
-                    <div style={{ fontSize: 11, color: "var(--grey-3)" }}>
-                      {opt.description}
-                    </div>
-                    {isPageSupp && isSelected && (
-                      <div
-                        style={{
-                          marginTop: 8,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <span style={{ fontSize: 11, color: "var(--grey-3)" }}>
-                          Nombre :
-                        </span>
-                        <button
+                      {isIncluded ? (
+                        <span
                           style={{
-                            ...btn("ghost"),
-                            padding: "2px 8px",
-                            fontSize: 12,
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setExtraPages(Math.max(1, extraPages - 1));
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: "var(--green)",
                           }}
                         >
-                          −
-                        </button>
+                          Inclus
+                        </span>
+                      ) : (
                         <span
                           style={{
                             fontSize: 13,
                             fontWeight: 700,
-                            color: "var(--white)",
-                            minWidth: 20,
-                            textAlign: "center",
-                          }}
-                        >
-                          {extraPages}
-                        </span>
-                        <button
-                          style={{
-                            ...btn("ghost"),
-                            padding: "2px 8px",
-                            fontSize: 12,
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setExtraPages(extraPages + 1);
-                          }}
-                        >
-                          +
-                        </button>
-                        <span
-                          style={{
-                            fontSize: 11,
                             color: "var(--gold)",
-                            marginLeft: "auto",
                           }}
                         >
-                          = {opt.price * extraPages}€
+                          {opt.price}€
                         </span>
-                      </div>
-                    )}
+                      )}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--grey-3)" }}>
+                      {opt.description}
+                    </div>
                   </div>
                 );
               })}
@@ -1365,8 +1484,42 @@ export default function DevisPage() {
             ) : null;
           })()}
 
-          {/* Pack */}
-          {selectedPack && (
+          {/* Pack or Base */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              padding: "10px 0",
+              borderBottom: "1px solid var(--border)",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "var(--white)",
+                }}
+              >
+                {selectedPack
+                  ? `Pack ${selectedPack.name}`
+                  : "Sur mesure (base)"}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--grey-3)" }}>
+                {selectedPack
+                  ? selectedPack.description
+                  : `Base avec ${base?.basePages || 0} page${(base?.basePages || 0) > 1 ? "s" : ""}`}
+              </div>
+            </div>
+            <div
+              style={{ fontSize: 14, fontWeight: 700, color: "var(--gold)" }}
+            >
+              {selectedPack ? selectedPack.price : base?.basePrice || 0}€
+            </div>
+          </div>
+
+          {/* Extra pages */}
+          {extraPagesCount > 0 && (
             <div
               style={{
                 display: "flex",
@@ -1375,29 +1528,74 @@ export default function DevisPage() {
                 borderBottom: "1px solid var(--border)",
               }}
             >
-              <div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "var(--white)",
-                  }}
-                >
-                  Pack {selectedPack.name}
-                </div>
-                <div style={{ fontSize: 11, color: "var(--grey-3)" }}>
-                  {selectedPack.description}
-                </div>
+              <div style={{ fontSize: 13, color: "var(--white)" }}>
+                +{extraPagesCount} page
+                {extraPagesCount > 1 ? "s" : ""} supplémentaire
+                {extraPagesCount > 1 ? "s" : ""} ({totalPages} au total)
               </div>
               <div
-                style={{ fontSize: 14, fontWeight: 700, color: "var(--gold)" }}
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "var(--gold)",
+                }}
               >
-                {selectedPack.price}€
+                {extraPagesCount * (base?.pagePrice || 0)}€
               </div>
             </div>
           )}
 
-          {/* One-time options */}
+          {/* Pack-included options */}
+          {selectedPack &&
+            (selectedPack.includedOptions || []).length > 0 && (
+              <div
+                style={{
+                  padding: "10px 0",
+                  borderBottom: "1px solid var(--border)",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "var(--grey-3)",
+                    marginBottom: 4,
+                  }}
+                >
+                  Options incluses dans le pack
+                </div>
+                {(selectedPack.includedOptions || []).map((io) => (
+                  <div
+                    key={io.serviceOption.id}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      padding: "4px 0",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 13,
+                        color: "var(--white)",
+                        opacity: 0.7,
+                      }}
+                    >
+                      {io.serviceOption.name}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: "var(--green)",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Inclus
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+          {/* Extra one-time options */}
           {selectedOpts
             .filter((o) => !o.recurring)
             .map((opt) => (
@@ -1412,9 +1610,6 @@ export default function DevisPage() {
               >
                 <div style={{ fontSize: 13, color: "var(--white)" }}>
                   {opt.name}
-                  {opt.name === "Page supplémentaire" && extraPages > 1
-                    ? ` × ${extraPages}`
-                    : ""}
                 </div>
                 <div
                   style={{
@@ -1423,10 +1618,7 @@ export default function DevisPage() {
                     color: "var(--gold)",
                   }}
                 >
-                  {opt.name === "Page supplémentaire"
-                    ? opt.price * extraPages
-                    : opt.price}
-                  €
+                  {opt.price}€
                 </div>
               </div>
             ))}
@@ -1596,7 +1788,7 @@ export default function DevisPage() {
             style={btn("primary")}
             disabled={
               (step === 0 && !selectedClientId) ||
-              (step === 1 && !selectedPackId)
+              (step === 1 && !selectedPackId && !surMesure)
             }
             onClick={() => setStep(step + 1)}
           >

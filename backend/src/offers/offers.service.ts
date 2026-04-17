@@ -5,11 +5,39 @@ import {
   UpdatePackDto,
   CreateOptionDto,
   UpdateOptionDto,
+  UpdatePricingBaseDto,
 } from './dto/offers.dto';
 
 @Injectable()
 export class OffersService {
   constructor(private prisma: PrismaService) {}
+
+  // ─── Pricing Base ──────────────────────────
+
+  async getPricingBase() {
+    let base = await this.prisma.pricingBase.findFirst();
+    if (!base) {
+      base = await this.prisma.pricingBase.create({
+        data: {
+          name: 'Base site web',
+          basePrice: 300,
+          pagePrice: 70,
+          basePages: 1,
+          devTimeBase: 8,
+          devTimePage: 2,
+        },
+      });
+    }
+    return base;
+  }
+
+  async updatePricingBase(dto: UpdatePricingBaseDto) {
+    const base = await this.getPricingBase();
+    return this.prisma.pricingBase.update({
+      where: { id: base.id },
+      data: dto,
+    });
+  }
 
   // ─── Public ─────────────────────────────────
 
@@ -17,6 +45,11 @@ export class OffersService {
     return this.prisma.pack.findMany({
       where: { active: true },
       orderBy: { position: 'asc' },
+      include: {
+        includedOptions: {
+          include: { serviceOption: true },
+        },
+      },
     });
   }
 
@@ -27,22 +60,73 @@ export class OffersService {
     });
   }
 
+  async getPublicPricing() {
+    const [base, packs, options] = await Promise.all([
+      this.getPricingBase(),
+      this.findActivePacks(),
+      this.findActiveOptions(),
+    ]);
+    return { base, packs, options };
+  }
+
   // ─── Packs ──────────────────────────────────
 
   async findAllPacks() {
     return this.prisma.pack.findMany({
       orderBy: { position: 'asc' },
+      include: {
+        includedOptions: {
+          include: { serviceOption: true },
+        },
+      },
     });
   }
 
   async createPack(dto: CreatePackDto) {
-    return this.prisma.pack.create({ data: dto });
+    const { includedOptionIds, ...packData } = dto;
+    return this.prisma.pack.create({
+      data: {
+        ...packData,
+        includedOptions: includedOptionIds?.length
+          ? {
+              create: includedOptionIds.map((id) => ({
+                serviceOptionId: id,
+              })),
+            }
+          : undefined,
+      },
+      include: {
+        includedOptions: { include: { serviceOption: true } },
+      },
+    });
   }
 
   async updatePack(id: string, dto: UpdatePackDto) {
     const pack = await this.prisma.pack.findUnique({ where: { id } });
     if (!pack) throw new NotFoundException('Pack introuvable');
-    return this.prisma.pack.update({ where: { id }, data: dto });
+
+    const { includedOptionIds, ...packData } = dto;
+
+    // If includedOptionIds is provided, replace all included options
+    if (includedOptionIds !== undefined) {
+      await this.prisma.packOption.deleteMany({ where: { packId: id } });
+      if (includedOptionIds.length > 0) {
+        await this.prisma.packOption.createMany({
+          data: includedOptionIds.map((optId) => ({
+            packId: id,
+            serviceOptionId: optId,
+          })),
+        });
+      }
+    }
+
+    return this.prisma.pack.update({
+      where: { id },
+      data: packData,
+      include: {
+        includedOptions: { include: { serviceOption: true } },
+      },
+    });
   }
 
   async removePack(id: string) {

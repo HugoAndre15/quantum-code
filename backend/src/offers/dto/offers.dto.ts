@@ -2,6 +2,44 @@ import { IsString, IsOptional, IsNumber, IsBoolean, IsArray, IsInt, IsEnum } fro
 import { PackType } from '@prisma/client';
 export { PackType };
 
+// ─── Pricing Base ────────────────────────────
+
+export class UpdatePricingBaseDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsNumber()
+  basePrice?: number;
+
+  @IsOptional()
+  @IsNumber()
+  pagePrice?: number;
+
+  @IsOptional()
+  @IsInt()
+  basePages?: number;
+
+  @IsOptional()
+  @IsNumber()
+  devTimeBase?: number;
+
+  @IsOptional()
+  @IsNumber()
+  devTimePage?: number;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
+}
+
+// ─── Pack ────────────────────────────────────
+
 export class CreatePackDto {
   @IsString()
   name: string;
@@ -33,6 +71,15 @@ export class CreatePackDto {
   @IsArray()
   @IsString({ each: true })
   features?: string[];
+
+  @IsOptional()
+  @IsInt()
+  includedPages?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  includedOptionIds?: string[];
 }
 
 export class UpdatePackDto {
@@ -68,7 +115,18 @@ export class UpdatePackDto {
   @IsArray()
   @IsString({ each: true })
   features?: string[];
+
+  @IsOptional()
+  @IsInt()
+  includedPages?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  includedOptionIds?: string[];
 }
+
+// ─── Option ──────────────────────────────────
 
 export class CreateOptionDto {
   @IsString()

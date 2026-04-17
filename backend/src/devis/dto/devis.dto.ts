@@ -58,10 +58,26 @@ export class CreateDevisDto {
   @IsString()
   notes?: string;
 
+  // New pricing fields
+  @IsOptional()
+  @IsString()
+  packId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  optionIds?: string[];
+
+  @IsOptional()
+  @IsInt()
+  pages?: number;
+
+  // Legacy: direct items (for manual/edit mode)
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateDevisItemDto)
-  items: CreateDevisItemDto[];
+  items?: CreateDevisItemDto[];
 }
 
 export class UpdateDevisDto {

@@ -38,22 +38,51 @@ enum Role {
     SUPER_ADMIN
 }
 
+// ─── Configuration de base (prix) ────────────
+
+model PricingBase {
+    id          String   @id @default(cuid())
+    name        String   @default("Base site web")
+    basePrice   Float    @default(0)
+    pagePrice   Float    @default(0)
+    basePages   Int      @default(1)
+    devTimeBase Float    @default(0)
+    devTimePage Float    @default(0)
+    description String?
+    active      Boolean  @default(true)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+}
+
 // ─── Catalogues (tes offres) ─────────────────
 
 model Pack {
-    id          String      @id @default(cuid())
-    name        String      @unique
-    description String?
-    price       Float
-    type        PackType    @default(CLASSIQUE)
-    devTime     Float       @default(0) // heures estimées
-    position    Int         @default(0)
-    active      Boolean     @default(true)
-    features    String[]
-    clients     Client[]
-    devisItems  DevisItem[]
-    createdAt   DateTime    @default(now())
-    updatedAt   DateTime    @updatedAt
+    id             String       @id @default(cuid())
+    name           String       @unique
+    description    String?
+    price          Float
+    type           PackType     @default(CLASSIQUE)
+    devTime        Float        @default(0)
+    position       Int          @default(0)
+    active         Boolean      @default(true)
+    features       String[]
+    includedPages  Int          @default(0)
+    includedOptions PackOption[]
+    clients        Client[]
+    devisItems     DevisItem[]
+    createdAt      DateTime     @default(now())
+    updatedAt      DateTime     @updatedAt
+}
+
+model PackOption {
+    id              String        @id @default(cuid())
+    packId          String
+    pack            Pack          @relation(fields: [packId], references: [id], onDelete: Cascade)
+    serviceOptionId String
+    serviceOption   ServiceOption @relation(fields: [serviceOptionId], references: [id], onDelete: Cascade)
+    createdAt       DateTime      @default(now())
+
+    @@unique([packId, serviceOptionId])
 }
 
 model ServiceOption {
@@ -62,12 +91,13 @@ model ServiceOption {
     description   String?
     price         Float
     category      String         @default("general")
-    devTime       Float          @default(0) // heures estimées
+    devTime       Float          @default(0)
     recurring     Boolean        @default(false)
-    recurringUnit String? // "mois", "an"
+    recurringUnit String?
     active        Boolean        @default(true)
     clientOptions ClientOption[]
     devisItems    DevisItem[]
+    packOptions   PackOption[]
     createdAt     DateTime       @default(now())
     updatedAt     DateTime       @updatedAt
 }
