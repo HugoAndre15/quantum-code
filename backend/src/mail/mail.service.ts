@@ -8,13 +8,30 @@ export class MailService {
 
   constructor(private config: ConfigService) {
     this.transporter = nodemailer.createTransport({
-      host: this.config.get('SMTP_HOST', 'smtp.gmail.com'),
-      port: parseInt(this.config.get('SMTP_PORT', '587')),
-      secure: this.config.get('SMTP_SECURE', 'false') === 'true',
+      host: this.config.get('SMTP_HOST', 'smtp.zoho.eu'),
+      port: parseInt(this.config.get('SMTP_PORT', '465')),
+      secure: this.config.get('SMTP_SECURE', 'true') === 'true',
       auth: {
-        user: this.config.get('SMTP_USER', ''),
+        user: this.config.get('SMTP_USER', 'contact@quantum-code.fr'),
         pass: this.config.get('SMTP_PASS', ''),
       },
+    });
+  }
+
+  async sendMail(options: {
+    to: string;
+    subject: string;
+    html: string;
+    replyTo?: string;
+  }): Promise<void> {
+    const from = this.config.get('SMTP_FROM', 'contact@quantum-code.fr');
+
+    await this.transporter.sendMail({
+      from,
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+      ...(options.replyTo && { replyTo: options.replyTo }),
     });
   }
 
@@ -25,7 +42,7 @@ export class MailService {
     pdf: Buffer;
     filename: string;
   }): Promise<void> {
-    const from = this.config.get('SMTP_FROM', 'contact@quantumcode.dev');
+    const from = this.config.get('SMTP_FROM', 'contact@quantum-code.fr');
 
     await this.transporter.sendMail({
       from,

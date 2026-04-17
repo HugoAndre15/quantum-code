@@ -11,6 +11,7 @@ import { FacturesModule } from './factures/factures.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
 import { PromoCodesModule } from './promo-codes/promo-codes.module';
+import { ContactModule } from './contact/contact.module';
 
 
 @Module({
@@ -32,6 +33,7 @@ import { PromoCodesModule } from './promo-codes/promo-codes.module';
     DashboardModule,
     PortfolioModule,
     PromoCodesModule,
+    ContactModule,
   ],
 providers: [
     {
