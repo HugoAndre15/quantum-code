@@ -5,6 +5,8 @@ import * as nodemailer from 'nodemailer';
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
+  private readonly SMTP_UNAVAILABLE_MESSAGE =
+    "Le service d'envoi d'email est temporairement indisponible. Veuillez réessayer plus tard.";
   private transporter: nodemailer.Transporter;
 
   constructor(private config: ConfigService) {
@@ -39,7 +41,7 @@ export class MailService {
       });
     } catch (err) {
       this.logger.error('Failed to send email', err instanceof Error ? err.stack : String(err));
-      throw new ServiceUnavailableException('Le service d\'envoi d\'email est temporairement indisponible. Veuillez réessayer plus tard.');
+      throw new ServiceUnavailableException(this.SMTP_UNAVAILABLE_MESSAGE);
     }
   }
 
@@ -68,7 +70,7 @@ export class MailService {
       });
     } catch (err) {
       this.logger.error('Failed to send document email', err instanceof Error ? err.stack : String(err));
-      throw new ServiceUnavailableException('Le service d\'envoi d\'email est temporairement indisponible. Veuillez réessayer plus tard.');
+      throw new ServiceUnavailableException(this.SMTP_UNAVAILABLE_MESSAGE);
     }
   }
 
