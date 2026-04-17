@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailService {
+  private readonly logger = new Logger(MailService.name);
   private transporter: nodemailer.Transporter;
 
   constructor(private config: ConfigService) {
@@ -28,13 +29,18 @@ export class MailService {
   }): Promise<void> {
     const from = this.config.get('SMTP_FROM', 'contact@quantum-code.fr');
 
-    await this.transporter.sendMail({
-      from,
-      to: options.to,
-      subject: options.subject,
-      html: options.html,
-      ...(options.replyTo && { replyTo: options.replyTo }),
-    });
+    try {
+      await this.transporter.sendMail({
+        from,
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+        ...(options.replyTo && { replyTo: options.replyTo }),
+      });
+    } catch (err) {
+      this.logger.error('Failed to send email', err instanceof Error ? err.stack : String(err));
+      throw new ServiceUnavailableException('Le service d\'envoi d\'email est temporairement indisponible. Veuillez réessayer plus tard.');
+    }
   }
 
   async sendDocument(options: {
@@ -46,19 +52,24 @@ export class MailService {
   }): Promise<void> {
     const from = this.config.get('SMTP_FROM', 'contact@quantum-code.fr');
 
-    await this.transporter.sendMail({
-      from,
-      to: options.to,
-      subject: options.subject,
-      html: options.html,
-      attachments: [
-        {
-          filename: options.filename,
-          content: options.pdf,
-          contentType: 'application/pdf',
-        },
-      ],
-    });
+    try {
+      await this.transporter.sendMail({
+        from,
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+        attachments: [
+          {
+            filename: options.filename,
+            content: options.pdf,
+            contentType: 'application/pdf',
+          },
+        ],
+      });
+    } catch (err) {
+      this.logger.error('Failed to send document email', err instanceof Error ? err.stack : String(err));
+      throw new ServiceUnavailableException('Le service d\'envoi d\'email est temporairement indisponible. Veuillez réessayer plus tard.');
+    }
   }
 
   buildDevisEmail(data: { number: string; company: string; total: number }): string {
