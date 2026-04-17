@@ -1,5 +1,5 @@
 import { Controller, Post, Body } from '@nestjs/common';
-import { SkipThrottle } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
 import { ContactService } from './contact.service';
 import { ContactDto } from './dto/contact.dto';
 
@@ -8,7 +8,7 @@ export class ContactController {
   constructor(private contactService: ContactService) {}
 
   @Post()
-  @SkipThrottle({ short: true })
+  @Throttle({ short: { ttl: 60000, limit: 5 } })
   async sendContact(@Body() dto: ContactDto) {
     await this.contactService.sendContactEmail(dto);
     return { message: 'Message envoyé avec succès' };
