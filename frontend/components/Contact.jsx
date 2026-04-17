@@ -1,23 +1,44 @@
 "use client";
 import { useState } from "react";
-import {
-  contactInfo,
-  projectTypes,
-  budgetRanges,
-  siteConfig,
-} from "../data/siteData";
+import { contactInfo, siteConfig } from "../data/siteData";
+
+const API = "/api";
 
 export default function Contact({ onToast }) {
   const [sending, setSending] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    company: "",
+    message: "",
+  });
 
-  const handleSubmit = (e) => {
+  const handleChange = (e) => {
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setSending(true);
-    setTimeout(() => {
-      onToast?.("Message envoyé — réponse sous 24h !");
+    try {
+      const res = await fetch(`${API}/contact`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (res.ok) {
+        onToast?.("Message envoyé — réponse sous 24h !");
+        setForm({ name: "", email: "", phone: "", company: "", message: "" });
+      } else {
+        const err = await res.json().catch(() => ({}));
+        onToast?.(err.message || "Erreur lors de l'envoi, réessayez.");
+      }
+    } catch {
+      onToast?.("Erreur réseau, veuillez réessayer.");
+    } finally {
       setSending(false);
-      e.target.reset();
-    }, 400);
+    }
   };
 
   return (
@@ -57,51 +78,62 @@ export default function Contact({ onToast }) {
           <form className="contact-form" onSubmit={handleSubmit}>
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Prénom &amp; Nom</label>
+                <label className="form-label">Nom / Prénom *</label>
                 <input
                   className="form-input"
                   type="text"
+                  name="name"
                   placeholder="Marie Dupont"
+                  value={form.name}
+                  onChange={handleChange}
                   required
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Email</label>
+                <label className="form-label">Email *</label>
                 <input
                   className="form-input"
                   type="email"
+                  name="email"
                   placeholder="marie@exemple.fr"
+                  value={form.email}
+                  onChange={handleChange}
                   required
                 />
               </div>
             </div>
-            <div className="form-group">
-              <label className="form-label">Type de projet</label>
-              <select className="form-select form-input" defaultValue="">
-                <option value="" disabled>
-                  Sélectionner...
-                </option>
-                {projectTypes.map((t) => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Téléphone</label>
+                <input
+                  className="form-input"
+                  type="tel"
+                  name="phone"
+                  placeholder="+33 6 00 00 00 00"
+                  value={form.phone}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Société</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  name="company"
+                  placeholder="Nom de votre entreprise"
+                  value={form.company}
+                  onChange={handleChange}
+                />
+              </div>
             </div>
             <div className="form-group">
-              <label className="form-label">Budget estimé</label>
-              <select className="form-select form-input" defaultValue="">
-                <option value="" disabled>
-                  Sélectionner...
-                </option>
-                {budgetRanges.map((b) => (
-                  <option key={b}>{b}</option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Décrivez votre projet</label>
+              <label className="form-label">Message *</label>
               <textarea
                 className="form-textarea"
-                placeholder="Votre activité, vos objectifs, votre délai idéal…"
+                name="message"
+                placeholder="Décrivez votre projet, vos objectifs, votre délai idéal…"
+                value={form.message}
+                onChange={handleChange}
                 required
               />
             </div>
@@ -115,7 +147,7 @@ export default function Contact({ onToast }) {
               }}
               disabled={sending}
             >
-              Envoyer — c&apos;est gratuit →
+              {sending ? "Envoi en cours…" : "Envoyer — c'est gratuit →"}
             </button>
           </form>
         </div>
