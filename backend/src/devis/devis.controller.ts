@@ -82,6 +82,8 @@ export class DevisController {
       })),
       totalHT: devis.totalHT,
       notes: devis.notes,
+      discountAmount: devis.discountAmount,
+      promoCode: devis.promoCode?.code,
     });
 
     res.set({
@@ -116,6 +118,8 @@ export class DevisController {
       })),
       totalHT: devis.totalHT,
       notes: devis.notes,
+      discountAmount: devis.discountAmount,
+      promoCode: devis.promoCode?.code,
     });
 
     const html = this.mailService.buildDevisEmail({

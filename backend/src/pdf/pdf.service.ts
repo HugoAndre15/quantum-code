@@ -28,6 +28,8 @@ interface PdfDocumentData {
   totalHT: number;
   notes?: string | null;
   paidAt?: Date | null;
+  discountAmount?: number;
+  promoCode?: string | null;
 }
 
 // ─── Constantes visuelles ─────────────────────
@@ -198,7 +200,25 @@ export class PdfService {
       const totX = col.pu - 30;
       const totW = W - M - totX;
 
-      // Sous-total HT
+      // Sous-total HT (avant réduction si promo)
+      if (data.discountAmount && data.discountAmount > 0) {
+        const subtotalBeforeDiscount = data.totalHT + data.discountAmount;
+        doc.fontSize(8.5).fill(TEXT).font('Helvetica')
+          .text('Sous-total HT', totX, y, { width: totW - 80, align: 'right' });
+        doc.font('Helvetica-Bold')
+          .text(`${subtotalBeforeDiscount.toFixed(2)} €`, totX + totW - 80, y, { width: 80, align: 'right' });
+        y += 16;
+
+        // Ligne réduction
+        const promoLabel = data.promoCode ? `Réduction (${data.promoCode})` : 'Réduction';
+        doc.fontSize(8.5).fill('#2e7d32').font('Helvetica')
+          .text(promoLabel, totX, y, { width: totW - 80, align: 'right' });
+        doc.font('Helvetica-Bold').fill('#2e7d32')
+          .text(`-${data.discountAmount.toFixed(2)} €`, totX + totW - 80, y, { width: 80, align: 'right' });
+        y += 16;
+      }
+
+      // Total HT
       doc.fontSize(8.5).fill(TEXT).font('Helvetica')
         .text('Total HT', totX, y, { width: totW - 80, align: 'right' });
       doc.font('Helvetica-Bold')

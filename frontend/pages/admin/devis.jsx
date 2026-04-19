@@ -69,8 +69,11 @@ export default function DevisPage() {
   }, [load]);
 
   // Computed
-  const oneTimeOptions = options.filter((o) => !o.recurring);
-  const recurringOptions = options.filter((o) => o.recurring);
+  const filteredOptions = options.filter(
+    (o) => !o.name.toLowerCase().includes("page suppl"),
+  );
+  const oneTimeOptions = filteredOptions.filter((o) => !o.recurring);
+  const recurringOptions = filteredOptions.filter((o) => o.recurring);
   const selectedPack = packs.find((p) => p.id === selectedPackId);
   const selectedOpts = options.filter((o) => selectedOptionIds.includes(o.id));
   const packIncludedOptionIds = selectedPack
@@ -123,6 +126,8 @@ export default function DevisPage() {
     setClientSearch("");
     setSurMesure(false);
     setStep(0);
+    setPromoCode("");
+    setPromoResult(null);
   };
 
   const handleSubmit = async () => {
@@ -136,6 +141,7 @@ export default function DevisPage() {
         packId: selectedPackId || undefined,
         optionIds: selectedOptionIds,
         pages: totalPages,
+        promoCode: promoResult?.valid ? promoCode.trim() : undefined,
       }),
     });
 
@@ -180,6 +186,9 @@ export default function DevisPage() {
   };
 
   const [sending, setSending] = useState(false);
+  const [promoCode, setPromoCode] = useState("");
+  const [promoResult, setPromoResult] = useState(null);
+  const [promoLoading, setPromoLoading] = useState(false);
   const sendByEmail = async (id) => {
     if (!confirm("Envoyer ce devis par email au client ?")) return;
     setSending(true);
@@ -197,6 +206,35 @@ export default function DevisPage() {
     } finally {
       setSending(false);
     }
+  };
+
+  const validatePromo = async () => {
+    if (!promoCode.trim()) return;
+    setPromoLoading(true);
+    try {
+      const res = await apiFetch(
+        `${API}/promo-codes/validate?code=${encodeURIComponent(promoCode.trim())}`,
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setPromoResult(data);
+      } else {
+        setPromoResult({ valid: false, message: "Erreur de validation" });
+      }
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
+  const computeDiscount = () => {
+    if (!promoResult?.valid || !promoResult?.promo) return 0;
+    const subtotal = computeTotal();
+    const p = promoResult.promo;
+    if (p.minAmount && subtotal < p.minAmount) return 0;
+    if (p.discountType === "PERCENTAGE") {
+      return Math.round(subtotal * (p.discountValue / 100) * 100) / 100;
+    }
+    return Math.min(p.discountValue, subtotal);
   };
 
   const toggleOption = (id) => {
@@ -618,6 +656,20 @@ export default function DevisPage() {
                 {detail.totalHT}€
               </span>
             </div>
+            {detail.discountAmount > 0 && detail.promoCode && (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  padding: "6px 0",
+                  fontSize: 12,
+                  color: "var(--green)",
+                }}
+              >
+                <span>Code promo : {detail.promoCode.code}</span>
+                <span>-{detail.discountAmount}€ appliqué</span>
+              </div>
+            )}
           </div>
 
           {/* Recurring */}
@@ -1648,12 +1700,114 @@ export default function DevisPage() {
             <span
               style={{ fontSize: 15, fontWeight: 700, color: "var(--white)" }}
             >
-              Total HT
+              Sous-total HT
             </span>
             <span
               style={{ fontSize: 18, fontWeight: 800, color: "var(--gold)" }}
             >
               {computeTotal()}€
+            </span>
+          </div>
+
+          {/* Promo code */}
+          <div
+            style={{
+              marginTop: 12,
+              padding: 14,
+              background: "var(--black-3)",
+              borderRadius: 8,
+              border: `1px solid ${promoResult?.valid ? "var(--green)" : "var(--border)"}`,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 12,
+                color: "var(--grey-3)",
+                marginBottom: 8,
+                fontWeight: 600,
+              }}
+            >
+              Code promo
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                style={{ ...inputStyle, flex: 1, textTransform: "uppercase" }}
+                placeholder="Entrez un code promo..."
+                value={promoCode}
+                onChange={(e) => {
+                  setPromoCode(e.target.value);
+                  if (promoResult) setPromoResult(null);
+                }}
+                onKeyDown={(e) => e.key === "Enter" && validatePromo()}
+              />
+              <button
+                style={btn("ghost")}
+                onClick={validatePromo}
+                disabled={promoLoading || !promoCode.trim()}
+              >
+                {promoLoading ? "..." : "Appliquer"}
+              </button>
+            </div>
+            {promoResult && (
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: 12,
+                  color: promoResult.valid ? "var(--green)" : "#ff6b6b",
+                }}
+              >
+                {promoResult.valid
+                  ? `✓ ${promoResult.promo.discountType === "PERCENTAGE" ? `-${promoResult.promo.discountValue}%` : `-${promoResult.promo.discountValue}€`} appliqué`
+                  : `✗ ${promoResult.message || "Code invalide"}`}
+              </div>
+            )}
+          </div>
+
+          {/* Discount + Final total */}
+          {computeDiscount() > 0 && (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "10px 0",
+                borderBottom: "1px solid var(--border)",
+              }}
+            >
+              <span
+                style={{ fontSize: 13, color: "var(--green)", fontWeight: 600 }}
+              >
+                Réduction (
+                {promoResult.promo.discountType === "PERCENTAGE"
+                  ? `${promoResult.promo.discountValue}%`
+                  : "fixe"}
+                )
+              </span>
+              <span
+                style={{ fontSize: 13, fontWeight: 600, color: "var(--green)" }}
+              >
+                -{computeDiscount()}€
+              </span>
+            </div>
+          )}
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              padding: "14px 0",
+              borderTop: "2px solid var(--border)",
+              marginTop: 4,
+            }}
+          >
+            <span
+              style={{ fontSize: 15, fontWeight: 700, color: "var(--white)" }}
+            >
+              Total HT
+            </span>
+            <span
+              style={{ fontSize: 18, fontWeight: 800, color: "var(--gold)" }}
+            >
+              {Math.round((computeTotal() - computeDiscount()) * 100) / 100}€
             </span>
           </div>
 

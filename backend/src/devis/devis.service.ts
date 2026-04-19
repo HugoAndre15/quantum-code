@@ -22,6 +22,7 @@ export class DevisService {
         client: { select: { id: true, company: true, contactName: true, email: true } },
         items: true,
         facture: { select: { id: true, number: true, status: true } },
+        promoCode: { select: { id: true, code: true, discountType: true, discountValue: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -34,6 +35,7 @@ export class DevisService {
         client: true,
         items: { include: { pack: true, serviceOption: true } },
         facture: true,
+        promoCode: true,
       },
     });
     if (!devis) throw new NotFoundException('Devis introuvable');
@@ -172,6 +174,40 @@ export class DevisService {
       devTime += (item.devTime ?? 0) * qty;
     }
 
+    // Promo code validation
+    let discountAmount = 0;
+    let promoCodeId: string | undefined;
+
+    if (dto.promoCode) {
+      const promo = await this.prisma.promoCode.findUnique({
+        where: { code: dto.promoCode.toUpperCase() },
+      });
+
+      if (promo && promo.active) {
+        const now = new Date();
+        const validStart = !promo.startDate || promo.startDate <= now;
+        const validEnd = !promo.endDate || promo.endDate >= now;
+        const validUses = promo.maxUses === null || promo.currentUses < promo.maxUses;
+        const validMin = !promo.minAmount || totalHT >= promo.minAmount;
+
+        if (validStart && validEnd && validUses && validMin) {
+          if (promo.discountType === 'PERCENTAGE') {
+            discountAmount = Math.round(totalHT * (promo.discountValue / 100) * 100) / 100;
+          } else {
+            discountAmount = Math.min(promo.discountValue, totalHT);
+          }
+          promoCodeId = promo.id;
+          totalHT = Math.round((totalHT - discountAmount) * 100) / 100;
+
+          // Increment usage
+          await this.prisma.promoCode.update({
+            where: { id: promo.id },
+            data: { currentUses: { increment: 1 } },
+          });
+        }
+      }
+    }
+
     return this.prisma.devis.create({
       data: {
         number,
@@ -180,6 +216,8 @@ export class DevisService {
         notes: dto.notes,
         totalHT,
         devTime,
+        discountAmount,
+        promoCodeId,
         items: {
           create: items.map((item) => ({
             label: item.label,
