@@ -77,7 +77,7 @@ async function main() {
   for (const pack of packs) {
     await prisma.pack.upsert({
       where: { name: pack.name },
-      update: pack,
+      update: {},
       create: pack,
     });
     console.log(`  ✅ Pack "${pack.name}" — ${pack.price}€`);
@@ -103,7 +103,7 @@ async function main() {
   for (const opt of options) {
     await prisma.serviceOption.upsert({
       where: { name: opt.name },
-      update: { ...opt, recurring: false },
+      update: {},
       create: { ...opt, recurring: false },
     });
     console.log(`  ✅ Option "${opt.name}" — ${opt.price}€`);
@@ -120,7 +120,7 @@ async function main() {
   for (const rec of recurring) {
     await prisma.serviceOption.upsert({
       where: { name: rec.name },
-      update: rec,
+      update: {},
       create: rec,
     });
     console.log(`  ✅ Récurrent "${rec.name}" — ${rec.price}€/${rec.recurringUnit}`);

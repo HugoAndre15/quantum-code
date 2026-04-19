@@ -74,6 +74,8 @@ export class FacturesController {
       totalHT: facture.totalHT,
       notes: facture.notes,
       paidAt: facture.paidAt,
+      discountAmount: facture.devis?.discountAmount,
+      promoCode: facture.devis?.promoCode?.code,
     });
 
     res.set({
@@ -109,6 +111,8 @@ export class FacturesController {
       totalHT: facture.totalHT,
       notes: facture.notes,
       paidAt: facture.paidAt,
+      discountAmount: facture.devis?.discountAmount,
+      promoCode: facture.devis?.promoCode?.code,
     });
 
     const html = this.mailService.buildFactureEmail({

@@ -57,21 +57,21 @@ model PricingBase {
 // ─── Catalogues (tes offres) ─────────────────
 
 model Pack {
-    id             String       @id @default(cuid())
-    name           String       @unique
-    description    String?
-    price          Float
-    type           PackType     @default(CLASSIQUE)
-    devTime        Float        @default(0)
-    position       Int          @default(0)
-    active         Boolean      @default(true)
-    features       String[]
-    includedPages  Int          @default(0)
+    id              String       @id @default(cuid())
+    name            String       @unique
+    description     String?
+    price           Float
+    type            PackType     @default(CLASSIQUE)
+    devTime         Float        @default(0)
+    position        Int          @default(0)
+    active          Boolean      @default(true)
+    features        String[]
+    includedPages   Int          @default(0)
     includedOptions PackOption[]
-    clients        Client[]
-    devisItems     DevisItem[]
-    createdAt      DateTime     @default(now())
-    updatedAt      DateTime     @updatedAt
+    clients         Client[]
+    devisItems      DevisItem[]
+    createdAt       DateTime     @default(now())
+    updatedAt       DateTime     @updatedAt
 }
 
 model PackOption {
@@ -157,19 +157,22 @@ enum ClientStatus {
 // ─── Devis & Factures ────────────────────────
 
 model Devis {
-    id         String      @id @default(cuid())
-    number     String      @unique // ex: DEV-2025-001
-    clientId   String
-    client     Client      @relation(fields: [clientId], references: [id])
-    status     DevisStatus @default(BROUILLON)
-    validUntil DateTime?
-    notes      String?
-    totalHT    Float       @default(0)
-    devTime    Float       @default(0) // heures totales (interne)
-    items      DevisItem[]
-    facture    Facture?
-    createdAt  DateTime    @default(now())
-    updatedAt  DateTime    @updatedAt
+    id             String      @id @default(cuid())
+    number         String      @unique // ex: DEV-2025-001
+    clientId       String
+    client         Client      @relation(fields: [clientId], references: [id])
+    status         DevisStatus @default(BROUILLON)
+    validUntil     DateTime?
+    notes          String?
+    totalHT        Float       @default(0)
+    devTime        Float       @default(0) // heures totales (interne)
+    discountAmount Float       @default(0)
+    promoCodeId    String?
+    promoCode      PromoCode?  @relation(fields: [promoCodeId], references: [id])
+    items          DevisItem[]
+    facture        Facture?
+    createdAt      DateTime    @default(now())
+    updatedAt      DateTime    @updatedAt
 }
 
 model DevisItem {
@@ -238,20 +241,21 @@ model Project {
 // ─── Codes Promo ─────────────────────────────
 
 model PromoCode {
-    id            String        @id @default(cuid())
-    code          String        @unique
+    id            String       @id @default(cuid())
+    code          String       @unique
     name          String
     description   String?
-    discountType  DiscountType  @default(PERCENTAGE)
-    discountValue Float         // % ou valeur fixe en €
-    minAmount     Float?        // montant minimum d'achat
-    maxUses       Int?          // nombre max d'utilisations (null = illimité)
-    currentUses   Int           @default(0)
-    startDate     DateTime?     // début de validité
-    endDate       DateTime?     // fin de validité
-    active        Boolean       @default(true)
-    createdAt     DateTime      @default(now())
-    updatedAt     DateTime      @updatedAt
+    discountType  DiscountType @default(PERCENTAGE)
+    discountValue Float // % ou valeur fixe en €
+    minAmount     Float? // montant minimum d'achat
+    maxUses       Int? // nombre max d'utilisations (null = illimité)
+    currentUses   Int          @default(0)
+    startDate     DateTime? // début de validité
+    endDate       DateTime? // fin de validité
+    active        Boolean      @default(true)
+    devis         Devis[]
+    createdAt     DateTime     @default(now())
+    updatedAt     DateTime     @updatedAt
 }
 
 enum DiscountType {

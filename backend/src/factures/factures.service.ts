@@ -21,7 +21,7 @@ export class FacturesService {
       where: { id },
       include: {
         client: true,
-        devis: { include: { items: { include: { pack: true, serviceOption: true } } } },
+        devis: { include: { items: { include: { pack: true, serviceOption: true } }, promoCode: true } },
       },
     });
     if (!facture) throw new NotFoundException('Facture introuvable');

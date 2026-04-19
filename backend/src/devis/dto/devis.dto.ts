@@ -72,6 +72,10 @@ export class CreateDevisDto {
   @IsInt()
   pages?: number;
 
+  @IsOptional()
+  @IsString()
+  promoCode?: string;
+
   // Legacy: direct items (for manual/edit mode)
   @IsOptional()
   @IsArray()
