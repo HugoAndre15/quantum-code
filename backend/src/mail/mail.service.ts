@@ -1,23 +1,40 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailService {
-  private transporter: nodemailer.Transporter;
+  private readonly logger = new Logger(MailService.name);
+  private readonly apiKey: string;
+  private readonly senderEmail: string;
+  private readonly senderName: string;
 
   constructor(private config: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      host: this.config.get('SMTP_HOST', 'smtp.zoho.eu'),
-      port: parseInt(this.config.get('SMTP_PORT', '587')),
-      secure: this.config.get('SMTP_SECURE', 'false') === 'true',
-      auth: {
-        user: this.config.get('SMTP_USER', 'contact@quantum-code.fr'),
-        pass: this.config.get('SMTP_PASS', ''),
+    this.apiKey = this.config.get('BREVO_API_KEY', '');
+    this.senderEmail = this.config.get('MAIL_FROM', 'contact@quantum-code.fr');
+    this.senderName = this.config.get('MAIL_FROM_NAME', 'Quantum Code');
+  }
+
+  private async brevoSend(payload: Record<string, unknown>): Promise<void> {
+    if (!this.apiKey) {
+      this.logger.warn('BREVO_API_KEY not set – email skipped');
+      return;
+    }
+
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'content-type': 'application/json',
+        'api-key': this.apiKey,
       },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
+      body: JSON.stringify(payload),
     });
+
+    if (!res.ok) {
+      const body = await res.text();
+      this.logger.error(`Brevo API error ${res.status}: ${body}`);
+      throw new Error(`Brevo API error ${res.status}: ${body}`);
+    }
   }
 
   async sendMail(options: {
@@ -26,15 +43,18 @@ export class MailService {
     html: string;
     replyTo?: string;
   }): Promise<void> {
-    const from = this.config.get('SMTP_FROM', 'contact@quantum-code.fr');
-
-    await this.transporter.sendMail({
-      from,
-      to: options.to,
+    const payload: Record<string, unknown> = {
+      sender: { name: this.senderName, email: this.senderEmail },
+      to: [{ email: options.to }],
       subject: options.subject,
-      html: options.html,
-      ...(options.replyTo && { replyTo: options.replyTo }),
-    });
+      htmlContent: options.html,
+    };
+
+    if (options.replyTo) {
+      payload.replyTo = { email: options.replyTo };
+    }
+
+    await this.brevoSend(payload);
   }
 
   async sendDocument(options: {
@@ -44,18 +64,15 @@ export class MailService {
     pdf: Buffer;
     filename: string;
   }): Promise<void> {
-    const from = this.config.get('SMTP_FROM', 'contact@quantum-code.fr');
-
-    await this.transporter.sendMail({
-      from,
-      to: options.to,
+    await this.brevoSend({
+      sender: { name: this.senderName, email: this.senderEmail },
+      to: [{ email: options.to }],
       subject: options.subject,
-      html: options.html,
-      attachments: [
+      htmlContent: options.html,
+      attachment: [
         {
-          filename: options.filename,
-          content: options.pdf,
-          contentType: 'application/pdf',
+          content: options.pdf.toString('base64'),
+          name: options.filename,
         },
       ],
     });

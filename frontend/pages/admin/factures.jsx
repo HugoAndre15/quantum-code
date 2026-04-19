@@ -152,10 +152,20 @@ export default function FacturesPage() {
   const renderList = () => (
     <div>
       {/* Stats */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
+      <div
+        style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}
+      >
         <StatBadge label="Total" value={stats.total} color="var(--white)" />
-        <StatBadge label="Encaissé" value={`${stats.totalPaid}€`} color="var(--green)" />
-        <StatBadge label="En attente" value={`${stats.totalPending}€`} color="var(--gold)" />
+        <StatBadge
+          label="Encaissé"
+          value={`${stats.totalPaid}€`}
+          color="var(--green)"
+        />
+        <StatBadge
+          label="En attente"
+          value={`${stats.totalPending}€`}
+          color="var(--gold)"
+        />
         <StatBadge label="Payées" value={stats.payee} color="var(--green)" />
         <StatBadge label="Annulées" value={stats.annulee} color="#ff6b6b" />
       </div>
@@ -284,10 +294,11 @@ export default function FacturesPage() {
                     {f.status === "BROUILLON" && (
                       <SmallBtn
                         color="var(--blue)"
-                        onClick={() => updateStatus(f.id, "ENVOYEE")}
-                        title="Marquer comme envoyée"
+                        onClick={() => sendByEmail(f.id)}
+                        title="Envoyer par email"
+                        disabled={sending}
                       >
-                        ✉ Envoyer
+                        {sending ? "⏳" : "✉"} Envoyer
                       </SmallBtn>
                     )}
                     {f.status === "ENVOYEE" && (
@@ -337,8 +348,7 @@ export default function FacturesPage() {
                       gap: 4,
                     }}
                   >
-                    ✓ Payée le{" "}
-                    {new Date(f.paidAt).toLocaleDateString("fr-FR")}
+                    ✓ Payée le {new Date(f.paidAt).toLocaleDateString("fr-FR")}
                   </div>
                 )}
               </Card>

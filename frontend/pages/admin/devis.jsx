@@ -82,9 +82,7 @@ export default function DevisPage() {
   const extraPagesCount = Math.max(0, totalPages - minPages);
 
   const computeTotal = () => {
-    let total = selectedPack
-      ? selectedPack.price
-      : base?.basePrice || 0;
+    let total = selectedPack ? selectedPack.price : base?.basePrice || 0;
     total += extraPagesCount * (base?.pagePrice || 0);
     for (const opt of selectedOpts) {
       if (!opt.recurring) {
@@ -290,19 +288,32 @@ export default function DevisPage() {
   const renderList = () => (
     <div>
       {/* Stats */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
+      <div
+        style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}
+      >
         <StatBadge label="Total" value={stats.total} color="var(--white)" />
         <StatBadge label="Brouillons" value={stats.brouillon} color="#aaa" />
         <StatBadge label="Envoyés" value={stats.envoye} color="var(--blue)" />
-        <StatBadge label="Acceptés" value={stats.accepte} color="var(--green)" />
+        <StatBadge
+          label="Acceptés"
+          value={stats.accepte}
+          color="var(--green)"
+        />
         <StatBadge label="Refusés" value={stats.refuse} color="#ff6b6b" />
-        <StatBadge label="Total HT" value={`${stats.totalHT}€`} color="var(--gold)" />
+        <StatBadge
+          label="Total HT"
+          value={`${stats.totalHT}€`}
+          color="var(--gold)"
+        />
       </div>
 
       <PageHeader
         title="Devis"
         count={filteredDevis.length}
-        onAdd={() => { resetForm(); setShowForm(true); }}
+        onAdd={() => {
+          resetForm();
+          setShowForm(true);
+        }}
         addLabel="Nouveau devis"
       />
 
@@ -412,10 +423,11 @@ export default function DevisPage() {
                     {d.status === "BROUILLON" && (
                       <SmallBtn
                         color="var(--blue)"
-                        onClick={() => updateStatus(d.id, "ENVOYE")}
-                        title="Marquer comme envoyé"
+                        onClick={() => sendByEmail(d.id)}
+                        title="Envoyer par email"
+                        disabled={sending}
                       >
-                        ✉ Envoyer
+                        {sending ? "⏳" : "✉"} Envoyer
                       </SmallBtn>
                     )}
                     {d.status === "ENVOYE" && (
@@ -449,7 +461,8 @@ export default function DevisPage() {
                       <SmallBtn
                         color="#ff6b6b"
                         onClick={() => {
-                          if (confirm("Supprimer ce devis ?")) deleteDevis(d.id);
+                          if (confirm("Supprimer ce devis ?"))
+                            deleteDevis(d.id);
                         }}
                         title="Supprimer"
                       >
@@ -1546,54 +1559,53 @@ export default function DevisPage() {
           )}
 
           {/* Pack-included options */}
-          {selectedPack &&
-            (selectedPack.includedOptions || []).length > 0 && (
+          {selectedPack && (selectedPack.includedOptions || []).length > 0 && (
+            <div
+              style={{
+                padding: "10px 0",
+                borderBottom: "1px solid var(--border)",
+              }}
+            >
               <div
                 style={{
-                  padding: "10px 0",
-                  borderBottom: "1px solid var(--border)",
+                  fontSize: 11,
+                  color: "var(--grey-3)",
+                  marginBottom: 4,
                 }}
               >
+                Options incluses dans le pack
+              </div>
+              {(selectedPack.includedOptions || []).map((io) => (
                 <div
+                  key={io.serviceOption.id}
                   style={{
-                    fontSize: 11,
-                    color: "var(--grey-3)",
-                    marginBottom: 4,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    padding: "4px 0",
                   }}
                 >
-                  Options incluses dans le pack
-                </div>
-                {(selectedPack.includedOptions || []).map((io) => (
-                  <div
-                    key={io.serviceOption.id}
+                  <span
                     style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      padding: "4px 0",
+                      fontSize: 13,
+                      color: "var(--white)",
+                      opacity: 0.7,
                     }}
                   >
-                    <span
-                      style={{
-                        fontSize: 13,
-                        color: "var(--white)",
-                        opacity: 0.7,
-                      }}
-                    >
-                      {io.serviceOption.name}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: "var(--green)",
-                        fontWeight: 600,
-                      }}
-                    >
-                      Inclus
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+                    {io.serviceOption.name}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: "var(--green)",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Inclus
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Extra one-time options */}
           {selectedOpts

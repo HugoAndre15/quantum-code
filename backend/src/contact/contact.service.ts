@@ -11,7 +11,7 @@ export class ContactService {
   ) {}
 
   async sendContactEmail(dto: ContactDto): Promise<void> {
-    const to = this.config.get('SMTP_USER', 'contact@quantum-code.fr');
+    const to = this.config.get('MAIL_FROM', 'contact@quantum-code.fr');
 
     const html = this.buildContactHtml(dto);
 
