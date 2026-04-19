@@ -47,11 +47,11 @@ const COMPANY = {
   name: 'Quantum Code',
   tagline: 'Développement Web & Applications',
   owner: 'Quantum Code — Micro-entreprise',
-  siret: 'SIRET : XXX XXX XXX XXXXX',
+  siret: 'SIRET : 102 934 916 00010',
   address: 'Oise, Hauts-de-France',
-  email: 'hello@quantumcode.dev',
-  phone: '+33 6 XX XX XX XX',
-  website: 'quantumcode.dev',
+  email: 'devis@quantum-code.fr',
+  phone: '+33 6 03 68 11 98',
+  website: 'quantum-code.fr',
   tvaNote: 'TVA non applicable, art. 293 B du CGI',
 };
 
