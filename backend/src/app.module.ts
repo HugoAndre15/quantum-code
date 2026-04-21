@@ -12,6 +12,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
 import { PromoCodesModule } from './promo-codes/promo-codes.module';
 import { ContactModule } from './contact/contact.module';
+import { SimulatorModule } from './simulator/simulator.module';
 
 
 @Module({
@@ -34,6 +35,7 @@ import { ContactModule } from './contact/contact.module';
     PortfolioModule,
     PromoCodesModule,
     ContactModule,
+    SimulatorModule,
   ],
 providers: [
     {
