@@ -15,6 +15,22 @@ export default function PriceSimulator() {
   const [selectedOptionIds, setSelectedOptionIds] = useState([]);
   const [pages, setPages] = useState(1);
 
+  // Lead form (Aller plus loin)
+  const [showLead, setShowLead] = useState(false);
+  const [leadSending, setLeadSending] = useState(false);
+  const [leadSent, setLeadSent] = useState(false);
+  const [leadError, setLeadError] = useState("");
+  const [lead, setLead] = useState({
+    contactName: "",
+    email: "",
+    company: "",
+    trade: "",
+    phone: "",
+    address: "",
+    website: "",
+    message: "",
+  });
+
   useEffect(() => {
     async function load() {
       try {
@@ -80,6 +96,53 @@ export default function PriceSimulator() {
     setSelectedPackId("");
     setSelectedOptionIds([]);
     setPages(base?.basePages || 1);
+    setShowLead(false);
+    setLeadSent(false);
+    setLeadError("");
+  };
+
+  const handleLeadChange = (e) => {
+    setLead((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const submitLead = async (e) => {
+    e.preventDefault();
+    setLeadSending(true);
+    setLeadError("");
+    try {
+      const payload = {
+        contactName: lead.contactName.trim(),
+        email: lead.email.trim(),
+        company: lead.company.trim(),
+        ...(lead.trade.trim() && { trade: lead.trade.trim() }),
+        ...(lead.phone.trim() && { phone: lead.phone.trim() }),
+        ...(lead.address.trim() && { address: lead.address.trim() }),
+        ...(lead.website.trim() && { website: lead.website.trim() }),
+        ...(lead.message.trim() && { message: lead.message.trim() }),
+        mode: mode || undefined,
+        ...(mode === "pack" && selectedPackId && { packId: selectedPackId }),
+        ...(extraOptionIds.length && { optionIds: extraOptionIds }),
+        pages,
+        estimatedTotal: computeTotal(),
+      };
+      const res = await fetch(`${API}/simulator/lead`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        setLeadSent(true);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setLeadError(
+          err.message || "Une erreur est survenue, veuillez réessayer."
+        );
+      }
+    } catch {
+      setLeadError("Erreur réseau, veuillez réessayer.");
+    } finally {
+      setLeadSending(false);
+    }
   };
 
   const scrollToContact = () => {
@@ -387,13 +450,166 @@ export default function PriceSimulator() {
               </p>
 
               <div className="sim-cta">
-                <button className="btn btn-blue" onClick={scrollToContact}>
-                  Demander un devis personnalisé →
+                {!showLead && !leadSent && (
+                  <button
+                    className="btn btn-blue"
+                    onClick={() => setShowLead(true)}
+                  >
+                    Aller plus loin — recevoir un devis →
+                  </button>
+                )}
+                <button className="btn btn-outline" onClick={scrollToContact}>
+                  Demander un devis personnalisé
                 </button>
                 <button className="sim-reset-btn" onClick={reset}>
                   Recommencer la simulation
                 </button>
               </div>
+
+              {showLead && !leadSent && (
+                <form className="sim-lead-form" onSubmit={submitLead}>
+                  <h4 className="sim-lead-title">Vos coordonnées</h4>
+                  <p className="sim-lead-desc">
+                    Renseignez vos informations : nous vous recontactons pour
+                    finaliser votre devis. Un brouillon est automatiquement
+                    préparé avec votre simulation, les options de maintenance &
+                    hébergement récurrentes, et les mentions légales (propriété
+                    du code, hébergement, 14 jours de suivi post-livraison).
+                  </p>
+
+                  <div className="sim-lead-row">
+                    <div className="form-group">
+                      <label className="form-label">Nom & prénom *</label>
+                      <input
+                        className="form-input"
+                        type="text"
+                        name="contactName"
+                        value={lead.contactName}
+                        onChange={handleLeadChange}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Email *</label>
+                      <input
+                        className="form-input"
+                        type="email"
+                        name="email"
+                        value={lead.email}
+                        onChange={handleLeadChange}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="sim-lead-row">
+                    <div className="form-group">
+                      <label className="form-label">Société *</label>
+                      <input
+                        className="form-input"
+                        type="text"
+                        name="company"
+                        value={lead.company}
+                        onChange={handleLeadChange}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Secteur d&apos;activité</label>
+                      <input
+                        className="form-input"
+                        type="text"
+                        name="trade"
+                        value={lead.trade}
+                        onChange={handleLeadChange}
+                        placeholder="Ex. restaurateur, artisan…"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="sim-lead-row">
+                    <div className="form-group">
+                      <label className="form-label">Téléphone</label>
+                      <input
+                        className="form-input"
+                        type="tel"
+                        name="phone"
+                        value={lead.phone}
+                        onChange={handleLeadChange}
+                        placeholder="+33 6 00 00 00 00"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Site actuel</label>
+                      <input
+                        className="form-input"
+                        type="text"
+                        name="website"
+                        value={lead.website}
+                        onChange={handleLeadChange}
+                        placeholder="https://…"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Adresse</label>
+                    <input
+                      className="form-input"
+                      type="text"
+                      name="address"
+                      value={lead.address}
+                      onChange={handleLeadChange}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Précisions sur votre projet</label>
+                    <textarea
+                      className="form-textarea"
+                      name="message"
+                      rows={3}
+                      value={lead.message}
+                      onChange={handleLeadChange}
+                      placeholder="Délais souhaités, contenu, références…"
+                    />
+                  </div>
+
+                  {leadError && (
+                    <div className="sim-lead-error">{leadError}</div>
+                  )}
+
+                  <div className="sim-lead-actions">
+                    <button
+                      type="button"
+                      className="sim-reset-btn"
+                      onClick={() => setShowLead(false)}
+                      disabled={leadSending}
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-blue"
+                      disabled={leadSending}
+                    >
+                      {leadSending ? "Envoi en cours…" : "Envoyer ma demande →"}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {leadSent && (
+                <div className="sim-lead-success">
+                  <div className="sim-lead-success-icon">✓</div>
+                  <h4 className="sim-lead-title">Demande envoyée !</h4>
+                  <p className="sim-lead-desc">
+                    Merci, votre demande a bien été enregistrée. Un devis
+                    brouillon a été préparé avec votre simulation et nous
+                    revenons vers vous très rapidement.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

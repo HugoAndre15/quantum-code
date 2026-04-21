@@ -273,27 +273,34 @@ export class PdfService {
       //  CONDITIONS (devis uniquement)
       // ═══════════════════════════════════════════
       if (isDevis) {
-        if (y + 50 > 700) { doc.addPage({ size: 'A4', margin: 0 }); doc.rect(0, 0, W, 5).fill(BLUE); y = 30; }
-        doc.fontSize(8).fill(BLUE).font('Helvetica-Bold').text('CONDITIONS', M, y);
+        if (y + 110 > 700) { doc.addPage({ size: 'A4', margin: 0 }); doc.rect(0, 0, W, 5).fill(BLUE); y = 30; }
+        doc.fontSize(8).fill(BLUE).font('Helvetica-Bold').text('CONDITIONS & ENGAGEMENTS', M, y);
         y += 12;
         doc.fontSize(7.5).fill(GREY).font('Helvetica');
         doc.text('• Ce devis est valable pour la durée indiquée ci-dessus.', M, y, { width: contentW }); y += 11;
         doc.text('• Un acompte de 30% est demandé à la signature, le solde à la livraison.', M, y, { width: contentW }); y += 11;
         doc.text('• Tout projet commencé est dû. Les modifications hors périmètre feront l\'objet d\'un avenant.', M, y, { width: contentW }); y += 11;
-        doc.text('• Délais de réalisation communiqués après validation du devis.', M, y, { width: contentW }); y += 18;
+        doc.text('• Délais de réalisation communiqués après validation du devis.', M, y, { width: contentW }); y += 11;
+        doc.text('• Propriété : le client devient pleinement propriétaire du code source livré dès le paiement intégral (cession des droits patrimoniaux).', M, y, { width: contentW }); y += 18;
+        doc.text('• Hébergement : le site est hébergé par Quantum Code (serveur, nom de domaine, SSL, sauvegardes), facturé en option récurrente ci-dessus.', M, y, { width: contentW }); y += 18;
+        doc.text('• Suivi : 14 jours de suivi post-livraison inclus (corrections de bugs et ajustements mineurs offerts).', M, y, { width: contentW }); y += 11;
+        doc.text('• Au-delà des 14 jours, toute intervention fera l\'objet d\'un devis complémentaire ou sera couverte par un contrat de maintenance.', M, y, { width: contentW }); y += 18;
       }
 
       // ═══════════════════════════════════════════
       //  CONDITIONS DE PAIEMENT (facture uniquement)
       // ═══════════════════════════════════════════
       if (!isDevis) {
-        if (y + 40 > 700) { doc.addPage({ size: 'A4', margin: 0 }); doc.rect(0, 0, W, 5).fill(BLUE); y = 30; }
-        doc.fontSize(8).fill(BLUE).font('Helvetica-Bold').text('PAIEMENT', M, y);
+        if (y + 80 > 700) { doc.addPage({ size: 'A4', margin: 0 }); doc.rect(0, 0, W, 5).fill(BLUE); y = 30; }
+        doc.fontSize(8).fill(BLUE).font('Helvetica-Bold').text('PAIEMENT & ENGAGEMENTS', M, y);
         y += 12;
         doc.fontSize(7.5).fill(GREY).font('Helvetica');
         doc.text('• Paiement par virement bancaire sous 30 jours.', M, y, { width: contentW }); y += 11;
         doc.text('• En cas de retard, une pénalité de 3x le taux d\'intérêt légal sera appliquée.', M, y, { width: contentW }); y += 11;
-        doc.text('• Indemnité forfaitaire de recouvrement : 40 €.', M, y, { width: contentW }); y += 18;
+        doc.text('• Indemnité forfaitaire de recouvrement : 40 € (art. L441-10 du Code de commerce).', M, y, { width: contentW }); y += 11;
+        doc.text('• Propriété : le client est pleinement propriétaire du code source livré dès le paiement intégral.', M, y, { width: contentW }); y += 11;
+        doc.text('• Hébergement assuré par Quantum Code (serveur, nom de domaine, SSL, sauvegardes) — voir prestations récurrentes ci-dessus.', M, y, { width: contentW }); y += 18;
+        doc.text('• 14 jours de suivi post-livraison inclus (corrections de bugs et ajustements mineurs offerts).', M, y, { width: contentW }); y += 18;
       }
 
       // ═══════════════════════════════════════════

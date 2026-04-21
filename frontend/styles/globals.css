@@ -312,6 +312,15 @@ h1.hero-title .serif-word{font-family:var(--font-serif),Georgia,serif;font-style
 .sim-cta .btn{width:100%;max-width:360px}
 .sim-reset-btn{font-size:13px;color:var(--grey-3);background:none;border:none;cursor:pointer;text-decoration:underline;transition:color .2s}
 .sim-reset-btn:hover{color:var(--white)}
+.sim-lead-form{margin-top:24px;background:var(--black-3);border:1px solid var(--border);border-radius:var(--r-m);padding:24px;display:flex;flex-direction:column;gap:14px}
+.sim-lead-title{font-size:18px;font-weight:700;color:var(--white);margin:0}
+.sim-lead-desc{font-size:13px;color:var(--grey-3);line-height:1.5;margin:0 0 4px}
+.sim-lead-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.sim-lead-error{background:rgba(255,80,80,.1);border:1px solid rgba(255,80,80,.4);color:#ff8585;padding:10px 14px;border-radius:var(--r);font-size:13px}
+.sim-lead-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:4px}
+.sim-lead-success{margin-top:24px;background:var(--black-3);border:1px solid var(--border);border-radius:var(--r-m);padding:32px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}
+.sim-lead-success-icon{width:48px;height:48px;border-radius:50%;background:var(--green,#2e7d32);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700}
+@media(max-width:640px){.sim-lead-row{grid-template-columns:1fr}}
 .sim-nav{display:flex;justify-content:space-between;margin-top:28px;gap:12px}
 .sim-nav-btn{padding:10px 24px;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
 .sim-nav-btn.prev{background:transparent;border:1px solid var(--border-2);color:var(--grey-3)}
