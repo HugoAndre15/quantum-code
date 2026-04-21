@@ -8,6 +8,7 @@ import About from "../components/About";
 import Portfolio from "../components/Portfolio";
 import Tarifs from "../components/Tarifs";
 import PriceSimulator from "../components/PriceSimulator";
+import FAQ from "../components/FAQ";
 import Contact from "../components/Contact";
 import Footer from "../components/Footer";
 import Toast from "../components/Toast";
@@ -59,6 +60,7 @@ export default function Home() {
       <Portfolio />
       <Tarifs onToast={showToast} />
       <PriceSimulator />
+      <FAQ />
       <Contact onToast={showToast} />
       <Footer />
       <Toast />

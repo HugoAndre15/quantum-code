@@ -1,4 +1,4 @@
-import { heroStats, siteConfig } from "../data/siteData";
+import { heroReasons, siteConfig } from "../data/siteData";
 
 export default function Hero() {
   return (
@@ -25,24 +25,27 @@ export default function Hero() {
           </p>
 
           <div className="hero-ctas">
-            <a href="#contact" className="btn btn-blue">
+            <a href="#simulateur" className="btn btn-blue">
+              Simuler mon prix en 1 minute
+            </a>
+            <a href="#contact" className="btn btn-outline">
               Obtenir un devis gratuit
             </a>
-            <a href="#portfolio" className="btn btn-outline">
+            <a href="#portfolio" className="btn btn-ghost">
               Voir mes réalisations
             </a>
           </div>
 
-          <div className="hero-stats">
-            {heroStats.map((s, i) => (
-              <div key={i} className="hero-stat">
-                <div className="hero-stat-num">
-                  {s.num}
-                  <span>{s.suf}</span>
+          <div className="hero-reasons-block">
+            <div className="hero-reasons-label">Pourquoi me choisir</div>
+            <div className="hero-stats">
+              {heroReasons.map((r, i) => (
+                <div key={i} className="hero-stat">
+                  <div className="hero-stat-num">{r.title}</div>
+                  <div className="hero-stat-label">{r.label}</div>
                 </div>
-                <div className="hero-stat-label">{s.label}</div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
