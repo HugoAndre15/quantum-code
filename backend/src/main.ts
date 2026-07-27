@@ -9,6 +9,7 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bodyParser: true,
+    rawBody: true,
   });
 
   app.setGlobalPrefix('api');
