@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDevisDto, UpdateDevisDto } from './dto/devis.dto';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class DevisService {
@@ -366,4 +367,109 @@ export class DevisService {
 
     return { total, byStatus: statusMap };
   }
+
+  /**
+   * Génère un token d'acceptation et passe le devis en ENVOYE.
+   * Retourne le devis mis à jour avec le client (pour l'email).
+   */
+  async generateAcceptToken(id: string) {
+    const devis = await this.prisma.devis.findUnique({
+      where: { id },
+      include: { client: true },
+    });
+    if (!devis) throw new NotFoundException('Devis introuvable');
+    if (!devis.client.email) {
+      throw new BadRequestException("Le client n'a pas d'adresse email");
+    }
+    if (devis.status === 'ACCEPTE') {
+      throw new BadRequestException('Ce devis est déjà accepté');
+    }
+    if (devis.status === 'REFUSE' || devis.status === 'EXPIRE') {
+      throw new BadRequestException(`Impossible d'envoyer un devis ${devis.status}`);
+    }
+
+    const token = randomUUID();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    return this.prisma.devis.update({
+      where: { id },
+      data: {
+        acceptToken: token,
+        acceptTokenExpiresAt: expiresAt,
+        status: 'ENVOYE',
+      },
+      include: { client: true, items: true },
+    });
+  }
+
+  /**
+   * Accepte un devis via token public (lien reçu par email).
+   * Crée automatiquement un ClientProject lié au devis.
+   * Met à jour le statut du client et du lead associé.
+   */
+  async acceptByToken(token: string) {
+    const devis = await this.prisma.devis.findUnique({
+      where: { acceptToken: token },
+      include: { client: { include: { lead: true } }, project: true },
+    });
+
+    if (!devis) throw new NotFoundException('Lien invalide ou expiré');
+    if (devis.status === 'ACCEPTE') {
+      return { message: 'Devis déjà accepté', devisId: devis.id };
+    }
+    if (devis.status === 'REFUSE' || devis.status === 'EXPIRE') {
+      throw new BadRequestException('Ce devis ne peut plus être accepté');
+    }
+    if (devis.acceptTokenExpiresAt && devis.acceptTokenExpiresAt < new Date()) {
+      await this.prisma.devis.update({
+        where: { id: devis.id },
+        data: { status: 'EXPIRE', acceptToken: null, acceptTokenExpiresAt: null },
+      });
+      throw new BadRequestException('Ce lien a expiré. Contactez-nous pour un nouveau devis.');
+    }
+
+    // 1) Accepte le devis
+    const updatedDevis = await this.prisma.devis.update({
+      where: { id: devis.id },
+      data: {
+        status: 'ACCEPTE',
+        acceptedAt: new Date(),
+        acceptToken: null,
+        acceptTokenExpiresAt: null,
+      },
+    });
+
+    // 2) Crée le projet client
+    const project = await this.prisma.clientProject.create({
+      data: {
+        clientId: devis.clientId,
+        devisId: devis.id,
+        name: `Projet ${devis.client.company}`,
+        status: 'EN_ATTENTE',
+      },
+    });
+
+    // 3) Met à jour le statut du client
+    await this.prisma.client.update({
+      where: { id: devis.clientId },
+      data: { status: 'EN_COURS' },
+    });
+
+    // 4) Marque le lead comme CONVERTI si existant et pas déjà converti
+    if (devis.client.lead && devis.client.lead.status !== 'CONVERTI') {
+      await this.prisma.lead.update({
+        where: { id: devis.client.lead.id },
+        data: { status: 'CONVERTI' },
+      });
+    }
+
+    return {
+      message: 'Devis accepté avec succès',
+      devisId: updatedDevis.id,
+      projectId: project.id,
+      clientId: devis.clientId,
+    };
+  }
 }
+

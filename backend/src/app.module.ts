@@ -13,6 +13,9 @@ import { PortfolioModule } from './portfolio/portfolio.module';
 import { PromoCodesModule } from './promo-codes/promo-codes.module';
 import { ContactModule } from './contact/contact.module';
 import { SimulatorModule } from './simulator/simulator.module';
+import { StripeModule } from './stripe/stripe.module';
+import { LeadsModule } from './crm/leads/leads.module';
+import { ProjectsModule } from './crm/projects/projects.module';
 
 
 @Module({
@@ -36,6 +39,9 @@ import { SimulatorModule } from './simulator/simulator.module';
     PromoCodesModule,
     ContactModule,
     SimulatorModule,
+    StripeModule,
+    LeadsModule,
+    ProjectsModule,
   ],
 providers: [
     {

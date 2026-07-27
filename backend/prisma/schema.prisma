@@ -70,6 +70,7 @@ model Pack {
     includedOptions PackOption[]
     clients         Client[]
     devisItems      DevisItem[]
+    leads           Lead[]
     createdAt       DateTime     @default(now())
     updatedAt       DateTime     @updatedAt
 }
@@ -128,6 +129,11 @@ model Client {
     options        ClientOption[]
     devis          Devis[]
     factures       Facture[]
+    lead           Lead?
+    projects       ClientProject[]
+    payments       Payment[]
+    subscriptions  Subscription[]
+    reviews        Review[]
     createdAt      DateTime       @default(now())
     updatedAt      DateTime       @updatedAt
 }
@@ -169,8 +175,12 @@ model Devis {
     discountAmount Float       @default(0)
     promoCodeId    String?
     promoCode      PromoCode?  @relation(fields: [promoCodeId], references: [id])
+    acceptToken            String?   @unique
+    acceptTokenExpiresAt   DateTime?
+    acceptedAt             DateTime?
     items          DevisItem[]
     facture        Facture?
+    project        ClientProject?
     createdAt      DateTime    @default(now())
     updatedAt      DateTime    @updatedAt
 }
@@ -204,6 +214,7 @@ model Facture {
     totalHT   Float         @default(0)
     paidAt    DateTime?
     notes     String?
+    payments  Payment[]
     createdAt DateTime      @default(now())
     updatedAt DateTime      @updatedAt
 }
@@ -213,6 +224,7 @@ enum DevisStatus {
     ENVOYE
     ACCEPTE
     REFUSE
+    EXPIRE
 }
 
 enum FactureStatus {
@@ -261,4 +273,135 @@ model PromoCode {
 enum DiscountType {
     PERCENTAGE
     FIXED_VALUE
+}
+
+// ─── CRM Pipeline ─────────────────────────────
+
+model Lead {
+    id                String     @id @default(cuid())
+    name              String
+    email             String
+    phone             String?
+    company           String?
+    budget            Float?
+    delayMonths       Int?
+    pageCount         Int?
+    source            LeadSource @default(SIMULATOR)
+    status            LeadStatus @default(NOUVEAU)
+    score             Int        @default(0)
+    simulatorData     Json?
+    notes             String?
+    packId            String?
+    pack              Pack?      @relation(fields: [packId], references: [id])
+    convertedClientId String?    @unique
+    convertedClient   Client?    @relation(fields: [convertedClientId], references: [id])
+    createdAt         DateTime   @default(now())
+    updatedAt         DateTime   @updatedAt
+}
+
+model ClientProject {
+    id            String        @id @default(cuid())
+    clientId      String
+    client        Client        @relation(fields: [clientId], references: [id])
+    devisId       String?       @unique
+    devis         Devis?        @relation(fields: [devisId], references: [id])
+    name          String
+    status        ProjectStatus @default(EN_ATTENTE)
+    productionUrl String?
+    notes         String?
+    createdAt     DateTime      @default(now())
+    updatedAt     DateTime      @updatedAt
+}
+
+model Payment {
+    id                    String        @id @default(cuid())
+    clientId              String
+    client                Client        @relation(fields: [clientId], references: [id])
+    factureId             String?
+    facture               Facture?      @relation(fields: [factureId], references: [id])
+    type                  PaymentType
+    amount                Decimal       @db.Decimal(10, 2)
+    stripeSessionId       String?       @unique
+    stripePaymentIntentId String?
+    status                PaymentStatus @default(EN_ATTENTE)
+    paidAt                DateTime?
+    createdAt             DateTime      @default(now())
+    updatedAt             DateTime      @updatedAt
+}
+
+model Subscription {
+    id                   String    @id @default(cuid())
+    clientId             String
+    client               Client    @relation(fields: [clientId], references: [id])
+    type                 SubType
+    status               SubStatus @default(ACTIF)
+    monthlyAmount        Decimal   @db.Decimal(10, 2)
+    stripeSubscriptionId String?   @unique
+    stripePriceId        String?
+    startDate            DateTime  @default(now())
+    nextBillingDate      DateTime?
+    canceledAt           DateTime?
+    createdAt            DateTime  @default(now())
+    updatedAt            DateTime  @updatedAt
+}
+
+model Review {
+    id              String   @id @default(cuid())
+    clientId        String?
+    client          Client?  @relation(fields: [clientId], references: [id])
+    authorName      String
+    rating          Int      @default(5)
+    comment         String
+    published       Boolean  @default(false)
+    googleReviewUrl String?
+    requestedAt     DateTime?
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
+}
+
+enum LeadSource {
+    SIMULATOR
+    CONTACT
+    MANUEL
+}
+
+enum LeadStatus {
+    NOUVEAU
+    CONTACTE
+    QUALIFIE
+    CONVERTI
+    PERDU
+}
+
+enum ProjectStatus {
+    EN_ATTENTE
+    EN_COURS
+    EN_LIGNE
+    LIVRE
+    ARCHIVE
+}
+
+enum PaymentType {
+    ACOMPTE
+    SOLDE
+    ABONNEMENT
+}
+
+enum PaymentStatus {
+    EN_ATTENTE
+    PAYE
+    ECHOUE
+    REMBOURSE
+}
+
+enum SubType {
+    MAINTENANCE
+    HEBERGEMENT
+    MAINTENANCE_HEBERGEMENT
+}
+
+enum SubStatus {
+    ACTIF
+    EN_PAUSE
+    RESILIE
 }
