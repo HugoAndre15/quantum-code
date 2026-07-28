@@ -6,6 +6,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
 } from "react";
 import { useRouter } from "next/navigation";
 
@@ -14,7 +15,7 @@ const API = "/api";
 interface User {
   id: string;
   email: string;
-  name: string;
+  name?: string;
   role: "ADMIN" | "SUPER_ADMIN";
 }
 
@@ -31,37 +32,15 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const refreshPromise = useRef<Promise<boolean> | null>(null);
   const router = useRouter();
 
-  useEffect(() => {
-    fetchProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function fetchProfile() {
-    try {
-      const res = await fetch(`${API}/auth/profile`, {
-        credentials: "include",
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setUser(data);
-      } else if (res.status === 401) {
-        const refreshed = await tryRefresh();
-        if (!refreshed) setUser(null);
-      }
-    } catch {
-      // API unreachable
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function tryRefresh(): Promise<boolean> {
+  const refreshSession = useCallback(async (): Promise<boolean> => {
     try {
       const res = await fetch(`${API}/auth/refresh`, {
         method: "POST",
         credentials: "include",
+        cache: "no-store",
       });
       if (res.ok) {
         const data = await res.json();
@@ -69,11 +48,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return true;
       }
     } catch {
-      // ignore
+      // The session will be treated as expired below.
     }
     setUser(null);
     return false;
-  }
+  }, []);
+
+  const tryRefresh = useCallback((): Promise<boolean> => {
+    if (!refreshPromise.current) {
+      refreshPromise.current = refreshSession().finally(() => {
+        refreshPromise.current = null;
+      });
+    }
+    return refreshPromise.current;
+  }, [refreshSession]);
+
+  const fetchProfile = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/auth/profile`, {
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUser(data);
+      } else if (res.status === 401) {
+        await tryRefresh();
+      } else {
+        setUser(null);
+      }
+    } catch {
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [tryRefresh]);
+
+  useEffect(() => {
+    void fetchProfile();
+  }, [fetchProfile]);
 
   const apiFetch = useCallback(
     async (url: string, options: RequestInit = {}): Promise<Response> => {
@@ -81,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const opts: RequestInit = {
         ...options,
         credentials: "include",
+        cache: options.cache ?? "no-store",
         headers: {
           ...(!(body instanceof FormData) && {
             "Content-Type": "application/json",
@@ -96,20 +110,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (refreshed) {
           res = await fetch(url, opts);
         } else {
-          router.push("/login");
+          const requestedPath =
+            typeof window === "undefined"
+              ? "/admin"
+              : `${window.location.pathname}${window.location.search}`;
+          router.replace(
+            `/login?next=${encodeURIComponent(requestedPath)}`,
+          );
         }
       }
 
       return res;
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [router],
+    [router, tryRefresh],
   );
 
   async function login(email: string, password: string): Promise<User> {
     const res = await fetch(`${API}/auth/login`, {
       method: "POST",
       credentials: "include",
+      cache: "no-store",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
@@ -134,7 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // ignore
     }
     setUser(null);
-    router.push("/login");
+    router.replace("/login");
   }
 
   return (

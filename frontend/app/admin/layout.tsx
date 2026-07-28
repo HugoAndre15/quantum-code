@@ -1,5 +1,5 @@
 import { AuthProvider } from "@/app/context/AuthContext";
-import AdminSidebar from "@/app/admin/components/AdminSidebar";
+import AdminShell from "@/app/admin/components/AdminShell";
 
 export default function AdminLayout({
   children,
@@ -8,12 +8,7 @@ export default function AdminLayout({
 }) {
   return (
     <AuthProvider>
-      <div style={{ minHeight: "100vh", background: "var(--black)", display: "flex" }}>
-        <AdminSidebar />
-        <main style={{ marginLeft: 220, flex: 1, padding: 28, minWidth: 0 }}>
-          {children}
-        </main>
-      </div>
+      <AdminShell>{children}</AdminShell>
     </AuthProvider>
   );
 }
