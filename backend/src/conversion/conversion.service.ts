@@ -93,7 +93,7 @@ export class ConversionService {
       include: {
         events: {
           where: { createdAt: { gte: from } },
-          select: { name: true, createdAt: true },
+          select: { name: true, metadata: true, createdAt: true },
         },
         lead: {
           select: {
@@ -166,6 +166,43 @@ export class ConversionService {
             : Math.round((stage.count / sessions.length) * 1000) / 10,
     }));
 
+    const simulatorStartedCount = sessions.filter((session) =>
+      hasEvent(session, 'SIMULATOR_STARTED'),
+    ).length;
+    const simulatorStepDefinitions = [
+      { key: 'project', label: 'Projet' },
+      { key: 'content', label: 'Structure' },
+      { key: 'features', label: 'Fonctionnalités' },
+      { key: 'qualification', label: 'Délai et suivi' },
+      { key: 'result', label: 'Résultat' },
+    ];
+    const simulatorSteps = simulatorStepDefinitions.map((definition) => {
+      const count = sessions.filter((session) => {
+        if (definition.key === 'result') {
+          return hasEvent(session, 'SIMULATOR_COMPLETED');
+        }
+        return session.events.some((event) => {
+          if (event.name !== 'SIMULATOR_STEP_VIEWED') return false;
+          if (
+            !event.metadata ||
+            typeof event.metadata !== 'object' ||
+            Array.isArray(event.metadata)
+          ) {
+            return false;
+          }
+          return event.metadata.step === definition.key;
+        });
+      }).length;
+      return {
+        ...definition,
+        count,
+        conversionFromStart:
+          simulatorStartedCount === 0
+            ? 0
+            : Math.round((count / simulatorStartedCount) * 1000) / 10,
+      };
+    });
+
     const sources = new Map<
       string,
       { sessions: number; leads: number; clients: number }
@@ -203,6 +240,7 @@ export class ConversionService {
     return {
       periodDays: safeDays,
       funnel,
+      simulatorSteps,
       sources: Array.from(sources.entries())
         .map(([name, values]) => ({ name, ...values }))
         .sort((a, b) => b.sessions - a.sessions),

@@ -132,8 +132,8 @@ export const gradients = [
 // ─── Tarifs ──────────────────────────────────
 export const packs = [
   {
-    name: "Essentiel",
-    price: "500",
+    name: "Lancement",
+    price: "590",
     popular: false,
     features: [
       "Site one page",
@@ -144,41 +144,41 @@ export const packs = [
     ],
   },
   {
-    name: "Standard",
-    price: "800",
+    name: "Vitrine",
+    price: "890",
     popular: true,
     features: [
-      "3 à 4 pages",
-      "Galerie simple",
+      "4 pages",
+      "Galerie ou réalisations",
       "Google Maps",
       "Formulaire avancé",
       "Structure pensée pour convertir",
     ],
   },
   {
-    name: "Pro",
-    price: "1200",
+    name: "Signature",
+    price: "1390",
     popular: false,
     features: [
-      "5 à 6 pages",
-      "Blog",
-      "Réservation via Calendly",
-      "Paiement via Stripe",
-      "Mini interface d'administration",
+      "6 pages",
+      "Direction artistique avancée",
+      "Animations",
+      "Avis Google",
+      "SEO local renforcé",
     ],
   },
 ];
 
 export const options = [
-  { label: "Page supplémentaire", price: "70" },
-  { label: "Galerie avancée", price: "150" },
-  { label: "Blog", price: "200" },
-  { label: "Réservation", price: "100" },
-  { label: "Paiement en ligne", price: "100" },
-  { label: "Avis Google", price: "50" },
-  { label: "Multilangue", price: "150" },
-  { label: "Animations", price: "150" },
-  { label: "Admin", price: "200" },
+  { label: "Page supplémentaire", price: "90" },
+  { label: "Galerie avancée", price: "160" },
+  { label: "Blog", price: "390" },
+  { label: "Réservation", price: "290" },
+  { label: "Paiement en ligne", price: "350" },
+  { label: "Avis Google", price: "80" },
+  { label: "Multilangue", price: "250" },
+  { label: "Animations", price: "190" },
+  { label: "Admin", price: "590" },
 ];
 
 export const steps = [
@@ -189,8 +189,8 @@ export const steps = [
   },
   {
     num: "02",
-    title: "Je prépare votre site",
-    desc: "Je pars d'une base solide et je personnalise le design, les textes et les sections.",
+    title: "Je conçois avec l’aide de l’IA",
+    desc: "L’IA accélère la recherche et certaines étapes de production. Je reste responsable du design, du code, des tests et des choix finaux.",
   },
   {
     num: "03",
@@ -207,21 +207,21 @@ export const budgetExamples = [
     icon: "💇",
     title: "Site coiffeur avec prise de RDV",
     desc: "Site vitrine élégant, présentation des prestations et réservation en ligne.",
-    price: "≈ 750 €",
+    price: "≈ 1 180 €",
     note: "Site vitrine + module de réservation",
   },
   {
     icon: "🥖",
     title: "Site boulangerie / commerce de proximité",
     desc: "Vitrine simple et claire pour présenter vos produits, horaires et localisation.",
-    price: "≈ 500 €",
+    price: "≈ 590 €",
     note: "Site vitrine one-page optimisé local",
   },
   {
     icon: "🛒",
     title: "Boutique en ligne",
     desc: "Catalogue produits, paiement sécurisé et gestion des commandes.",
-    price: "à partir de 1 500 €",
+    price: "à partir de 2 490 €",
     note: "E-commerce avec paiement Stripe",
   },
 ];
@@ -229,8 +229,12 @@ export const budgetExamples = [
 // ─── FAQ ─────────────────────────────────────
 export const faqItems = [
   {
+    q: "Utilisez-vous l’intelligence artificielle pour créer les sites ?",
+    a: "Oui, en toute transparence. J’utilise des outils d’IA pour accélérer la recherche, certaines propositions et une partie du développement. Je définis la stratégie, personnalise le design et le code, puis je contrôle et teste chaque livraison. Ce gain de temps permet des délais plus courts et des prix plus accessibles, sans retirer la responsabilité humaine.",
+  },
+  {
     q: "Quels sont les délais de livraison ?",
-    a: "Pour un site vitrine, comptez en général 2 à 3 semaines entre la validation du devis et la mise en ligne. Pour un projet plus complexe (e-commerce, application sur mesure), on définit ensemble un planning réaliste lors du premier échange.",
+    a: "Un site Lancement peut généralement être livré en 5 à 8 jours ouvrés si les contenus sont prêts. Pour une vitrine plus complète, comptez souvent 1 à 2 semaines. Pour un projet plus complexe, on définit ensemble un planning réaliste lors du premier échange.",
   },
   {
     q: "Mon site sera-t-il vraiment personnalisé ?",
@@ -290,8 +294,8 @@ export const projectTypes = [
 ];
 
 export const budgetRanges = [
-  "200 — 500 €",
-  "500 — 1 500 €",
-  "1 500 — 4 000 €",
-  "> 4 000 €",
+  "< 600 €",
+  "600 — 1 200 €",
+  "1 200 — 2 500 €",
+  "> 2 500 €",
 ];

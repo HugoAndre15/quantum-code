@@ -3,8 +3,25 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { SimulatorLeadDto } from './dto/simulator-lead.dto';
-import { LeadSource } from '@prisma/client';
+import { LeadSource, ServiceOption } from '@prisma/client';
 import { ConversionService } from '../conversion/conversion.service';
+
+type PricingSnapshot = {
+  packId?: string;
+  packName?: string;
+  selectedOptionIds: string[];
+  oneTimeOptionIds: string[];
+  recurringOptionIds: string[];
+  optionNames: string[];
+  oneTimeTotal: number;
+  estimatedMin: number;
+  estimatedMax: number;
+  recurring: Array<{
+    name: string;
+    price: number;
+    unit: string | null;
+  }>;
+};
 
 @Injectable()
 export class SimulatorService {
@@ -18,44 +35,68 @@ export class SimulatorService {
   ) {}
 
   async submitLead(dto: SimulatorLeadDto) {
-    // 1) Calcule le score
-    const score = this.calculateScore(dto);
+    // Le prix affiché côté navigateur reste indicatif. Le budget CRM et le
+    // futur devis utilisent toujours les tarifs actifs recalculés côté serveur.
+    const pricing = await this.calculatePricing(dto);
+    const score = this.calculateScore(dto, pricing.oneTimeTotal);
 
-    // 2) Crée le Lead CRM
     const lead = await this.prisma.lead.create({
       data: {
         name: dto.contactName,
         email: dto.email,
         phone: dto.phone,
         company: dto.company,
-        budget: dto.estimatedTotal,
+        budget: pricing.oneTimeTotal,
+        delayMonths: this.delayMonths(dto.timeline),
         pageCount: dto.pages,
         source: LeadSource.SIMULATOR,
         score,
         notes: dto.message,
         simulatorData: {
-          mode: dto.mode,
-          trade: dto.trade,
-          address: dto.address,
+          version: 2,
+          mode: 'recommended',
+          projectType: dto.projectType,
+          sector: dto.sector,
+          trade: dto.trade || dto.sector,
+          primaryGoal: dto.primaryGoal,
+          contentScale: dto.contentScale,
+          selectedFeatures: dto.selectedFeatures || [],
+          timeline: dto.timeline,
+          contentReadiness: dto.contentReadiness,
+          supportChoice: dto.supportChoice,
           website: dto.website,
-          optionIds: dto.optionIds,
-          estimatedTotal: dto.estimatedTotal,
+          recommendationName: pricing.packName || dto.recommendationName,
+          optionIds: pricing.selectedOptionIds,
+          oneTimeOptionIds: pricing.oneTimeOptionIds,
+          recurringOptionIds: pricing.recurringOptionIds,
+          optionNames: pricing.optionNames,
+          pricingSnapshot: {
+            oneTimeTotal: pricing.oneTimeTotal,
+            estimatedMin: pricing.estimatedMin,
+            estimatedMax: pricing.estimatedMax,
+            recurring: pricing.recurring,
+          },
         },
-        ...(dto.packId && { packId: dto.packId }),
+        ...(pricing.packId && { packId: pricing.packId }),
       },
       include: { pack: { select: { name: true } } },
     });
     await this.conversion.attachLead(dto.sessionId, lead.id);
 
-    // 3) Notification admin
     const adminEmail = this.config.get('MAIL_FROM', 'contact@quantum-code.fr');
-    const adminUrl = `${this.config.get('FRONTEND_URL', 'http://localhost:3000')}/admin/crm/leads`;
+    const adminUrl = `${this.config.get('FRONTEND_URL', 'http://localhost:3000')}/admin/crm/leads/${lead.id}`;
     try {
       await this.mail.sendMail({
         to: adminEmail,
         subject: `Nouveau lead simulateur – ${dto.company || dto.contactName}`,
         replyTo: dto.email,
-        html: this.buildAdminNotificationEmail(dto, lead, score, adminUrl),
+        html: this.buildAdminNotificationEmail(
+          dto,
+          lead,
+          pricing,
+          score,
+          adminUrl,
+        ),
       });
     } catch (err) {
       this.logger.error(`Échec envoi mail simulateur : ${(err as Error).message}`);
@@ -64,29 +105,105 @@ export class SimulatorService {
     return { message: 'Demande enregistrée avec succès', leadId: lead.id, score };
   }
 
-  private calculateScore(dto: SimulatorLeadDto): number {
-    let score = 0;
-    const budget = dto.estimatedTotal;
-    if (budget !== undefined) {
-      if (budget > 1000) score += 30;
-      else if (budget >= 700) score += 20;
-      else if (budget >= 400) score += 10;
-    }
-    if (dto.pages !== undefined) {
-      if (dto.pages > 10) score += 20;
-      else if (dto.pages >= 5) score += 15;
-      else if (dto.pages >= 3) score += 10;
-      else score += 5;
-    }
-    score += 15; // source SIMULATOR
+  private async calculatePricing(
+    dto: SimulatorLeadDto,
+  ): Promise<PricingSnapshot> {
+    const selectedIds = [
+      ...new Set([
+        ...(dto.optionIds || []),
+        ...(dto.recurringOptionIds || []),
+      ]),
+    ];
+    const selectedOptionsPromise: Promise<ServiceOption[]> = selectedIds.length
+      ? this.prisma.serviceOption.findMany({
+          where: { id: { in: selectedIds }, active: true },
+        })
+      : Promise.resolve([]);
+    const [pack, base, selectedOptions] = await Promise.all([
+      dto.packId
+        ? this.prisma.pack.findFirst({
+            where: { id: dto.packId, active: true },
+            include: { includedOptions: true },
+          })
+        : Promise.resolve(null),
+      this.prisma.pricingBase.findFirst({ where: { active: true } }),
+      selectedOptionsPromise,
+    ]);
+
+    const includedIds = new Set(
+      pack?.includedOptions.map((entry) => entry.serviceOptionId) || [],
+    );
+    const pages = Math.max(1, dto.pages || pack?.includedPages || base?.basePages || 1);
+    const includedPages = pack?.includedPages || base?.basePages || 1;
+    const extraPages = Math.max(0, pages - includedPages);
+    const oneTimeOptions = selectedOptions.filter(
+      (option) => !option.recurring && !includedIds.has(option.id),
+    );
+    const recurringOptions = selectedOptions.filter(
+      (option) => option.recurring && !includedIds.has(option.id),
+    );
+    const oneTimeTotal =
+      (pack?.price || base?.basePrice || 0) +
+      extraPages * (base?.pagePrice || 0) +
+      oneTimeOptions.reduce((sum, option) => sum + option.price, 0);
+    const roundedTotal = Math.round(oneTimeTotal * 100) / 100;
+
+    return {
+      packId: pack?.id,
+      packName: pack?.name,
+      selectedOptionIds: selectedOptions.map((option) => option.id),
+      oneTimeOptionIds: oneTimeOptions.map((option) => option.id),
+      recurringOptionIds: recurringOptions.map((option) => option.id),
+      optionNames: selectedOptions.map((option) => option.name),
+      oneTimeTotal: roundedTotal,
+      estimatedMin: Math.round((roundedTotal * 0.95) / 50) * 50,
+      estimatedMax: Math.round((roundedTotal * 1.12) / 50) * 50,
+      recurring: recurringOptions.map((option) => ({
+        name: option.name,
+        price: option.price,
+        unit: option.recurringUnit,
+      })),
+    };
+  }
+
+  private calculateScore(dto: SimulatorLeadDto, budget: number): number {
+    let score = 10; // demande ayant terminé le conseiller
+    if (budget >= 3000) score += 25;
+    else if (budget >= 1800) score += 20;
+    else if (budget >= 1000) score += 15;
+    else if (budget >= 650) score += 10;
+
+    if (dto.timeline === 'asap') score += 20;
+    else if (dto.timeline === '1-2') score += 15;
+    else if (dto.timeline === '3-4') score += 8;
+    else if (dto.timeline === 'explore') score += 3;
+
+    if (dto.projectType === 'shop' || dto.projectType === 'custom') score += 15;
+    else if (dto.projectType === 'booking' || dto.projectType === 'leads') score += 10;
+    else if (dto.projectType) score += 5;
+
+    if (dto.contentReadiness === 'ready') score += 10;
+    else if (dto.contentReadiness === 'partial') score += 7;
+    else if (dto.contentReadiness === 'help') score += 4;
+
+    if ((dto.selectedFeatures?.length || 0) >= 3) score += 5;
     if (dto.phone) score += 5;
     if (dto.company) score += 5;
     return Math.min(score, 100);
   }
 
+  private delayMonths(timeline?: string) {
+    if (timeline === 'asap') return 0;
+    if (timeline === '1-2') return 2;
+    if (timeline === '3-4') return 4;
+    if (timeline === 'explore') return 6;
+    return undefined;
+  }
+
   private buildAdminNotificationEmail(
     dto: SimulatorLeadDto,
     lead: { id: string; pack?: { name: string } | null },
+    pricing: PricingSnapshot,
     score: number,
     adminUrl: string,
   ): string {
@@ -98,20 +215,52 @@ export class SimulatorService {
       { label: 'Email', value: dto.email },
       ...(dto.company ? [{ label: 'Société', value: dto.company }] : []),
       ...(dto.phone ? [{ label: 'Téléphone', value: dto.phone }] : []),
-      ...(dto.trade ? [{ label: 'Secteur', value: dto.trade }] : []),
-      ...(dto.address ? [{ label: 'Adresse', value: dto.address }] : []),
+      ...(dto.sector || dto.trade
+        ? [{ label: 'Secteur', value: dto.trade || dto.sector || '' }]
+        : []),
       ...(dto.website ? [{ label: 'Site actuel', value: dto.website }] : []),
     ];
 
     const simRows: Array<{ label: string; value: string }> = [
-      { label: 'Mode', value: dto.mode === 'pack' ? 'Pack' : 'Sur mesure' },
-      ...(lead.pack ? [{ label: 'Pack choisi', value: lead.pack.name }] : []),
-      ...(dto.pages ? [{ label: 'Pages', value: String(dto.pages) }] : []),
-      ...(dto.optionIds?.length
-        ? [{ label: 'Options', value: `${dto.optionIds.length} sélectionnée(s)` }]
+      ...(dto.primaryGoal
+        ? [{ label: 'Objectif', value: dto.primaryGoal }]
         : []),
-      ...(dto.estimatedTotal !== undefined
-        ? [{ label: 'Estimation', value: `${dto.estimatedTotal.toFixed(2)} € HT` }]
+      ...(lead.pack
+        ? [{ label: 'Recommandation', value: lead.pack.name }]
+        : []),
+      ...(dto.pages ? [{ label: 'Pages', value: String(dto.pages) }] : []),
+      ...(dto.selectedFeatures?.length
+        ? [{ label: 'Fonctionnalités', value: dto.selectedFeatures.join(', ') }]
+        : []),
+      ...(dto.timeline
+        ? [{ label: 'Lancement', value: dto.timeline }]
+        : []),
+      ...(dto.contentReadiness
+        ? [{ label: 'Contenus', value: dto.contentReadiness }]
+        : []),
+      ...(dto.supportChoice
+        ? [{ label: 'Suivi', value: dto.supportChoice }]
+        : []),
+      ...(pricing.oneTimeTotal !== undefined
+        ? [
+            {
+              label: 'Estimation',
+              value: `${pricing.estimatedMin.toFixed(0)} à ${pricing.estimatedMax.toFixed(0)} € — TVA non applicable`,
+            },
+          ]
+        : []),
+      ...(pricing.recurring.length
+        ? [
+            {
+              label: 'Récurrent',
+              value: pricing.recurring
+                .map(
+                  (item) =>
+                    `${item.name} : ${item.price.toFixed(0)} €/${item.unit || 'période'}`,
+                )
+                .join(' · '),
+            },
+          ]
         : []),
     ];
 

@@ -108,11 +108,114 @@ export default function LeadDetailsPage({ params }: { params: { id: string } }) 
             {lead.notes && <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid var(--border)", color: "var(--grey-2)", fontSize: 12, lineHeight: 1.6 }}>{lead.notes}</div>}
           </Card>
 
+          {lead.simulatorData && <ProjectBrief data={lead.simulatorData} />}
+
           <CommercialPanel context={{ leadId: lead.id }} />
         </>
       )}
     </div>
   );
+}
+
+function ProjectBrief({ data }: { data: Record<string, unknown> }) {
+  const pricing =
+    data.pricingSnapshot &&
+    typeof data.pricingSnapshot === "object" &&
+    !Array.isArray(data.pricingSnapshot)
+      ? (data.pricingSnapshot as Record<string, unknown>)
+      : {};
+  const features = Array.isArray(data.selectedFeatures)
+    ? data.selectedFeatures.filter((value): value is string => typeof value === "string")
+    : [];
+  const recurring = Array.isArray(pricing.recurring)
+    ? pricing.recurring.filter(
+        (value): value is Record<string, unknown> =>
+          Boolean(value && typeof value === "object" && !Array.isArray(value)),
+      )
+    : [];
+  const sectorLabels: Record<string, string> = {
+    artisan: "Artisan",
+    restaurant: "Restaurant",
+    commerce: "Commerce",
+    beauty: "Beauté & bien-être",
+    coach: "Coach / club",
+    liberal: "Profession libérale",
+    other: "Autre activité",
+  };
+  const timelineLabels: Record<string, string> = {
+    asap: "Dès que possible",
+    "1-2": "Sous 1 à 2 mois",
+    "3-4": "Sous 3 à 4 mois",
+    explore: "En réflexion",
+  };
+  const contentLabels: Record<string, string> = {
+    ready: "Textes et images prêts",
+    partial: "Une partie est prête",
+    help: "Accompagnement nécessaire",
+  };
+  const supportLabels: Record<string, string> = {
+    autonomous: "Autonome",
+    hosting: "Hébergement suivi",
+    essential: "Maintenance essentielle",
+    serenity: "Formule sérénité",
+  };
+  const min = typeof pricing.estimatedMin === "number" ? pricing.estimatedMin : null;
+  const max = typeof pricing.estimatedMax === "number" ? pricing.estimatedMax : null;
+
+  return (
+    <div style={{ marginTop: 16 }}>
+      <Card>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--white)", marginBottom: 14 }}>
+          Brief du simulateur
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16 }}>
+          <Info label="Objectif">{stringValue(data.primaryGoal) || stringValue(data.projectType) || "Non renseigné"}</Info>
+          <Info label="Secteur">{sectorLabels[stringValue(data.sector)] || stringValue(data.trade) || "Non renseigné"}</Info>
+          <Info label="Recommandation">{stringValue(data.recommendationName) || "Non renseignée"}</Info>
+          <Info label="Fourchette">{min !== null && max !== null ? `${min.toFixed(0)} à ${max.toFixed(0)} € · TVA non applicable` : "Non renseignée"}</Info>
+          <Info label="Lancement">{timelineLabels[stringValue(data.timeline)] || stringValue(data.timeline) || "Non renseigné"}</Info>
+          <Info label="Contenus">{contentLabels[stringValue(data.contentReadiness)] || stringValue(data.contentReadiness) || "Non renseigné"}</Info>
+          <Info label="Suivi">{supportLabels[stringValue(data.supportChoice)] || stringValue(data.supportChoice) || "Non renseigné"}</Info>
+          <Info label="Site actuel">{stringValue(data.website) || "Aucun"}</Info>
+        </div>
+
+        {features.length > 0 && (
+          <div style={{ marginTop: 18, paddingTop: 15, borderTop: "1px solid var(--border)" }}>
+            <div style={{ fontSize: 10, color: "var(--grey-3)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 8 }}>
+              Fonctionnalités demandées
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {features.map((feature) => (
+                <span key={feature} style={{ padding: "5px 8px", borderRadius: 5, border: "1px solid var(--border)", background: "var(--black-3)", color: "var(--grey-2)", fontSize: 10 }}>
+                  {feature}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {recurring.length > 0 && (
+          <div style={{ marginTop: 15, paddingTop: 15, borderTop: "1px solid var(--border)" }}>
+            <div style={{ fontSize: 10, color: "var(--grey-3)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 8 }}>
+              Services récurrents envisagés
+            </div>
+            {recurring.map((item, index) => (
+              <div key={`${stringValue(item.name)}-${index}`} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "5px 0", color: "var(--grey-2)", fontSize: 11 }}>
+                <span>{stringValue(item.name)}</span>
+                <strong style={{ color: "var(--gold)" }}>
+                  {typeof item.price === "number" ? item.price.toFixed(0) : "—"} €/{stringValue(item.unit) || "période"}
+                </strong>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value : "";
 }
 
 function Info({ label, children }: { label: string; children: React.ReactNode }) {

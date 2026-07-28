@@ -17,6 +17,12 @@ interface FunnelStage {
 interface ConversionStats {
   periodDays: number;
   funnel: FunnelStage[];
+  simulatorSteps: Array<{
+    key: string;
+    label: string;
+    count: number;
+    conversionFromStart: number;
+  }>;
   sources: Array<{ name: string; sessions: number; leads: number; clients: number }>;
   recent: Array<{
     id: string;
@@ -89,6 +95,30 @@ export default function ConversionsPage() {
               ))}
             </div>
           </Card>
+
+          <div style={{ marginTop: 16 }}>
+            <Card>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--white)", marginBottom: 5 }}>
+                Progression dans le simulateur
+              </div>
+              <div style={{ fontSize: 11, color: "var(--grey-3)", marginBottom: 16 }}>
+                Nombre de visiteurs ayant atteint chaque étape après avoir commencé.
+              </div>
+              {stats.simulatorSteps?.length ? (
+                <div style={{ display: "grid", gridTemplateColumns: `repeat(${stats.simulatorSteps.length}, minmax(110px, 1fr))`, gap: 8, overflowX: "auto" }}>
+                  {stats.simulatorSteps.map((simulatorStep, index) => (
+                    <div key={simulatorStep.key} style={{ minWidth: 110, padding: "14px 12px", borderRadius: 8, border: "1px solid var(--border)", background: index === stats.simulatorSteps.length - 1 ? "rgba(93,216,160,.06)" : "var(--black-3)" }}>
+                      <div style={{ fontSize: 10, color: "var(--grey-3)", marginBottom: 6 }}>{index + 1}. {simulatorStep.label}</div>
+                      <div style={{ fontSize: 21, fontWeight: 800, color: index === stats.simulatorSteps.length - 1 ? "var(--green)" : "var(--white)" }}>{simulatorStep.count}</div>
+                      <div style={{ fontSize: 10, color: "var(--grey-4)", marginTop: 3 }}>{simulatorStep.conversionFromStart}% des départs</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <Empty>Aucune étape du simulateur enregistrée</Empty>
+              )}
+            </Card>
+          </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 16, marginTop: 16 }}>
             <Card>
