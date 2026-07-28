@@ -5,9 +5,9 @@
 // ─── Infos générales ─────────────────────────
 export const siteConfig = {
   name: "Quantum Code",
-  url: "https://quantumcode.dev",
-  email: "hello@quantumcode.dev",
-  phone: "+33 6 XX XX XX XX",
+  url: "https://quantum-code.fr",
+  email: "contact@quantum-code.fr",
+  phone: "+33 6 03 68 11 98",
   location: "Oise, Hauts-de-France",
   locationShort: "l'Oise et les Hauts-de-France",
   available: true,
@@ -23,14 +23,14 @@ export const seo = {
     "Développeur web freelance dans l'Oise et les Hauts-de-France. Création de sites internet, sites vitrines, e-commerces et applications web sur mesure. Développement moderne, SEO optimisé. Devis gratuit sous 24h.",
   keywords:
     "développeur web, développeur freelance, création site web, site internet, développement web, site vitrine, e-commerce, Oise, Hauts-de-France, Picardie, Beauvais, Compiègne, Chantilly, Senlis, Creil, Next.js, React, refonte site web, SEO, application web",
-  ogImage: "https://quantumcode.dev/og-image.jpg",
+  ogImage: "https://quantum-code.fr/og-image.jpg",
   jsonLd: {
     "@context": "https://schema.org",
     "@type": "ProfessionalService",
     name: "Quantum Code",
     description:
       "Développeur web freelance — création de sites internet, sites vitrines, e-commerces et applications web sur mesure dans l'Oise et les Hauts-de-France.",
-    url: "https://quantumcode.dev",
+    url: "https://quantum-code.fr",
     areaServed: [
       { "@type": "AdministrativeArea", name: "Oise" },
       { "@type": "AdministrativeArea", name: "Hauts-de-France" },

@@ -1,19 +1,22 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateFactureDto } from './dto/facture.dto';
+import { PaymentStatus, PaymentType } from '@prisma/client';
 
 @Injectable()
 export class FacturesService {
   constructor(private prisma: PrismaService) {}
 
   async findAll() {
-    return this.prisma.facture.findMany({
+    const factures = await this.prisma.facture.findMany({
       include: {
         client: { select: { id: true, company: true, contactName: true, email: true } },
         devis: { select: { id: true, number: true, items: true } },
+        payments: true,
       },
       orderBy: { createdAt: 'desc' },
     });
+    return factures.map((facture) => this.withPaymentSummary(facture));
   }
 
   async findOne(id: string) {
@@ -22,10 +25,11 @@ export class FacturesService {
       include: {
         client: true,
         devis: { include: { items: { include: { pack: true, serviceOption: true } }, promoCode: true } },
+        payments: true,
       },
     });
     if (!facture) throw new NotFoundException('Facture introuvable');
-    return facture;
+    return this.withPaymentSummary(facture);
   }
 
   async update(id: string, dto: UpdateFactureDto) {
@@ -81,5 +85,24 @@ export class FacturesService {
     }
 
     return { total, byStatus: statusMap };
+  }
+
+  private withPaymentSummary<T extends { totalHT: number; payments: Array<{ amount: unknown; type: PaymentType; status: PaymentStatus }> }>(
+    facture: T,
+  ) {
+    const paidAmount = facture.payments.reduce((sum, payment) => {
+      const amount = Number(payment.amount);
+      if (payment.type === PaymentType.REMBOURSEMENT) return sum - amount;
+      return payment.status === PaymentStatus.PAYE ? sum + amount : sum;
+    }, 0);
+
+    const paymentStatus =
+      paidAmount <= 0
+        ? 'NON_PAYEE'
+        : paidAmount >= facture.totalHT
+          ? 'PAYEE'
+          : 'ACOMPTE_RECU';
+
+    return { ...facture, paidAmount, paymentStatus };
   }
 }

@@ -8,12 +8,17 @@ const API = "/api";
 
 interface PortfolioProject {
   id: string;
+  slug?: string;
   name: string;
   description?: string;
   tag?: string;
   languages: string[];
   link?: string;
   image?: string;
+  clientProblem?: string;
+  solution?: string;
+  result?: string;
+  features: string[];
   position: number;
   active: boolean;
 }
@@ -32,7 +37,16 @@ function resolveImage(src?: string) {
   return src;
 }
 
-const EMPTY = { name: "", description: "", tag: "", languages: "", link: "", image: "", position: "0", active: true };
+function isManagedBlobUrl(src?: string) {
+  if (!src) return false;
+  try {
+    return new URL(src).hostname.endsWith(".blob.vercel-storage.com");
+  } catch {
+    return false;
+  }
+}
+
+const EMPTY = { slug: "", name: "", description: "", tag: "", languages: "", link: "", image: "", clientProblem: "", solution: "", result: "", features: "", position: "0", active: true };
 
 export default function PortfolioItemsPage() {
   const { apiFetch } = useAuth();
@@ -55,31 +69,59 @@ export default function PortfolioItemsPage() {
   function openCreate() { setEditId(null); setForm(EMPTY); setError(""); setImageFile(null); setImagePreview(""); setShowForm(true); }
   function openEdit(p: PortfolioProject) {
     setEditId(p.id);
-    setForm({ name: p.name, description: p.description || "", tag: p.tag || "", languages: (p.languages || []).join(", "), link: p.link || "", image: p.image || "", position: String(p.position), active: p.active });
-    setError(""); setImageFile(null); setImagePreview(p.image || ""); setShowForm(true);
+    setForm({ slug: p.slug || "", name: p.name, description: p.description || "", tag: p.tag || "", languages: (p.languages || []).join(", "), link: p.link || "", image: p.image || "", clientProblem: p.clientProblem || "", solution: p.solution || "", result: p.result || "", features: (p.features || []).join("\n"), position: String(p.position), active: p.active });
+    setError(""); setImageFile(null); setImagePreview(resolveImage(p.image)); setShowForm(true);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError("");
     let imageUrl = form.image || undefined;
+    let uploadedUrl: string | undefined;
     if (imageFile) {
       const formData = new FormData();
       formData.append("image", imageFile);
       const uploadRes = await apiFetch(`${API}/portfolio/upload`, { method: "POST", body: formData });
-      if (uploadRes.ok) { const d = await uploadRes.json(); imageUrl = d.url; }
+      if (uploadRes.ok) { const d = await uploadRes.json(); imageUrl = d.url; uploadedUrl = d.url; }
       else { const d = await uploadRes.json().catch(() => ({})); setError(d.message || "Erreur upload"); setSaving(false); return; }
     }
-    const body = { name: form.name, description: form.description, tag: form.tag, languages: form.languages ? form.languages.split(",").map((l) => l.trim()).filter(Boolean) : [], link: form.link || undefined, image: imageUrl, position: parseInt(form.position) || 0, active: form.active };
+    const body = { slug: form.slug || undefined, name: form.name, description: form.description, tag: form.tag, languages: form.languages ? form.languages.split(",").map((l) => l.trim()).filter(Boolean) : [], link: form.link || undefined, image: imageUrl, clientProblem: form.clientProblem || undefined, solution: form.solution || undefined, result: form.result || undefined, features: form.features.split("\n").map((line) => line.trim()).filter(Boolean), position: parseInt(form.position) || 0, active: form.active };
     const url = editId ? `${API}/portfolio/${editId}` : `${API}/portfolio`;
     const res = await apiFetch(url, { method: editId ? "PUT" : "POST", body: JSON.stringify(body) });
-    if (res.ok) { await load(); setShowForm(false); }
-    else { const d = await res.json().catch(() => ({})); setError(d.message || "Erreur"); }
+    if (res.ok) {
+      if (editId && uploadedUrl && isManagedBlobUrl(form.image) && form.image !== uploadedUrl) {
+        await apiFetch(`${API}/portfolio/upload`, {
+          method: "DELETE",
+          body: JSON.stringify({ url: form.image }),
+        });
+      }
+      await load(); setShowForm(false);
+    }
+    else {
+      if (uploadedUrl) {
+        await apiFetch(`${API}/portfolio/upload`, {
+          method: "DELETE",
+          body: JSON.stringify({ url: uploadedUrl }),
+        });
+      }
+      const d = await res.json().catch(() => ({})); setError(d.message || "Erreur");
+    }
     setSaving(false);
   }
 
-  async function deleteProject(id: string) {
+  async function deleteProject(project: PortfolioProject) {
     if (!confirm("Supprimer ce projet du portfolio ?")) return;
-    await apiFetch(`${API}/portfolio/${id}`, { method: "DELETE" });
+    const response = await apiFetch(`${API}/portfolio/${project.id}`, { method: "DELETE" });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      setError(data.message || "Impossible de supprimer le projet");
+      return;
+    }
+    if (isManagedBlobUrl(project.image)) {
+      await apiFetch(`${API}/portfolio/upload`, {
+        method: "DELETE",
+        body: JSON.stringify({ url: project.image }),
+      });
+    }
     await load();
   }
 
@@ -110,7 +152,7 @@ export default function PortfolioItemsPage() {
                 )}
                 <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                   <SmallBtn onClick={() => openEdit(p)}>Modifier</SmallBtn>
-                  <SmallBtn onClick={() => deleteProject(p.id)} danger>Supprimer</SmallBtn>
+                  <SmallBtn onClick={() => deleteProject(p)} danger>Supprimer</SmallBtn>
                   {p.link && <a href={p.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, padding: "4px 10px", background: "var(--black-3)", border: "1px solid var(--border-2)", borderRadius: "var(--r)", color: "var(--grey-2)", textDecoration: "none" }}>↗</a>}
                 </div>
               </div>
@@ -125,7 +167,12 @@ export default function PortfolioItemsPage() {
           {error && <ErrorMsg>{error}</ErrorMsg>}
           <form onSubmit={handleSubmit}>
             <Field label="Nom du projet *"><input required style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+            <Field label="Slug de l’étude de cas"><input style={inputStyle} value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-") })} placeholder="restaurant-signature" /></Field>
             <Field label="Description"><textarea rows={3} style={{ ...inputStyle, resize: "vertical" }} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
+            <Field label="Problème client"><textarea rows={3} style={{ ...inputStyle, resize: "vertical" }} value={form.clientProblem} onChange={(e) => setForm({ ...form, clientProblem: e.target.value })} /></Field>
+            <Field label="Solution apportée"><textarea rows={3} style={{ ...inputStyle, resize: "vertical" }} value={form.solution} onChange={(e) => setForm({ ...form, solution: e.target.value })} /></Field>
+            <Field label="Résultat / bénéfice"><textarea rows={3} style={{ ...inputStyle, resize: "vertical" }} value={form.result} onChange={(e) => setForm({ ...form, result: e.target.value })} /></Field>
+            <Field label="Fonctionnalités (une par ligne)"><textarea rows={4} style={{ ...inputStyle, resize: "vertical" }} value={form.features} onChange={(e) => setForm({ ...form, features: e.target.value })} /></Field>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <Field label="Tag / Catégorie"><input style={inputStyle} value={form.tag} onChange={(e) => setForm({ ...form, tag: e.target.value })} placeholder="Vitrine, SaaS..." /></Field>
               <Field label="Technologies (virgule)"><input style={inputStyle} value={form.languages} onChange={(e) => setForm({ ...form, languages: e.target.value })} placeholder="React, TypeScript..." /></Field>

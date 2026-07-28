@@ -4,8 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { SimulatorLeadDto } from './dto/simulator-lead.dto';
 import { LeadSource } from '@prisma/client';
-
-
+import { ConversionService } from '../conversion/conversion.service';
 
 @Injectable()
 export class SimulatorService {
@@ -15,6 +14,7 @@ export class SimulatorService {
     private prisma: PrismaService,
     private mail: MailService,
     private config: ConfigService,
+    private conversion: ConversionService,
   ) {}
 
   async submitLead(dto: SimulatorLeadDto) {
@@ -45,6 +45,7 @@ export class SimulatorService {
       },
       include: { pack: { select: { name: true } } },
     });
+    await this.conversion.attachLead(dto.sessionId, lead.id);
 
     // 3) Notification admin
     const adminEmail = this.config.get('MAIL_FROM', 'contact@quantum-code.fr');

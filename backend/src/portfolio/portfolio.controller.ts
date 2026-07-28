@@ -28,6 +28,11 @@ export class PortfolioController {
     return this.portfolio.findAllPublic();
   }
 
+  @Get('public/:slug')
+  findPublicBySlug(@Param('slug') slug: string) {
+    return this.portfolio.findPublicBySlug(slug);
+  }
+
   @UseGuards(JwtAuthGuard, RoleGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
   @Get()
@@ -77,11 +82,16 @@ export class PortfolioController {
     @Body()
     body: {
       name: string;
+      slug?: string;
       description: string;
       tag: string;
       languages: string[];
       link?: string;
       image?: string;
+      clientProblem?: string;
+      solution?: string;
+      result?: string;
+      features?: string[];
       position?: number;
       active?: boolean;
     },
@@ -97,11 +107,16 @@ export class PortfolioController {
     @Body()
     body: {
       name?: string;
+      slug?: string;
       description?: string;
       tag?: string;
       languages?: string[];
       link?: string;
       image?: string;
+      clientProblem?: string;
+      solution?: string;
+      result?: string;
+      features?: string[];
       position?: number;
       active?: boolean;
     },

@@ -20,7 +20,10 @@ interface NavGroup {
 const NAV_GROUPS: NavGroup[] = [
   {
     label: "Général",
-    items: [{ href: "/admin", label: "Dashboard", icon: "◆" }],
+    items: [
+      { href: "/admin", label: "Dashboard", icon: "◆" },
+      { href: "/admin/conversions", label: "Conversions", icon: "↗" },
+    ],
   },
   {
     label: "CRM",
@@ -51,6 +54,16 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/admin/portfolio/items", label: "Projets", icon: "◉" },
       { href: "/admin/portfolio/reviews", label: "Avis clients", icon: "★" },
+    ],
+  },
+  {
+    label: "Paramètres",
+    items: [
+      {
+        href: "/admin/settings/crm",
+        label: "Paramètres CRM",
+        icon: "⚙",
+      },
     ],
   },
 ];

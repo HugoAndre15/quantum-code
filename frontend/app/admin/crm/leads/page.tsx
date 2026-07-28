@@ -17,20 +17,19 @@ import {
 const API = "/api";
 
 type LeadStatus = "NOUVEAU" | "CONTACTE" | "QUALIFIE" | "CONVERTI" | "PERDU";
-type LeadSource = "SITE_WEB" | "REFERRAL" | "RESEAU_SOCIAL" | "PROSPECTION" | "AUTRE";
+type LeadSource = "SIMULATOR" | "CONTACT" | "MANUEL";
 
 interface Lead {
   id: string;
-  company: string;
-  contactName: string;
-  email?: string;
+  name: string;
+  company?: string;
+  email: string;
   phone?: string;
   source: LeadSource;
   status: LeadStatus;
   score: number;
   budget?: number;
   notes?: string;
-  trade?: string;
   createdAt: string;
 }
 
@@ -51,11 +50,9 @@ const STATUS_LABELS: Record<LeadStatus, string> = {
 };
 
 const SOURCE_LABELS: Record<LeadSource, string> = {
-  SITE_WEB: "Site web",
-  REFERRAL: "Référence",
-  RESEAU_SOCIAL: "Réseau social",
-  PROSPECTION: "Prospection",
-  AUTRE: "Autre",
+  SIMULATOR: "Simulateur",
+  CONTACT: "Formulaire contact",
+  MANUEL: "Ajout manuel",
 };
 
 const ALL_STATUSES: LeadStatus[] = ["NOUVEAU", "CONTACTE", "QUALIFIE", "CONVERTI", "PERDU"];
@@ -81,9 +78,9 @@ export default function LeadsPage() {
 
   // Form state
   const [form, setForm] = useState({
-    company: "", contactName: "", email: "", phone: "",
-    source: "SITE_WEB" as LeadSource, status: "NOUVEAU" as LeadStatus,
-    score: 0, budget: "", notes: "", trade: "",
+    company: "", name: "", email: "", phone: "",
+    source: "MANUEL" as LeadSource, status: "NOUVEAU" as LeadStatus,
+    budget: "", notes: "",
   });
 
   const load = useCallback(async () => {
@@ -98,7 +95,7 @@ export default function LeadsPage() {
 
   function openCreate() {
     setEditLead(null);
-    setForm({ company: "", contactName: "", email: "", phone: "", source: "SITE_WEB", status: "NOUVEAU", score: 0, budget: "", notes: "", trade: "" });
+    setForm({ company: "", name: "", email: "", phone: "", source: "MANUEL", status: "NOUVEAU", budget: "", notes: "" });
     setError("");
     setShowModal(true);
   }
@@ -106,9 +103,9 @@ export default function LeadsPage() {
   function openEdit(lead: Lead) {
     setEditLead(lead);
     setForm({
-      company: lead.company, contactName: lead.contactName, email: lead.email || "",
+      company: lead.company || "", name: lead.name, email: lead.email,
       phone: lead.phone || "", source: lead.source, status: lead.status,
-      score: lead.score, budget: lead.budget?.toString() || "", notes: lead.notes || "", trade: lead.trade || "",
+      budget: lead.budget?.toString() || "", notes: lead.notes || "",
     });
     setError("");
     setShowModal(true);
@@ -118,7 +115,23 @@ export default function LeadsPage() {
     e.preventDefault();
     setSaving(true);
     setError("");
-    const payload = { ...form, budget: form.budget ? Number(form.budget) : undefined, score: Number(form.score) };
+    const payload = editLead
+      ? {
+          company: form.company || undefined,
+          phone: form.phone || undefined,
+          status: form.status,
+          budget: form.budget ? Number(form.budget) : undefined,
+          notes: form.notes || undefined,
+        }
+      : {
+          name: form.name,
+          email: form.email,
+          company: form.company || undefined,
+          phone: form.phone || undefined,
+          source: form.source,
+          budget: form.budget ? Number(form.budget) : undefined,
+          notes: form.notes || undefined,
+        };
     try {
       const url = editLead ? `${API}/crm/leads/${editLead.id}` : `${API}/crm/leads`;
       const method = editLead ? "PATCH" : "POST";
@@ -134,7 +147,7 @@ export default function LeadsPage() {
   }
 
   async function convertToClient(lead: Lead) {
-    if (!confirm(`Convertir "${lead.company}" en client ?`)) return;
+    if (!confirm(`Convertir "${lead.company || lead.name}" en client ?`)) return;
     const res = await apiFetch(`${API}/crm/leads/${lead.id}/convert`, { method: "POST" });
     if (res.ok) await load();
   }
@@ -184,13 +197,13 @@ export default function LeadsPage() {
               style={{ display: "grid", gridTemplateColumns: "1fr 140px 100px 80px 90px 100px", gap: 12, padding: "12px 16px", background: "var(--black-2)", border: "1px solid var(--border)", borderRadius: 8, alignItems: "center" }}
             >
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--white)" }}>{lead.company}</div>
-                <div style={{ fontSize: 11, color: "var(--grey-3)", marginTop: 2 }}>{lead.contactName}{lead.email && ` · ${lead.email}`}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--white)" }}>{lead.company || lead.name}</div>
+                <div style={{ fontSize: 11, color: "var(--grey-3)", marginTop: 2 }}>{lead.name} · {lead.email}</div>
               </div>
               <span style={{ fontSize: 12, color: "var(--grey-2)" }}>{SOURCE_LABELS[lead.source]}</span>
               <Badge color={STATUS_COLORS[lead.status]}>{STATUS_LABELS[lead.status]}</Badge>
-              <div style={{ fontSize: 13, fontWeight: 600, color: lead.score >= 7 ? "var(--green)" : lead.score >= 4 ? "var(--gold)" : "var(--grey-3)" }}>
-                {lead.score}/10
+              <div style={{ fontSize: 13, fontWeight: 600, color: lead.score >= 61 ? "var(--green)" : lead.score >= 31 ? "var(--gold)" : "var(--grey-3)" }}>
+                {lead.score}/100
               </div>
               <span style={{ fontSize: 13, color: lead.budget ? "var(--gold)" : "var(--grey-3)" }}>
                 {lead.budget ? `${lead.budget}€` : "—"}
@@ -221,17 +234,14 @@ export default function LeadsPage() {
           {error && <ErrorMsg>{error}</ErrorMsg>}
           <form onSubmit={handleSubmit}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <Field label="Entreprise *">
-                <input required style={inputStyle} value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} />
-              </Field>
-              <Field label="Secteur">
-                <input style={inputStyle} value={form.trade} onChange={(e) => setForm({ ...form, trade: e.target.value })} />
+              <Field label="Entreprise">
+                <input style={inputStyle} value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} />
               </Field>
               <Field label="Contact *">
-                <input required style={inputStyle} value={form.contactName} onChange={(e) => setForm({ ...form, contactName: e.target.value })} />
+                <input required disabled={Boolean(editLead)} style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </Field>
-              <Field label="Email">
-                <input type="email" style={inputStyle} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              <Field label="Email *">
+                <input required disabled={Boolean(editLead)} type="email" style={inputStyle} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
               </Field>
               <Field label="Téléphone">
                 <input style={inputStyle} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
@@ -240,7 +250,7 @@ export default function LeadsPage() {
                 <input type="number" style={inputStyle} value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} />
               </Field>
               <Field label="Source">
-                <select style={inputStyle} value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value as LeadSource })}>
+                <select disabled={Boolean(editLead)} style={inputStyle} value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value as LeadSource })}>
                   {Object.entries(SOURCE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
               </Field>
@@ -248,9 +258,6 @@ export default function LeadsPage() {
                 <select style={inputStyle} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as LeadStatus })}>
                   {ALL_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
                 </select>
-              </Field>
-              <Field label="Score (0–10)">
-                <input type="number" min={0} max={10} style={inputStyle} value={form.score} onChange={(e) => setForm({ ...form, score: Number(e.target.value) })} />
               </Field>
             </div>
             <Field label="Notes">

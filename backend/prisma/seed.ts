@@ -171,6 +171,72 @@ async function main() {
     }
   }
 
+  // ─── Études de cas de démonstration ─────────
+  console.log('\n🌱 Seeding portfolio demos...');
+  const portfolioDemos = [
+    {
+      slug: 'restaurant-signature',
+      name: 'Restaurant Signature',
+      description:
+        'Une expérience digitale immersive pour un restaurant indépendant : carte, réservation, galerie et privatisation.',
+      tag: 'Restaurant',
+      languages: ['Next.js', 'TypeScript', 'Animations', 'Responsive'],
+      link: 'https://web-templates-beta.vercel.app/template-restaurant',
+      image:
+        'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1400&h=900&fit=crop&q=85',
+      clientProblem:
+        "Le restaurant doit transmettre son univers avant même la première visite, présenter une carte qui évolue et transformer l'intérêt des visiteurs en réservations.",
+      solution:
+        "Une vitrine éditoriale en cinq pages avec une carte animée, un parcours de réservation clair, une galerie filtrable, l'histoire du lieu et une offre de privatisation.",
+      result:
+        'Une démonstration commerciale complète qui permet au restaurateur de se projeter et centralise les principaux leviers de conversion.',
+      features: [
+        'Carte et menus animés',
+        'Parcours de réservation',
+        'Galerie filtrable',
+        'Présentation du lieu et de l’équipe',
+        'Page privatisation',
+      ],
+      position: 0,
+      active: true,
+    },
+    {
+      slug: 'artisans-local',
+      name: 'Artisans locaux',
+      description:
+        'Des vitrines métier pensées pour rassurer, valoriser les réalisations et générer des demandes de devis qualifiées.',
+      tag: 'Artisans',
+      languages: ['Next.js', 'SEO local', 'Responsive', 'Formulaire'],
+      link: 'https://web-templates-beta.vercel.app/template-paysagiste',
+      image:
+        'https://images.unsplash.com/photo-1452860606245-08befc0ff44b?auto=format&fit=crop&w=1400&h=900&q=85',
+      clientProblem:
+        "Un artisan vit souvent du bouche-à-oreille mais manque d'une vitrine crédible pour montrer son savoir-faire, expliquer ses prestations et capter les recherches locales.",
+      solution:
+        'Une base adaptable au métier, structurée autour des services, réalisations, zones d’intervention, méthode de travail, avis et demande de devis.',
+      result:
+        'Une présence professionnelle, rapide à personnaliser, qui rassure les prospects et transforme la visite en prise de contact.',
+      features: [
+        'Présentation claire des prestations',
+        'Galerie de réalisations',
+        'Zones d’intervention et SEO local',
+        'Formulaire de devis',
+        'Déclinaisons paysagiste et plaquiste',
+      ],
+      position: 1,
+      active: true,
+    },
+  ];
+
+  for (const demo of portfolioDemos) {
+    await prisma.project.upsert({
+      where: { slug: demo.slug },
+      update: {},
+      create: demo,
+    });
+    console.log(`  ✅ Étude de cas "${demo.name}"`);
+  }
+
   console.log('\n✨ Seed terminé !');
 }
 

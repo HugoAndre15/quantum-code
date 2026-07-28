@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { gradients } from "../data/siteData";
 
 const API = "/api";
@@ -83,6 +84,13 @@ export default function Portfolio() {
                       ))}
                     </div>
                   </div>
+                  {p.slug && (
+                    <Link
+                      href={`/realisations/${p.slug}`}
+                      className="proj-case-link"
+                      aria-label={`Voir l’étude de cas ${p.name}`}
+                    />
+                  )}
                   {p.link && (
                     <a
                       href={p.link}
@@ -145,6 +153,18 @@ export default function Portfolio() {
                   </div>
                 </div>
               );
+              if (p.slug) {
+                return (
+                  <Link
+                    key={p.id || i}
+                    href={`/realisations/${p.slug}`}
+                    style={{ textDecoration: "none", color: "inherit" }}
+                    onClick={() => setOverlayOpen(false)}
+                  >
+                    {inner}
+                  </Link>
+                );
+              }
               if (p.link) {
                 return (
                   <a

@@ -5,403 +5,473 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-    provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-    provider = "postgresql"
-    url      = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-    id            String         @id @default(cuid())
-    email         String         @unique
-    password      String
-    name          String
-    role          Role           @default(ADMIN)
-    refreshTokens RefreshToken[]
-    createdAt     DateTime       @default(now())
-    updatedAt     DateTime       @updatedAt
+  id            String         @id @default(cuid())
+  email         String         @unique
+  password      String
+  name          String
+  role          Role           @default(ADMIN)
+  refreshTokens RefreshToken[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }
 
 model RefreshToken {
-    id        String   @id @default(cuid())
-    token     String   @unique
-    userId    String
-    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    expiresAt DateTime
-    createdAt DateTime @default(now())
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
 
 enum Role {
-    ADMIN
-    SUPER_ADMIN
+  ADMIN
+  SUPER_ADMIN
 }
 
 // ─── Configuration de base (prix) ────────────
 
 model PricingBase {
-    id          String   @id @default(cuid())
-    name        String   @default("Base site web")
-    basePrice   Float    @default(0)
-    pagePrice   Float    @default(0)
-    basePages   Int      @default(1)
-    devTimeBase Float    @default(0)
-    devTimePage Float    @default(0)
-    description String?
-    active      Boolean  @default(true)
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
+  id          String   @id @default(cuid())
+  name        String   @default("Base site web")
+  basePrice   Float    @default(0)
+  pagePrice   Float    @default(0)
+  basePages   Int      @default(1)
+  devTimeBase Float    @default(0)
+  devTimePage Float    @default(0)
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 // ─── Catalogues (tes offres) ─────────────────
 
 model Pack {
-    id              String       @id @default(cuid())
-    name            String       @unique
-    description     String?
-    price           Float
-    type            PackType     @default(CLASSIQUE)
-    devTime         Float        @default(0)
-    position        Int          @default(0)
-    active          Boolean      @default(true)
-    features        String[]
-    includedPages   Int          @default(0)
-    includedOptions PackOption[]
-    clients         Client[]
-    devisItems      DevisItem[]
-    leads           Lead[]
-    createdAt       DateTime     @default(now())
-    updatedAt       DateTime     @updatedAt
+  id              String       @id @default(cuid())
+  name            String       @unique
+  description     String?
+  price           Float
+  type            PackType     @default(CLASSIQUE)
+  devTime         Float        @default(0)
+  position        Int          @default(0)
+  active          Boolean      @default(true)
+  features        String[]
+  includedPages   Int          @default(0)
+  includedOptions PackOption[]
+  clients         Client[]
+  devisItems      DevisItem[]
+  leads           Lead[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 }
 
 model PackOption {
-    id              String        @id @default(cuid())
-    packId          String
-    pack            Pack          @relation(fields: [packId], references: [id], onDelete: Cascade)
-    serviceOptionId String
-    serviceOption   ServiceOption @relation(fields: [serviceOptionId], references: [id], onDelete: Cascade)
-    createdAt       DateTime      @default(now())
+  id              String        @id @default(cuid())
+  packId          String
+  pack            Pack          @relation(fields: [packId], references: [id], onDelete: Cascade)
+  serviceOptionId String
+  serviceOption   ServiceOption @relation(fields: [serviceOptionId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
 
-    @@unique([packId, serviceOptionId])
+  @@unique([packId, serviceOptionId])
 }
 
 model ServiceOption {
-    id            String         @id @default(cuid())
-    name          String         @unique
-    description   String?
-    price         Float
-    category      String         @default("general")
-    devTime       Float          @default(0)
-    recurring     Boolean        @default(false)
-    recurringUnit String?
-    active        Boolean        @default(true)
-    clientOptions ClientOption[]
-    devisItems    DevisItem[]
-    packOptions   PackOption[]
-    createdAt     DateTime       @default(now())
-    updatedAt     DateTime       @updatedAt
+  id            String         @id @default(cuid())
+  name          String         @unique
+  description   String?
+  price         Float
+  category      String         @default("general")
+  devTime       Float          @default(0)
+  recurring     Boolean        @default(false)
+  recurringUnit String?
+  active        Boolean        @default(true)
+  clientOptions ClientOption[]
+  devisItems    DevisItem[]
+  packOptions   PackOption[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }
 
 enum PackType {
-    CLASSIQUE
-    ADMIN_INTEGRE
+  CLASSIQUE
+  ADMIN_INTEGRE
 }
 
 // ─── Clients ─────────────────────────────────
 
 model Client {
-    id             String         @id @default(cuid())
-    company        String
-    trade          String
-    contactName    String
-    address        String?
-    phone          String?
-    email          String?
-    website        String?
-    status         ClientStatus   @default(A_CONTACTER)
-    notes          String?
-    budget         Float?
-    contactDate    DateTime       @default(now())
-    onlinePresence String[]       @default([])
-    packId         String?
-    pack           Pack?          @relation(fields: [packId], references: [id])
-    options        ClientOption[]
-    devis          Devis[]
-    factures       Facture[]
-    lead           Lead?
-    projects       ClientProject[]
-    payments       Payment[]
-    subscriptions  Subscription[]
-    reviews        Review[]
-    createdAt      DateTime       @default(now())
-    updatedAt      DateTime       @updatedAt
+  id             String          @id @default(cuid())
+  company        String
+  trade          String
+  contactName    String
+  address        String?
+  phone          String?
+  email          String?
+  website        String?
+  status         ClientStatus    @default(A_CONTACTER)
+  notes          String?
+  budget         Float?
+  contactDate    DateTime        @default(now())
+  onlinePresence String[]        @default([])
+  packId         String?
+  pack           Pack?           @relation(fields: [packId], references: [id])
+  options        ClientOption[]
+  devis          Devis[]
+  factures       Facture[]
+  lead           Lead?
+  projects       ClientProject[]
+  payments       Payment[]
+  subscriptions  Subscription[]
+  reviews        Review[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 }
 
 model ClientOption {
-    id              String        @id @default(cuid())
-    clientId        String
-    client          Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
-    serviceOptionId String
-    serviceOption   ServiceOption @relation(fields: [serviceOptionId], references: [id])
-    notes           String?
-    createdAt       DateTime      @default(now())
+  id              String        @id @default(cuid())
+  clientId        String
+  client          Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  serviceOptionId String
+  serviceOption   ServiceOption @relation(fields: [serviceOptionId], references: [id])
+  notes           String?
+  createdAt       DateTime      @default(now())
 
-    @@unique([clientId, serviceOptionId])
+  @@unique([clientId, serviceOptionId])
 }
 
 enum ClientStatus {
-    A_CONTACTER
-    CONTACTE
-    DEVIS
-    FACTURE
-    EN_COURS
-    TERMINE
-    REFUSE
+  A_CONTACTER
+  CONTACTE
+  DEVIS
+  FACTURE
+  EN_COURS
+  TERMINE
+  REFUSE
 }
 
 // ─── Devis & Factures ────────────────────────
 
 model Devis {
-    id             String      @id @default(cuid())
-    number         String      @unique // ex: DEV-2025-001
-    clientId       String
-    client         Client      @relation(fields: [clientId], references: [id])
-    status         DevisStatus @default(BROUILLON)
-    validUntil     DateTime?
-    notes          String?
-    totalHT        Float       @default(0)
-    devTime        Float       @default(0) // heures totales (interne)
-    discountAmount Float       @default(0)
-    promoCodeId    String?
-    promoCode      PromoCode?  @relation(fields: [promoCodeId], references: [id])
-    acceptToken            String?   @unique
-    acceptTokenExpiresAt   DateTime?
-    acceptedAt             DateTime?
-    items          DevisItem[]
-    facture        Facture?
-    project        ClientProject?
-    createdAt      DateTime    @default(now())
-    updatedAt      DateTime    @updatedAt
+  id                   String         @id @default(cuid())
+  number               String         @unique // ex: DEV-2025-001
+  clientId             String
+  client               Client         @relation(fields: [clientId], references: [id])
+  status               DevisStatus    @default(BROUILLON)
+  validUntil           DateTime?
+  notes                String?
+  totalHT              Float          @default(0)
+  devTime              Float          @default(0) // heures totales (interne)
+  discountAmount       Float          @default(0)
+  promoCodeId          String?
+  promoCode            PromoCode?     @relation(fields: [promoCodeId], references: [id])
+  acceptToken          String?        @unique
+  acceptTokenExpiresAt DateTime?
+  acceptedAt           DateTime?
+  items                DevisItem[]
+  facture              Facture?
+  project              ClientProject?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 }
 
 model DevisItem {
-    id              String         @id @default(cuid())
-    devisId         String
-    devis           Devis          @relation(fields: [devisId], references: [id], onDelete: Cascade)
-    label           String
-    description     String?
-    quantity        Int            @default(1)
-    unitPrice       Float
-    devTime         Float          @default(0)
-    recurring       Boolean        @default(false)
-    recurringUnit   String?
-    packId          String?
-    pack            Pack?          @relation(fields: [packId], references: [id])
-    serviceOptionId String?
-    serviceOption   ServiceOption? @relation(fields: [serviceOptionId], references: [id])
-    createdAt       DateTime       @default(now())
+  id              String         @id @default(cuid())
+  devisId         String
+  devis           Devis          @relation(fields: [devisId], references: [id], onDelete: Cascade)
+  label           String
+  description     String?
+  quantity        Int            @default(1)
+  unitPrice       Float
+  devTime         Float          @default(0)
+  recurring       Boolean        @default(false)
+  recurringUnit   String?
+  packId          String?
+  pack            Pack?          @relation(fields: [packId], references: [id])
+  serviceOptionId String?
+  serviceOption   ServiceOption? @relation(fields: [serviceOptionId], references: [id])
+  createdAt       DateTime       @default(now())
 }
 
 model Facture {
-    id        String        @id @default(cuid())
-    number    String        @unique // ex: FAC-2025-001
-    devisId   String        @unique
-    devis     Devis         @relation(fields: [devisId], references: [id])
-    clientId  String
-    client    Client        @relation(fields: [clientId], references: [id])
-    status    FactureStatus @default(BROUILLON)
-    totalHT   Float         @default(0)
-    paidAt    DateTime?
-    notes     String?
-    payments  Payment[]
-    createdAt DateTime      @default(now())
-    updatedAt DateTime      @updatedAt
+  id        String        @id @default(cuid())
+  number    String        @unique // ex: FAC-2025-001
+  devisId   String        @unique
+  devis     Devis         @relation(fields: [devisId], references: [id])
+  clientId  String
+  client    Client        @relation(fields: [clientId], references: [id])
+  status    FactureStatus @default(BROUILLON)
+  totalHT   Float         @default(0)
+  paidAt    DateTime?
+  notes     String?
+  payments  Payment[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 }
 
 enum DevisStatus {
-    BROUILLON
-    ENVOYE
-    ACCEPTE
-    REFUSE
-    EXPIRE
+  BROUILLON
+  ENVOYE
+  ACCEPTE
+  REFUSE
+  EXPIRE
 }
 
 enum FactureStatus {
-    BROUILLON
-    ENVOYEE
-    PAYEE
-    ANNULEE
+  BROUILLON
+  ENVOYEE
+  PAYEE
+  ANNULEE
 }
 
 // ─── Portfolio ───────────────────────────────
 
 model Project {
-    id          String   @id @default(cuid())
-    name        String
-    description String
-    tag         String
-    languages   String[]
-    link        String?
-    image       String?
-    position    Int      @default(0)
-    active      Boolean  @default(true)
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  slug          String?  @unique
+  name          String
+  description   String
+  tag           String
+  languages     String[]
+  link          String?
+  image         String?
+  clientProblem String?
+  solution      String?
+  result        String?
+  features      String[] @default([])
+  position      Int      @default(0)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 // ─── Codes Promo ─────────────────────────────
 
 model PromoCode {
-    id            String       @id @default(cuid())
-    code          String       @unique
-    name          String
-    description   String?
-    discountType  DiscountType @default(PERCENTAGE)
-    discountValue Float // % ou valeur fixe en €
-    minAmount     Float? // montant minimum d'achat
-    maxUses       Int? // nombre max d'utilisations (null = illimité)
-    currentUses   Int          @default(0)
-    startDate     DateTime? // début de validité
-    endDate       DateTime? // fin de validité
-    active        Boolean      @default(true)
-    devis         Devis[]
-    createdAt     DateTime     @default(now())
-    updatedAt     DateTime     @updatedAt
+  id            String       @id @default(cuid())
+  code          String       @unique
+  name          String
+  description   String?
+  discountType  DiscountType @default(PERCENTAGE)
+  discountValue Float // % ou valeur fixe en €
+  minAmount     Float? // montant minimum d'achat
+  maxUses       Int? // nombre max d'utilisations (null = illimité)
+  currentUses   Int          @default(0)
+  startDate     DateTime? // début de validité
+  endDate       DateTime? // fin de validité
+  active        Boolean      @default(true)
+  devis         Devis[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 }
 
 enum DiscountType {
-    PERCENTAGE
-    FIXED_VALUE
+  PERCENTAGE
+  FIXED_VALUE
 }
 
 // ─── CRM Pipeline ─────────────────────────────
 
 model Lead {
-    id                String     @id @default(cuid())
-    name              String
-    email             String
-    phone             String?
-    company           String?
-    budget            Float?
-    delayMonths       Int?
-    pageCount         Int?
-    source            LeadSource @default(SIMULATOR)
-    status            LeadStatus @default(NOUVEAU)
-    score             Int        @default(0)
-    simulatorData     Json?
-    notes             String?
-    packId            String?
-    pack              Pack?      @relation(fields: [packId], references: [id])
-    convertedClientId String?    @unique
-    convertedClient   Client?    @relation(fields: [convertedClientId], references: [id])
-    createdAt         DateTime   @default(now())
-    updatedAt         DateTime   @updatedAt
+  id                String             @id @default(cuid())
+  name              String
+  email             String
+  phone             String?
+  company           String?
+  budget            Float?
+  delayMonths       Int?
+  pageCount         Int?
+  source            LeadSource         @default(SIMULATOR)
+  status            LeadStatus         @default(NOUVEAU)
+  score             Int                @default(0)
+  simulatorData     Json?
+  notes             String?
+  packId            String?
+  pack              Pack?              @relation(fields: [packId], references: [id])
+  convertedClientId String?            @unique
+  convertedClient   Client?            @relation(fields: [convertedClientId], references: [id])
+  conversionSession ConversionSession?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+}
+
+model ConversionSession {
+  id          String            @id @default(cuid())
+  sessionId   String            @unique
+  source      String?
+  medium      String?
+  campaign    String?
+  term        String?
+  content     String?
+  landingPage String
+  referrer    String?
+  device      String?
+  leadId      String?           @unique
+  lead        Lead?             @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  events      ConversionEvent[]
+  firstSeenAt DateTime          @default(now())
+  lastSeenAt  DateTime          @updatedAt
+
+  @@index([firstSeenAt])
+  @@index([source])
+}
+
+model ConversionEvent {
+  id                  String              @id @default(cuid())
+  conversionSessionId String
+  conversionSession   ConversionSession   @relation(fields: [conversionSessionId], references: [id], onDelete: Cascade)
+  name                ConversionEventName
+  path                String?
+  metadata            Json?
+  createdAt           DateTime            @default(now())
+
+  @@index([name, createdAt])
+  @@index([conversionSessionId, createdAt])
+}
+
+enum ConversionEventName {
+  PAGE_VIEW
+  CTA_CLICKED
+  SIMULATOR_STARTED
+  SIMULATOR_COMPLETED
+  LEAD_CREATED
+  CONTACT_SUBMITTED
 }
 
 model ClientProject {
-    id            String        @id @default(cuid())
-    clientId      String
-    client        Client        @relation(fields: [clientId], references: [id])
-    devisId       String?       @unique
-    devis         Devis?        @relation(fields: [devisId], references: [id])
-    name          String
-    status        ProjectStatus @default(EN_ATTENTE)
-    productionUrl String?
-    notes         String?
-    createdAt     DateTime      @default(now())
-    updatedAt     DateTime      @updatedAt
+  id            String        @id @default(cuid())
+  clientId      String
+  client        Client        @relation(fields: [clientId], references: [id])
+  devisId       String?       @unique
+  devis         Devis?        @relation(fields: [devisId], references: [id])
+  name          String
+  status        ProjectStatus @default(EN_ATTENTE)
+  productionUrl String?
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 }
 
 model Payment {
-    id                    String        @id @default(cuid())
-    clientId              String
-    client                Client        @relation(fields: [clientId], references: [id])
-    factureId             String?
-    facture               Facture?      @relation(fields: [factureId], references: [id])
-    type                  PaymentType
-    amount                Decimal       @db.Decimal(10, 2)
-    stripeSessionId       String?       @unique
-    stripePaymentIntentId String?
-    status                PaymentStatus @default(EN_ATTENTE)
-    paidAt                DateTime?
-    createdAt             DateTime      @default(now())
-    updatedAt             DateTime      @updatedAt
+  id                    String        @id @default(cuid())
+  clientId              String
+  client                Client        @relation(fields: [clientId], references: [id])
+  factureId             String?
+  facture               Facture?      @relation(fields: [factureId], references: [id])
+  type                  PaymentType
+  amount                Decimal       @db.Decimal(10, 2)
+  method                PaymentMethod @default(VIREMENT)
+  notes                 String?
+  stripeSessionId       String?       @unique
+  stripePaymentIntentId String?
+  status                PaymentStatus @default(EN_ATTENTE)
+  paidAt                DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 }
 
 model Subscription {
-    id                   String    @id @default(cuid())
-    clientId             String
-    client               Client    @relation(fields: [clientId], references: [id])
-    type                 SubType
-    status               SubStatus @default(ACTIF)
-    monthlyAmount        Decimal   @db.Decimal(10, 2)
-    stripeSubscriptionId String?   @unique
-    stripePriceId        String?
-    startDate            DateTime  @default(now())
-    nextBillingDate      DateTime?
-    canceledAt           DateTime?
-    createdAt            DateTime  @default(now())
-    updatedAt            DateTime  @updatedAt
+  id                   String      @id @default(cuid())
+  clientId             String
+  client               Client      @relation(fields: [clientId], references: [id])
+  type                 SubType
+  status               SubStatus   @default(ACTIF)
+  monthlyAmount        Decimal     @db.Decimal(10, 2)
+  interval             SubInterval @default(MENSUEL)
+  notes                String?
+  stripeSubscriptionId String?     @unique
+  stripePriceId        String?
+  startDate            DateTime    @default(now())
+  nextBillingDate      DateTime?
+  canceledAt           DateTime?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
 }
 
 model Review {
-    id              String   @id @default(cuid())
-    clientId        String?
-    client          Client?  @relation(fields: [clientId], references: [id])
-    authorName      String
-    rating          Int      @default(5)
-    comment         String
-    published       Boolean  @default(false)
-    googleReviewUrl String?
-    requestedAt     DateTime?
-    createdAt       DateTime @default(now())
-    updatedAt       DateTime @updatedAt
+  id              String    @id @default(cuid())
+  clientId        String?
+  client          Client?   @relation(fields: [clientId], references: [id])
+  authorName      String
+  company         String?
+  rating          Int       @default(5)
+  comment         String
+  published       Boolean   @default(false)
+  position        Int       @default(0)
+  googleReviewUrl String?
+  requestedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 enum LeadSource {
-    SIMULATOR
-    CONTACT
-    MANUEL
+  SIMULATOR
+  CONTACT
+  MANUEL
 }
 
 enum LeadStatus {
-    NOUVEAU
-    CONTACTE
-    QUALIFIE
-    CONVERTI
-    PERDU
+  NOUVEAU
+  CONTACTE
+  QUALIFIE
+  CONVERTI
+  PERDU
 }
 
 enum ProjectStatus {
-    EN_ATTENTE
-    EN_COURS
-    EN_LIGNE
-    LIVRE
-    ARCHIVE
+  EN_ATTENTE
+  EN_COURS
+  EN_LIGNE
+  LIVRE
+  ARCHIVE
 }
 
 enum PaymentType {
-    ACOMPTE
-    SOLDE
-    ABONNEMENT
+  ACOMPTE
+  SOLDE
+  ABONNEMENT
+  REMBOURSEMENT
 }
 
 enum PaymentStatus {
-    EN_ATTENTE
-    PAYE
-    ECHOUE
-    REMBOURSE
+  EN_ATTENTE
+  PAYE
+  ECHOUE
+  REMBOURSE
+}
+
+enum PaymentMethod {
+  VIREMENT
+  CARTE
+  CHEQUE
+  ESPECES
+  AUTRE
 }
 
 enum SubType {
-    MAINTENANCE
-    HEBERGEMENT
-    MAINTENANCE_HEBERGEMENT
+  MAINTENANCE
+  HEBERGEMENT
+  MAINTENANCE_HEBERGEMENT
 }
 
 enum SubStatus {
-    ACTIF
-    EN_PAUSE
-    RESILIE
+  ACTIF
+  EN_PAUSE
+  RESILIE
+}
+
+enum SubInterval {
+  MENSUEL
+  TRIMESTRIEL
+  ANNUEL
 }

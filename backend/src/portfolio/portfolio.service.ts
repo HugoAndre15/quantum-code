@@ -16,6 +16,14 @@ export class PortfolioService {
     });
   }
 
+  async findPublicBySlug(slug: string) {
+    const project = await this.prisma.project.findFirst({
+      where: { slug, active: true },
+    });
+    if (!project) throw new NotFoundException('Réalisation introuvable');
+    return project;
+  }
+
   async findOne(id: string) {
     const project = await this.prisma.project.findUnique({ where: { id } });
     if (!project) throw new NotFoundException('Projet introuvable');
@@ -24,11 +32,16 @@ export class PortfolioService {
 
   create(data: {
     name: string;
+    slug?: string;
     description: string;
     tag: string;
     languages: string[];
     link?: string;
     image?: string;
+    clientProblem?: string;
+    solution?: string;
+    result?: string;
+    features?: string[];
     position?: number;
     active?: boolean;
   }) {
@@ -39,11 +52,16 @@ export class PortfolioService {
     id: string,
     data: {
       name?: string;
+      slug?: string;
       description?: string;
       tag?: string;
       languages?: string[];
       link?: string;
       image?: string;
+      clientProblem?: string;
+      solution?: string;
+      result?: string;
+      features?: string[];
       position?: number;
       active?: boolean;
     },

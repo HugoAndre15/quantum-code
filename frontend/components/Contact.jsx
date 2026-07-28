@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { contactInfo, siteConfig } from "../data/siteData";
+import { getConversionSessionId, trackConversion } from "../lib/conversion";
 
 const API = "/api";
 
@@ -25,9 +26,13 @@ export default function Contact({ onToast }) {
       const res = await fetch(`${API}/contact`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          sessionId: getConversionSessionId(),
+        }),
       });
       if (res.ok) {
+        trackConversion("CONTACT_SUBMITTED");
         onToast?.("Message envoyé — réponse sous 24h !");
         setForm({ name: "", email: "", phone: "", company: "", message: "" });
       } else {

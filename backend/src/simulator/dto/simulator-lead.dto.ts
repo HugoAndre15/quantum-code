@@ -10,6 +10,10 @@ import {
 } from 'class-validator';
 
 export class SimulatorLeadDto {
+  @IsOptional()
+  @IsString()
+  sessionId?: string;
+
   // ─── Coordonnées client ─────────────────────
   @IsString()
   @IsNotEmpty()

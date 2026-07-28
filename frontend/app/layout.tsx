@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import ConversionTracker from "@/components/ConversionTracker";
 import "@/styles/globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -42,6 +43,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${spaceGrotesk.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable}`}>
       <body>
+        <ConversionTracker />
         {children}
         <Analytics />
       </body>
