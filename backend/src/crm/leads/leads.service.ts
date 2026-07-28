@@ -1,7 +1,11 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateLeadDto, UpdateLeadDto } from './dto/lead.dto';
-import { LeadSource, LeadStatus } from '@prisma/client';
+import {
+  ConvertLeadDto,
+  CreateLeadDto,
+  UpdateLeadDto,
+} from './dto/lead.dto';
+import { ActivityType, LeadSource, LeadStatus } from '@prisma/client';
 
 @Injectable()
 export class LeadsService {
@@ -85,6 +89,10 @@ export class LeadsService {
             projects: true,
           },
         },
+        devis: {
+          select: { id: true, number: true, status: true, totalHT: true },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
     if (!lead) throw new NotFoundException('Lead introuvable');
@@ -126,36 +134,89 @@ export class LeadsService {
    * Convertit un lead en client.
    * Crée le Client Prisma, lie-le au lead, passe le lead en CONVERTI.
    */
-  async convert(id: string) {
+  async convert(id: string, dto: ConvertLeadDto = {}) {
     const lead = await this.prisma.lead.findUnique({ where: { id } });
     if (!lead) throw new NotFoundException('Lead introuvable');
     if (lead.convertedClientId) {
-      throw new BadRequestException('Ce lead est déjà converti en client');
+      return {
+        clientId: lead.convertedClientId,
+        reused: true,
+        lead: this.withLabel(lead),
+      };
     }
     if (lead.status === LeadStatus.PERDU) {
       throw new BadRequestException('Impossible de convertir un lead perdu');
     }
 
-    const client = await this.prisma.client.create({
-      data: {
-        company: lead.company || lead.name,
-        trade: 'À préciser',
-        contactName: lead.name,
-        email: lead.email,
-        phone: lead.phone,
-        status: 'CONTACTE',
-        budget: lead.budget,
-        contactDate: new Date(),
-        notes: lead.notes ?? undefined,
-        ...(lead.packId && { packId: lead.packId }),
-      },
-    });
+    const simulatorData =
+      lead.simulatorData && typeof lead.simulatorData === 'object'
+        ? (lead.simulatorData as Record<string, unknown>)
+        : {};
 
-    const updatedLead = await this.prisma.lead.update({
-      where: { id },
-      data: { status: LeadStatus.CONVERTI, convertedClientId: client.id },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      const existingClient = dto.clientId
+        ? await tx.client.findUnique({ where: { id: dto.clientId } })
+        : await tx.client.findFirst({
+            where: {
+              email: { equals: lead.email, mode: 'insensitive' },
+            },
+            orderBy: { createdAt: 'desc' },
+          });
 
-    return { clientId: client.id, lead: this.withLabel(updatedLead) };
+      const client =
+        existingClient ||
+        (await tx.client.create({
+          data: {
+            company: lead.company || lead.name,
+            trade:
+              dto.trade ||
+              (typeof simulatorData.trade === 'string'
+                ? simulatorData.trade
+                : 'À préciser'),
+            contactName: lead.name,
+            email: lead.email,
+            phone: lead.phone,
+            address:
+              typeof simulatorData.address === 'string'
+                ? simulatorData.address
+                : undefined,
+            website:
+              typeof simulatorData.website === 'string'
+                ? simulatorData.website
+                : undefined,
+            status: 'CONTACTE',
+            budget: lead.budget,
+            contactDate: new Date(),
+            notes: lead.notes ?? undefined,
+            ...(lead.packId && { packId: lead.packId }),
+          },
+        }));
+
+      const updatedLead = await tx.lead.update({
+        where: { id },
+        data: {
+          status: LeadStatus.CONVERTI,
+          convertedClientId: client.id,
+        },
+      });
+
+      await tx.crmActivity.create({
+        data: {
+          type: ActivityType.CONVERSION,
+          title: existingClient
+            ? 'Lead rattaché à un client existant'
+            : 'Lead converti en client',
+          description: client.company,
+          leadId: id,
+          clientId: client.id,
+        },
+      });
+
+      return {
+        clientId: client.id,
+        reused: Boolean(existingClient),
+        lead: this.withLabel(updatedLead),
+      };
+    });
   }
 }

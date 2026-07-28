@@ -30,6 +30,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/admin/crm/leads", label: "Leads", icon: "◎" },
       { href: "/admin/crm/clients", label: "Clients", icon: "◇" },
       { href: "/admin/crm/projects", label: "Projets", icon: "◈" },
+      { href: "/admin/crm/tasks", label: "Tâches & relances", icon: "✓" },
     ],
   },
   {

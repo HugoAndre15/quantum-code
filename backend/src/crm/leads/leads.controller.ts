@@ -9,7 +9,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { LeadsService } from './leads.service';
-import { CreateLeadDto, UpdateLeadDto } from './dto/lead.dto';
+import {
+  ConvertLeadDto,
+  CreateLeadDto,
+  UpdateLeadDto,
+} from './dto/lead.dto';
 import { JwtAuthGuard, RoleGuard } from '../../auth/guards/jwt.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
 
@@ -46,7 +50,7 @@ export class LeadsController {
 
   /** Convertit le lead en Client → crée l'enregistrement Client */
   @Post(':id/convert')
-  convert(@Param('id') id: string) {
-    return this.leadsService.convert(id);
+  convert(@Param('id') id: string, @Body() dto: ConvertLeadDto) {
+    return this.leadsService.convert(id, dto);
   }
 }

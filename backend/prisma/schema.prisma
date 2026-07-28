@@ -129,11 +129,13 @@ model Client {
   options        ClientOption[]
   devis          Devis[]
   factures       Facture[]
-  lead           Lead?
+  leads          Lead[]
   projects       ClientProject[]
   payments       Payment[]
   subscriptions  Subscription[]
   reviews        Review[]
+  activities     CrmActivity[]
+  tasks          CrmTask[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 }
@@ -175,14 +177,20 @@ model Devis {
   discountAmount       Float          @default(0)
   promoCodeId          String?
   promoCode            PromoCode?     @relation(fields: [promoCodeId], references: [id])
+  sourceLeadId         String?
+  sourceLead           Lead?          @relation(fields: [sourceLeadId], references: [id], onDelete: SetNull)
   acceptToken          String?        @unique
   acceptTokenExpiresAt DateTime?
   acceptedAt           DateTime?
   items                DevisItem[]
-  facture              Facture?
+  factures             Facture[]
   project              ClientProject?
+  activities           CrmActivity[]
+  tasks                CrmTask[]
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
+
+  @@index([sourceLeadId])
 }
 
 model DevisItem {
@@ -204,19 +212,26 @@ model DevisItem {
 }
 
 model Facture {
-  id        String        @id @default(cuid())
-  number    String        @unique // ex: FAC-2025-001
-  devisId   String        @unique
-  devis     Devis         @relation(fields: [devisId], references: [id])
-  clientId  String
-  client    Client        @relation(fields: [clientId], references: [id])
-  status    FactureStatus @default(BROUILLON)
-  totalHT   Float         @default(0)
-  paidAt    DateTime?
-  notes     String?
-  payments  Payment[]
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  id         String        @id @default(cuid())
+  number     String        @unique // ex: FAC-2025-001
+  devisId    String
+  devis      Devis         @relation(fields: [devisId], references: [id])
+  clientId   String
+  client     Client        @relation(fields: [clientId], references: [id])
+  type       FactureType   @default(COMPLETE)
+  percentage Float?
+  status     FactureStatus @default(BROUILLON)
+  totalHT    Float         @default(0)
+  paidAt     DateTime?
+  notes      String?
+  payments   Payment[]
+  activities CrmActivity[]
+  tasks      CrmTask[]
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@unique([devisId, type])
+  @@index([clientId])
 }
 
 enum DevisStatus {
@@ -232,6 +247,12 @@ enum FactureStatus {
   ENVOYEE
   PAYEE
   ANNULEE
+}
+
+enum FactureType {
+  ACOMPTE
+  SOLDE
+  COMPLETE
 }
 
 // ─── Portfolio ───────────────────────────────
@@ -298,11 +319,16 @@ model Lead {
   notes             String?
   packId            String?
   pack              Pack?              @relation(fields: [packId], references: [id])
-  convertedClientId String?            @unique
+  convertedClientId String?
   convertedClient   Client?            @relation(fields: [convertedClientId], references: [id])
+  devis             Devis[]
   conversionSession ConversionSession?
+  activities        CrmActivity[]
+  tasks             CrmTask[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
+
+  @@index([convertedClientId])
 }
 
 model ConversionSession {
@@ -358,8 +384,65 @@ model ClientProject {
   status        ProjectStatus @default(EN_ATTENTE)
   productionUrl String?
   notes         String?
+  activities    CrmActivity[]
+  tasks         CrmTask[]
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+}
+
+model CrmActivity {
+  id          String         @id @default(cuid())
+  type        ActivityType
+  title       String
+  description String?
+  metadata    Json?
+  leadId      String?
+  lead        Lead?          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  clientId    String?
+  client      Client?        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  devisId     String?
+  devis       Devis?         @relation(fields: [devisId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     ClientProject? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  factureId   String?
+  facture     Facture?       @relation(fields: [factureId], references: [id], onDelete: Cascade)
+  createdAt   DateTime       @default(now())
+
+  @@index([leadId, createdAt])
+  @@index([clientId, createdAt])
+  @@index([devisId, createdAt])
+  @@index([projectId, createdAt])
+  @@index([factureId, createdAt])
+}
+
+model CrmTask {
+  id          String         @id @default(cuid())
+  title       String
+  description String?
+  type        TaskType       @default(AUTRE)
+  priority    TaskPriority   @default(NORMALE)
+  status      TaskStatus     @default(A_FAIRE)
+  dueAt       DateTime
+  completedAt DateTime?
+  leadId      String?
+  lead        Lead?          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  clientId    String?
+  client      Client?        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  devisId     String?
+  devis       Devis?         @relation(fields: [devisId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     ClientProject? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  factureId   String?
+  facture     Facture?       @relation(fields: [factureId], references: [id], onDelete: Cascade)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([status, dueAt])
+  @@index([leadId])
+  @@index([clientId])
+  @@index([devisId])
+  @@index([projectId])
+  @@index([factureId])
 }
 
 model Payment {
@@ -434,6 +517,41 @@ enum ProjectStatus {
   EN_LIGNE
   LIVRE
   ARCHIVE
+}
+
+enum ActivityType {
+  CREATION
+  STATUT
+  CONVERSION
+  DEVIS
+  FACTURE
+  PAIEMENT
+  PROJET
+  NOTE
+  TACHE
+}
+
+enum TaskType {
+  APPEL
+  EMAIL
+  RELANCE_DEVIS
+  PAIEMENT
+  RENDEZ_VOUS
+  CONTENU
+  AUTRE
+}
+
+enum TaskPriority {
+  BASSE
+  NORMALE
+  HAUTE
+  URGENTE
+}
+
+enum TaskStatus {
+  A_FAIRE
+  TERMINEE
+  ANNULEE
 }
 
 enum PaymentType {

@@ -7,9 +7,11 @@ import {
   Card,
   ErrorMsg,
   Field,
+  Modal,
   PageHeader,
   inputStyle,
 } from "@/app/admin/components/SharedUI";
+import CommercialPanel from "@/app/admin/components/CommercialPanel";
 
 const API = "/api";
 
@@ -37,7 +39,8 @@ interface Quote {
   discountAmount: number;
   items: QuoteItem[];
   client: { id: string; company: string; contactName: string; email?: string };
-  facture?: { id: string; number: string; status: string };
+  factures?: Array<{ id: string; number: string; status: string; type: "ACOMPTE" | "SOLDE" | "COMPLETE"; totalHT: number }>;
+  project?: { id: string; name: string; status: string };
 }
 
 const STATUS_LABELS: Record<QuoteStatus, string> = {
@@ -72,6 +75,9 @@ export default function QuoteEditor({ quoteId }: { quoteId?: string }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [showFinalize, setShowFinalize] = useState(false);
+  const [depositPercentage, setDepositPercentage] = useState("30");
+  const [projectName, setProjectName] = useState("");
 
   const load = useCallback(async () => {
     const requests = [apiFetch(`${API}/clients`)];
@@ -174,6 +180,28 @@ export default function QuoteEditor({ quoteId }: { quoteId?: string }) {
     router.push("/admin/sales/quotes");
   }
 
+  async function finalizeQuote(event: React.FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    const response = await apiFetch(`${API}/crm/workflow/quotes/${quoteId}/finalize`, {
+      method: "POST",
+      body: JSON.stringify({
+        depositPercentage: Number(depositPercentage),
+        projectName: projectName.trim() || undefined,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    setSaving(false);
+    if (!response.ok) {
+      setError(data.message || "Finalisation impossible.");
+      return;
+    }
+    setShowFinalize(false);
+    setMessage("Projet, acompte et première tâche créés.");
+    await load();
+  }
+
   if (loading) return <div style={{ padding: 40, color: "var(--grey-3)" }}>Chargement...</div>;
 
   return (
@@ -190,13 +218,22 @@ export default function QuoteEditor({ quoteId }: { quoteId?: string }) {
           <a href={`${API}/devis/${quote.id}/pdf`} target="_blank" style={actionLink}>Télécharger le PDF</a>
           <button style={actionButton} onClick={() => action("send-email", "Devis envoyé par email.")}>Envoyer le PDF</button>
           <button style={actionButton} onClick={() => action("send-accept-token", "Lien d’acceptation envoyé.")}>Envoyer pour signature</button>
-          {quote.status === "ACCEPTE" && !quote.facture && (
-            <button style={actionButton} onClick={() => action("facture", "Facture créée.")}>Créer la facture</button>
+          {quote.status === "ACCEPTE" && !quote.project && (
+            <button style={{ ...actionButton, background: "rgba(93,216,160,.12)", color: "var(--green)", borderColor: "rgba(93,216,160,.35)" }} onClick={() => {
+              setProjectName(`Site web — ${quote.client.company}`);
+              setShowFinalize(true);
+            }}>Finaliser le parcours</button>
           )}
-          {quote.facture && (
-            <button style={actionButton} onClick={() => router.push(`/admin/sales/invoices/${quote.facture?.id}`)}>
-              Voir {quote.facture.number}
+          {quote.project && (
+            <button style={actionButton} onClick={() => router.push(`/admin/crm/projects/${quote.project?.id}`)}>Voir le projet</button>
+          )}
+          {quote.factures?.map((invoice) => (
+            <button key={invoice.id} style={actionButton} onClick={() => router.push(`/admin/sales/invoices/${invoice.id}`)}>
+              {invoice.type === "ACOMPTE" ? "Acompte" : invoice.type === "SOLDE" ? "Solde" : "Facture"} {invoice.number}
             </button>
+          ))}
+          {quote.status === "ACCEPTE" && quote.factures?.some((invoice) => invoice.type === "ACOMPTE") && !quote.factures?.some((invoice) => invoice.type === "SOLDE") && (
+            <button style={actionButton} onClick={() => action("facture", "Facture de solde créée.")}>Créer la facture de solde</button>
           )}
         </div>
       )}
@@ -250,6 +287,32 @@ export default function QuoteEditor({ quoteId }: { quoteId?: string }) {
           {quoteId && <button type="button" style={{ ...actionButton, marginLeft: "auto", color: "#ff6b6b", borderColor: "rgba(255,107,107,.35)" }} onClick={remove}>Supprimer</button>}
         </div>
       </form>
+
+      {quote && <CommercialPanel context={{ clientId: quote.clientId, devisId: quote.id }} />}
+
+      {showFinalize && quote && (
+        <Modal onClose={() => setShowFinalize(false)} maxWidth={520}>
+          <h3 style={{ fontSize: 17, color: "var(--white)", margin: "0 0 6px" }}>Finaliser le devis accepté</h3>
+          <p style={{ fontSize: 12, lineHeight: 1.6, color: "var(--grey-3)", margin: "0 0 20px" }}>
+            Le CRM va créer le projet, préparer la facture d&apos;acompte et planifier le rendez-vous de lancement. Cette action est réutilisable sans créer de doublons.
+          </p>
+          <form onSubmit={finalizeQuote}>
+            <Field label="Nom du projet">
+              <input required style={inputStyle} value={projectName} onChange={(event) => setProjectName(event.target.value)} />
+            </Field>
+            <Field label="Acompte (%)">
+              <input required type="number" min={0} max={100} step={1} style={inputStyle} value={depositPercentage} onChange={(event) => setDepositPercentage(event.target.value)} />
+            </Field>
+            <div style={{ padding: 12, background: "var(--black-3)", border: "1px solid var(--border)", borderRadius: 7, color: "var(--grey-2)", fontSize: 12 }}>
+              Facture prévue : <strong style={{ color: "var(--gold)" }}>{(quote.totalHT * (Number(depositPercentage || 0) / 100)).toFixed(2)} € HT</strong>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 18 }}>
+              <button type="button" style={actionButton} onClick={() => setShowFinalize(false)}>Annuler</button>
+              <button disabled={saving} style={{ ...actionButton, background: "var(--green)", borderColor: "var(--green)", color: "#111" }}>{saving ? "Finalisation…" : "Confirmer"}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }

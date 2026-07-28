@@ -3,7 +3,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PaymentStatus, PaymentType, SubInterval } from '@prisma/client';
+import {
+  ActivityType,
+  PaymentStatus,
+  PaymentType,
+  SubInterval,
+  TaskStatus,
+  TaskType,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreatePaymentDto,
@@ -87,7 +94,29 @@ export class SalesService {
           where: { id: facture.clientId },
           data: { status: 'EN_COURS' },
         });
+        await tx.crmTask.updateMany({
+          where: {
+            factureId: facture.id,
+            type: TaskType.PAIEMENT,
+            status: TaskStatus.A_FAIRE,
+          },
+          data: { status: TaskStatus.TERMINEE, completedAt: new Date() },
+        });
       }
+
+      await tx.crmActivity.create({
+        data: {
+          type: ActivityType.PAIEMENT,
+          title:
+            dto.type === PaymentType.REMBOURSEMENT
+              ? `Remboursement de ${dto.amount.toFixed(2)} € enregistré`
+              : `Paiement de ${dto.amount.toFixed(2)} € enregistré`,
+          description: `${dto.method} · ${facture.number}`,
+          clientId: facture.clientId,
+          devisId: facture.devisId,
+          factureId: facture.id,
+        },
+      });
 
       const { facture: invoice, amount, ...rest } = payment;
       return { ...rest, amount: Number(amount), invoice };

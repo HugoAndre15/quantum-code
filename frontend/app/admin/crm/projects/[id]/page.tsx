@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
 import { Card, ErrorMsg, Field, PageHeader, inputStyle } from "@/app/admin/components/SharedUI";
+import CommercialPanel from "@/app/admin/components/CommercialPanel";
 
 const API = "/api";
 type ProjectStatus = "EN_ATTENTE" | "EN_COURS" | "EN_LIGNE" | "LIVRE" | "ARCHIVE";
@@ -15,7 +16,7 @@ interface Project {
   productionUrl?: string;
   notes?: string;
   client: { id: string; company: string; contactName: string };
-  devis?: { id: string; number: string; totalHT: number; facture?: { id: string; number: string } };
+  devis?: { id: string; number: string; totalHT: number; factures?: Array<{ id: string; number: string }> };
 }
 
 const LABELS: Record<ProjectStatus, string> = {
@@ -115,6 +116,7 @@ export default function ProjectDetailsPage({ params }: { params: { id: string } 
               {productionUrl && <a href={productionUrl} target="_blank" rel="noopener noreferrer" style={buttonStyle}>Ouvrir le site ↗</a>}
             </div>
           </Card>
+          <CommercialPanel context={{ clientId: project.client.id, devisId: project.devis?.id, projectId: project.id }} />
           <button onClick={remove} style={{ ...buttonStyle, marginTop: 18, color: "#ff6b6b", borderColor: "rgba(255,107,107,.35)" }}>Supprimer le projet</button>
         </>
       )}

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
 import { Card, ErrorMsg, Field, PageHeader, inputStyle } from "@/app/admin/components/SharedUI";
+import CommercialPanel from "@/app/admin/components/CommercialPanel";
 
 const API = "/api";
 type InvoiceStatus = "BROUILLON" | "ENVOYEE" | "PAYEE" | "ANNULEE";
@@ -13,6 +14,8 @@ interface Invoice {
   number: string;
   status: InvoiceStatus;
   totalHT: number;
+  type: "ACOMPTE" | "SOLDE" | "COMPLETE";
+  percentage?: number;
   paidAt?: string;
   notes?: string;
   client: { id: string; company: string; contactName: string; email?: string };
@@ -94,7 +97,7 @@ export default function InvoiceDetailsPage({ params }: { params: { id: string } 
 
   return (
     <div>
-      <PageHeader title={invoice?.number || "Facture"} subtitle={invoice ? `${invoice.client.company} · ${invoice.totalHT.toFixed(0)} € HT` : "Détail"} />
+      <PageHeader title={invoice?.number || "Facture"} subtitle={invoice ? `${invoice.type === "ACOMPTE" ? "Acompte" : invoice.type === "SOLDE" ? "Solde" : "Facture complète"} · ${invoice.client.company} · ${invoice.totalHT.toFixed(0)} € HT` : "Détail"} />
       {error && <ErrorMsg>{error}</ErrorMsg>}
       {message && <div style={{ color: "var(--green)", fontSize: 12, marginBottom: 14 }}>{message}</div>}
       {invoice && (
@@ -128,6 +131,7 @@ export default function InvoiceDetailsPage({ params }: { params: { id: string } 
               ))}
             </Card>
           </div>
+          <CommercialPanel context={{ clientId: invoice.client.id, devisId: invoice.devis.id, factureId: invoice.id }} />
           <button onClick={remove} style={{ ...buttonStyle, marginTop: 18, color: "#ff6b6b", borderColor: "rgba(255,107,107,.35)" }}>Supprimer la facture</button>
         </>
       )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
 import {
   PageHeader,
@@ -68,6 +69,7 @@ const TABS = [
 
 export default function LeadsPage() {
   const { apiFetch } = useAuth();
+  const router = useRouter();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("all");
@@ -149,7 +151,21 @@ export default function LeadsPage() {
   async function convertToClient(lead: Lead) {
     if (!confirm(`Convertir "${lead.company || lead.name}" en client ?`)) return;
     const res = await apiFetch(`${API}/crm/leads/${lead.id}/convert`, { method: "POST" });
-    if (res.ok) await load();
+    if (res.ok) {
+      const data = await res.json();
+      router.push(`/admin/crm/clients/${data.clientId}`);
+    }
+  }
+
+  async function createQuote(lead: Lead) {
+    const res = await apiFetch(`${API}/crm/workflow/leads/${lead.id}/quote`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      router.push(`/admin/sales/quotes/${data.quoteId}`);
+    }
   }
 
   async function deleteLead(id: string) {
@@ -182,7 +198,7 @@ export default function LeadsPage() {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {/* Header */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 140px 100px 80px 90px 100px", gap: 12, padding: "6px 16px", fontSize: 11, color: "var(--grey-3)", fontWeight: 600, letterSpacing: ".05em", textTransform: "uppercase" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 100px 70px 80px 190px", gap: 12, padding: "6px 16px", fontSize: 11, color: "var(--grey-3)", fontWeight: 600, letterSpacing: ".05em", textTransform: "uppercase" }}>
             <span>Entreprise / Contact</span>
             <span>Source</span>
             <span>Statut</span>
@@ -194,7 +210,7 @@ export default function LeadsPage() {
           {filtered.map((lead) => (
             <div
               key={lead.id}
-              style={{ display: "grid", gridTemplateColumns: "1fr 140px 100px 80px 90px 100px", gap: 12, padding: "12px 16px", background: "var(--black-2)", border: "1px solid var(--border)", borderRadius: 8, alignItems: "center" }}
+              style={{ display: "grid", gridTemplateColumns: "1fr 130px 100px 70px 80px 190px", gap: 12, padding: "12px 16px", background: "var(--black-2)", border: "1px solid var(--border)", borderRadius: 8, alignItems: "center" }}
             >
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "var(--white)" }}>{lead.company || lead.name}</div>
@@ -209,14 +225,20 @@ export default function LeadsPage() {
                 {lead.budget ? `${lead.budget}€` : "—"}
               </span>
               <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                <button onClick={() => openEdit(lead)} style={{ fontSize: 11, padding: "4px 10px", background: "var(--black-3)", border: "1px solid var(--border-2)", borderRadius: "var(--r)", color: "var(--grey-2)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-                  Éditer
+                <button onClick={() => router.push(`/admin/crm/leads/${lead.id}`)} style={{ fontSize: 11, padding: "4px 10px", background: "var(--black-3)", border: "1px solid var(--border-2)", borderRadius: "var(--r)", color: "var(--grey-2)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                  Voir
+                </button>
+                <button onClick={() => createQuote(lead)} style={{ fontSize: 11, padding: "4px 10px", background: "rgba(45,111,255,.1)", border: "1px solid rgba(45,111,255,.3)", borderRadius: "var(--r)", color: "var(--blue)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                  → Devis
                 </button>
                 {lead.status !== "CONVERTI" && (
                   <button onClick={() => convertToClient(lead)} style={{ fontSize: 11, padding: "4px 10px", background: "rgba(93,216,160,.1)", border: "1px solid rgba(93,216,160,.3)", borderRadius: "var(--r)", color: "var(--green)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
                     → Client
                   </button>
                 )}
+                <button onClick={() => openEdit(lead)} title="Éditer" style={{ fontSize: 11, padding: "4px 8px", background: "transparent", border: "1px solid transparent", borderRadius: "var(--r)", color: "var(--grey-3)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                  ✎
+                </button>
                 <button onClick={() => deleteLead(lead.id)} style={{ fontSize: 11, padding: "4px 8px", background: "transparent", border: "1px solid transparent", borderRadius: "var(--r)", color: "var(--grey-4)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
                   ✕
                 </button>

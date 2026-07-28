@@ -40,6 +40,12 @@ describe('SettingsService', () => {
       count: jest.fn(),
       deleteMany: jest.fn(),
     },
+    crmTask: {
+      deleteMany: jest.fn(),
+    },
+    crmActivity: {
+      deleteMany: jest.fn(),
+    },
     review: {
       deleteMany: jest.fn(),
     },
@@ -110,6 +116,34 @@ describe('SettingsService', () => {
         quoteItems: 8,
       },
       detachedProjects: 1,
+    });
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears global tasks and activities when resetting the CRM', async () => {
+    prisma.crmTask.deleteMany.mockReturnValue(result(3));
+    prisma.crmActivity.deleteMany.mockReturnValue(result(5));
+    prisma.payment.deleteMany.mockReturnValue(result(1));
+    prisma.subscription.deleteMany.mockReturnValue(result(2));
+    prisma.review.deleteMany.mockReturnValue(result(1));
+    prisma.clientProject.deleteMany.mockReturnValue(result(2));
+    prisma.facture.deleteMany.mockReturnValue(result(3));
+    prisma.devisItem.deleteMany.mockReturnValue(result(6));
+    prisma.devis.deleteMany.mockReturnValue(result(2));
+    prisma.clientOption.deleteMany.mockReturnValue(result(4));
+    prisma.lead.deleteMany.mockReturnValue(result(7));
+    prisma.client.deleteMany.mockReturnValue(result(2));
+    prisma.conversionSession.deleteMany.mockReturnValue(result(8));
+    prisma.promoCode.updateMany.mockReturnValue(result(1));
+
+    const response = await service.resetCrm('RÉINITIALISER LE CRM');
+
+    expect(response.deleted).toMatchObject({
+      tasks: 3,
+      activities: 5,
+      leads: 7,
+      clients: 2,
+      conversionSessions: 8,
     });
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
   });

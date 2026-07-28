@@ -140,6 +140,8 @@ export class SettingsService {
     this.assertConfirmation(confirmation, 'RÉINITIALISER LE CRM');
 
     const [
+      tasks,
+      activities,
       payments,
       subscriptions,
       reviews,
@@ -152,6 +154,8 @@ export class SettingsService {
       clients,
       conversionSessions,
     ] = await this.prisma.$transaction([
+      this.prisma.crmTask.deleteMany(),
+      this.prisma.crmActivity.deleteMany(),
       this.prisma.payment.deleteMany(),
       this.prisma.subscription.deleteMany(),
       this.prisma.review.deleteMany({
@@ -173,6 +177,8 @@ export class SettingsService {
     return {
       message: 'Le CRM a été réinitialisé',
       deleted: {
+        tasks: tasks.count,
+        activities: activities.count,
         leads: leads.count,
         clients: clients.count,
         quotes: quotes.count,
