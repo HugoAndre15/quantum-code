@@ -45,6 +45,20 @@ export default function Tarifs({ onToast }) {
           ))}
         </div>
 
+        <div className="tarifs-ai-note">
+          <div className="tarifs-ai-badge">Transparence IA</div>
+          <div>
+            <h3>L’IA accélère la production, pas les raccourcis.</h3>
+            <p>
+              J’utilise des outils d’IA pour accélérer la recherche, certaines
+              propositions et une partie du développement. Chaque choix reste
+              cadré, personnalisé, relu et testé par moi. Ce gain de temps me
+              permet de proposer des délais plus courts et des prix accessibles,
+              tout en restant responsable de la qualité livrée.
+            </p>
+          </div>
+        </div>
+
         {/* Main CTA — simulator */}
         <div className="tarifs-cta-block">
           <div className="tarifs-cta-text">
@@ -78,8 +92,9 @@ export default function Tarifs({ onToast }) {
         </div>
 
         <p className="tarifs-footnote">
-          Hébergement à partir de 10 €/mois · Maintenance 20 €/mois · Frais de
-          domaine 5–20 € · TVA non applicable — art. 293B CGI
+          Prix finaux · Hébergement & supervision 15 €/mois · Maintenance à
+          partir de 19 €/mois · Domaine environ 20 €/an · TVA non applicable —
+          art. 293B CGI
         </p>
       </div>
     </section>

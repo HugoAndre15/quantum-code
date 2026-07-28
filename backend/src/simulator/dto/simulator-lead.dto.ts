@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  MaxLength,
   Min,
 } from 'class-validator';
 
@@ -62,12 +63,71 @@ export class SimulatorLeadDto {
   optionIds?: string[];
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  recurringOptionIds?: string[];
+
+  @IsOptional()
   @IsInt()
   @Min(1)
   pages?: number;
 
-  /** Total estimé (HT) calculé côté front, à titre indicatif */
+  /** Prix final estimé côté front, à titre indicatif (TVA non applicable) */
   @IsOptional()
   @IsNumber()
   estimatedTotal?: number;
+
+  @IsOptional()
+  @IsNumber()
+  estimatedMin?: number;
+
+  @IsOptional()
+  @IsNumber()
+  estimatedMax?: number;
+
+  // ─── Brief métier ──────────────────────────
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  projectType?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  sector?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  primaryGoal?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  contentScale?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  selectedFeatures?: string[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  timeline?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  contentReadiness?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  supportChoice?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  recommendationName?: string;
 }

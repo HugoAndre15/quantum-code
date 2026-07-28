@@ -16,19 +16,37 @@ interface Pack {
   active: boolean;
   features: string[];
   includedPages: number;
+  includedOptions?: Array<{
+    serviceOptionId: string;
+    serviceOption?: ServiceOption;
+  }>;
 }
 
 interface ServiceOption {
   id: string;
   name: string;
+  description?: string;
   price: number;
   category: string;
+  devTime?: number;
   active: boolean;
   recurring: boolean;
   recurringUnit?: string;
 }
 
-const EMPTY_PACK = { name: "", description: "", price: "", devTime: "", position: "0", active: true, features: "", includedPages: "0" };
+interface PackForm {
+  name: string;
+  description: string;
+  price: string;
+  devTime: string;
+  position: string;
+  active: boolean;
+  features: string;
+  includedPages: string;
+  includedOptionIds: string[];
+}
+
+const EMPTY_PACK: PackForm = { name: "", description: "", price: "", devTime: "", position: "0", active: true, features: "", includedPages: "0", includedOptionIds: [] };
 const EMPTY_OPT = { name: "", description: "", price: "", devTime: "", category: "general", active: true, recurring: false, recurringUnit: "" };
 const TABS = [{ key: "packs", label: "Packs" }, { key: "options", label: "Options & Services" }];
 
@@ -57,19 +75,19 @@ export default function PackagesPage() {
   function openCreatePack() { setEditPack(null); setPackForm(EMPTY_PACK); setError(""); setShowPackForm(true); }
   function openEditPack(p: Pack) {
     setEditPack(p.id);
-    setPackForm({ name: p.name, description: p.description || "", price: String(p.price), devTime: p.devTime != null ? String(p.devTime) : "", position: String(p.position), active: p.active, features: (p.features || []).join(", "), includedPages: String(p.includedPages) });
+    setPackForm({ name: p.name, description: p.description || "", price: String(p.price), devTime: p.devTime != null ? String(p.devTime) : "", position: String(p.position), active: p.active, features: (p.features || []).join(", "), includedPages: String(p.includedPages), includedOptionIds: (p.includedOptions || []).map((entry) => entry.serviceOption?.id || entry.serviceOptionId) });
     setError(""); setShowPackForm(true);
   }
   function openCreateOpt() { setEditOpt(null); setOptForm(EMPTY_OPT); setError(""); setShowOptForm(true); }
   function openEditOpt(o: ServiceOption) {
     setEditOpt(o.id);
-    setOptForm({ name: o.name, description: "", price: String(o.price), devTime: "", category: o.category, active: o.active, recurring: o.recurring, recurringUnit: o.recurringUnit || "" });
+    setOptForm({ name: o.name, description: o.description || "", price: String(o.price), devTime: o.devTime != null ? String(o.devTime) : "", category: o.category, active: o.active, recurring: o.recurring, recurringUnit: o.recurringUnit || "" });
     setError(""); setShowOptForm(true);
   }
 
   async function handlePackSubmit(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError("");
-    const body = { name: packForm.name, description: packForm.description || undefined, price: parseFloat(packForm.price), devTime: packForm.devTime ? parseFloat(packForm.devTime) : 0, position: parseInt(packForm.position) || 0, active: packForm.active, features: packForm.features ? packForm.features.split(",").map((f) => f.trim()).filter(Boolean) : [], includedPages: parseInt(packForm.includedPages) || 0 };
+    const body = { name: packForm.name, description: packForm.description || undefined, price: parseFloat(packForm.price), devTime: packForm.devTime ? parseFloat(packForm.devTime) : 0, position: parseInt(packForm.position) || 0, active: packForm.active, features: packForm.features ? packForm.features.split(",").map((f) => f.trim()).filter(Boolean) : [], includedPages: parseInt(packForm.includedPages) || 0, includedOptionIds: packForm.includedOptionIds };
     const url = editPack ? `${API}/offers/packs/${editPack}` : `${API}/offers/packs`;
     const res = await apiFetch(url, { method: editPack ? "PUT" : "POST", body: JSON.stringify(body) });
     if (res.ok) { await load(); setShowPackForm(false); }
@@ -79,7 +97,7 @@ export default function PackagesPage() {
 
   async function handleOptSubmit(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError("");
-    const body = { name: optForm.name, price: parseFloat(optForm.price), category: optForm.category, active: optForm.active, recurring: optForm.recurring, recurringUnit: optForm.recurringUnit || undefined };
+    const body = { name: optForm.name, description: optForm.description || undefined, price: parseFloat(optForm.price), devTime: optForm.devTime ? parseFloat(optForm.devTime) : 0, category: optForm.category, active: optForm.active, recurring: optForm.recurring, recurringUnit: optForm.recurringUnit || undefined };
     const url = editOpt ? `${API}/offers/options/${editOpt}` : `${API}/offers/options`;
     const res = await apiFetch(url, { method: editOpt ? "PUT" : "POST", body: JSON.stringify(body) });
     if (res.ok) { await load(); setShowOptForm(false); }
@@ -125,6 +143,15 @@ export default function PackagesPage() {
                     {p.features.map((f, i) => <li key={i}>{f}</li>)}
                   </ul>
                 )}
+                {(p.includedOptions || []).length > 0 && (
+                  <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 12 }}>
+                    {(p.includedOptions || []).map((entry) => (
+                      <span key={entry.serviceOptionId} style={{ padding: "4px 7px", borderRadius: 5, background: "rgba(93,216,160,.08)", color: "var(--green)", fontSize: 10 }}>
+                        {entry.serviceOption?.name || "Option incluse"}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div style={{ display: "flex", gap: 8 }}>
                   <SmallBtn onClick={() => openEditPack(p)}>Modifier</SmallBtn>
                   <SmallBtn onClick={() => togglePack(p.id, p.active)} danger={p.active}>{p.active ? "Désactiver" : "Activer"}</SmallBtn>
@@ -168,10 +195,32 @@ export default function PackagesPage() {
             <Field label="Description"><textarea rows={2} style={{ ...inputStyle, resize: "vertical" }} value={packForm.description} onChange={(e) => setPackForm({ ...packForm, description: e.target.value })} /></Field>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
               <Field label="Prix HT (€) *"><input required type="number" min={0} style={inputStyle} value={packForm.price} onChange={(e) => setPackForm({ ...packForm, price: e.target.value })} /></Field>
-              <Field label="Jours de dev"><input type="number" min={0} style={inputStyle} value={packForm.devTime} onChange={(e) => setPackForm({ ...packForm, devTime: e.target.value })} /></Field>
+              <Field label="Temps de production (h)"><input type="number" min={0} step="0.5" style={inputStyle} value={packForm.devTime} onChange={(e) => setPackForm({ ...packForm, devTime: e.target.value })} /></Field>
               <Field label="Pages incluses"><input type="number" min={0} style={inputStyle} value={packForm.includedPages} onChange={(e) => setPackForm({ ...packForm, includedPages: e.target.value })} /></Field>
             </div>
             <Field label="Fonctionnalités (séparées par des virgules)"><input style={inputStyle} value={packForm.features} onChange={(e) => setPackForm({ ...packForm, features: e.target.value })} placeholder="Responsive, SEO, CMS..." /></Field>
+            <Field label="Options comprises dans le prix">
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, padding: 12, border: "1px solid var(--border)", borderRadius: 8, background: "var(--black-3)" }}>
+                {options.filter((option) => !option.recurring).map((option) => {
+                  const checked = packForm.includedOptionIds.includes(option.id);
+                  return (
+                    <label key={option.id} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 11, color: checked ? "var(--white)" : "var(--grey-3)", cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => setPackForm((current) => ({
+                          ...current,
+                          includedOptionIds: checked
+                            ? current.includedOptionIds.filter((id) => id !== option.id)
+                            : [...current.includedOptionIds, option.id],
+                        }))}
+                      />
+                      {option.name}
+                    </label>
+                  );
+                })}
+              </div>
+            </Field>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
               <input type="checkbox" id="pack-active" checked={packForm.active} onChange={(e) => setPackForm({ ...packForm, active: e.target.checked })} />
               <label htmlFor="pack-active" style={{ fontSize: 13, color: "var(--grey-2)" }}>Pack actif (visible dans le simulateur)</label>
@@ -188,9 +237,11 @@ export default function PackagesPage() {
           {error && <ErrorMsg>{error}</ErrorMsg>}
           <form onSubmit={handleOptSubmit}>
             <Field label="Nom *"><input required style={inputStyle} value={optForm.name} onChange={(e) => setOptForm({ ...optForm, name: e.target.value })} /></Field>
+            <Field label="Description"><textarea rows={2} style={{ ...inputStyle, resize: "vertical" }} value={optForm.description} onChange={(e) => setOptForm({ ...optForm, description: e.target.value })} /></Field>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <Field label="Prix HT (€) *"><input required type="number" min={0} style={inputStyle} value={optForm.price} onChange={(e) => setOptForm({ ...optForm, price: e.target.value })} /></Field>
               <Field label="Catégorie"><input style={inputStyle} value={optForm.category} onChange={(e) => setOptForm({ ...optForm, category: e.target.value })} placeholder="general, seo, design..." /></Field>
+              <Field label="Temps de production (h)"><input type="number" min={0} step="0.5" style={inputStyle} value={optForm.devTime} onChange={(e) => setOptForm({ ...optForm, devTime: e.target.value })} /></Field>
             </div>
             <div style={{ display: "flex", gap: 20, marginBottom: 16 }}>
               <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, color: "var(--grey-2)", cursor: "pointer" }}>
