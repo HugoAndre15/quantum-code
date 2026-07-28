@@ -2,12 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MailService } from '../mail/mail.service';
 import { ContactDto } from './dto/contact.dto';
+import { PrismaService } from '../prisma/prisma.service';
+import { ConversionService } from '../conversion/conversion.service';
 
 @Injectable()
 export class ContactService {
   constructor(
     private mail: MailService,
     private config: ConfigService,
+    private prisma: PrismaService,
+    private conversion: ConversionService,
   ) {}
 
   async sendContactEmail(dto: ContactDto): Promise<void> {
@@ -21,6 +25,20 @@ export class ContactService {
       html,
       replyTo: dto.email,
     });
+
+    const lead = await this.prisma.lead.create({
+      data: {
+        name: dto.name,
+        email: dto.email,
+        phone: dto.phone,
+        company: dto.company,
+        source: 'CONTACT',
+        status: 'NOUVEAU',
+        score: 10 + (dto.phone ? 5 : 0) + (dto.company ? 5 : 0),
+        notes: dto.message,
+      },
+    });
+    await this.conversion.attachLead(dto.sessionId, lead.id);
   }
 
   private buildContactHtml(dto: ContactDto): string {

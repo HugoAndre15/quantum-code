@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/app/context/AuthContext";
 
@@ -20,7 +19,10 @@ interface NavGroup {
 const NAV_GROUPS: NavGroup[] = [
   {
     label: "Général",
-    items: [{ href: "/admin", label: "Dashboard", icon: "◆" }],
+    items: [
+      { href: "/admin", label: "Dashboard", icon: "◆" },
+      { href: "/admin/conversions", label: "Conversions", icon: "↗" },
+    ],
   },
   {
     label: "CRM",
@@ -53,32 +55,21 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/admin/portfolio/reviews", label: "Avis clients", icon: "★" },
     ],
   },
+  {
+    label: "Paramètres",
+    items: [
+      {
+        href: "/admin/settings/crm",
+        label: "Paramètres CRM",
+        icon: "⚙",
+      },
+    ],
+  },
 ];
 
 export default function AdminSidebar() {
-  const { user, loading, logout } = useAuth();
-  const router = useRouter();
+  const { user, logout } = useAuth();
   const pathname = usePathname();
-
-  useEffect(() => {
-    if (!loading && !user) router.replace("/login");
-  }, [loading, user, router]);
-
-  if (loading) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "var(--black)",
-        }}
-      >
-        <div style={{ color: "var(--grey-3)", fontSize: 14 }}>Chargement...</div>
-      </div>
-    );
-  }
 
   if (!user) return null;
 
@@ -183,7 +174,7 @@ export default function AdminSidebar() {
       {/* Footer */}
       <div style={{ padding: "12px 10px", borderTop: "1px solid var(--border)" }}>
         <div style={{ padding: "8px 12px", marginBottom: 4 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--white)" }}>{user.name}</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--white)" }}>{user.name || user.email}</div>
           <div style={{ fontSize: 11, color: "var(--grey-3)" }}>{user.role}</div>
         </div>
         <button

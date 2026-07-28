@@ -148,6 +148,7 @@ h1.hero-title .serif-word{font-family:var(--font-serif),Georgia,serif;font-style
 .proj.w8 .proj-name,.proj.w7 .proj-name{font-size:28px}
 .proj-desc{font-size:13px;color:var(--grey-3);line-height:1.5;max-width:400px}
 .proj-link{position:absolute;top:20px;right:20px;z-index:3;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid var(--border-2);display:flex;align-items:center;justify-content:center;color:var(--grey-2);font-size:14px;opacity:0;transform:translateY(-8px);transition:opacity .2s,transform .2s}
+.proj-case-link{position:absolute;inset:0;z-index:2}
 .proj:hover .proj-link{opacity:1;transform:translateY(0)}
 .proj-stack{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
 .proj-tech{font-size:10px;font-weight:600;letter-spacing:.06em;padding:3px 9px;border-radius:3px;background:rgba(255,255,255,.06);color:var(--grey-3)}
@@ -169,6 +170,29 @@ h1.hero-title .serif-word{font-family:var(--font-serif),Georgia,serif;font-style
 .pp-card-desc{font-size:13px;color:var(--grey-3);line-height:1.6;margin-bottom:14px}
 .pp-card-stack{display:flex;gap:6px;flex-wrap:wrap}
 .pp-card-tech{font-size:10px;font-weight:600;padding:3px 9px;border-radius:3px;background:rgba(255,255,255,.06);color:var(--grey-3)}
+
+/* ═══ CASE STUDIES ═══ */
+.case-study{padding-top:var(--nav-h);min-height:100vh}
+.case-hero{display:grid;grid-template-columns:1fr 1.15fr;gap:64px;align-items:center;max-width:1280px;margin:0 auto;padding:96px 52px 72px}
+.case-back{display:inline-flex;color:var(--grey-3);font-size:12px;font-weight:600;margin-bottom:44px}.case-back:hover{color:var(--white)}
+.case-hero h1{font-size:clamp(44px,6vw,76px);line-height:1;letter-spacing:-.04em;margin:0 0 24px;color:var(--white)}
+.case-hero-copy>p{font-size:17px;line-height:1.75;color:var(--grey-3);max-width:620px;margin-bottom:24px}
+.case-tags{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:32px}.case-tags span{font-size:11px;font-weight:600;color:var(--grey-2);background:var(--black-3);border:1px solid var(--border);padding:6px 10px;border-radius:4px}
+.case-hero-media{height:560px;border-radius:var(--r-l);overflow:hidden;background:var(--black-3);border:1px solid var(--border);box-shadow:0 32px 80px rgba(0,0,0,.35)}
+.case-hero-media img{width:100%;height:100%;object-fit:cover}.case-placeholder{width:100%;height:100%;background:linear-gradient(135deg,#1a1a2e,#2d6fff33)}
+.case-story{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;max-width:1200px;margin:0 auto;padding:48px 52px 112px}
+.case-story-card{background:var(--black-2);border:1px solid var(--border);padding:36px;min-height:280px}.case-story-card>span{font-family:var(--font-mono);font-size:11px;color:var(--blue)}.case-story-card h2{font-size:21px;color:var(--white);margin:32px 0 14px}.case-story-card p{font-size:14px;line-height:1.75;color:var(--grey-3)}
+.case-features{display:grid;grid-template-columns:1fr 1fr;gap:80px;max-width:1200px;margin:0 auto;padding:104px 52px;border-top:1px solid var(--border)}.case-features h2{font-size:clamp(32px,4vw,50px);line-height:1.05;color:var(--white)}.case-features .serif-word{font-family:var(--font-serif);font-weight:400;font-style:italic;color:var(--gold)}
+.case-feature-list{border-top:1px solid var(--border)}.case-feature-list>div{display:flex;gap:20px;padding:18px 0;border-bottom:1px solid var(--border);color:var(--grey-2);font-size:14px}.case-feature-list span{font-family:var(--font-mono);font-size:10px;color:var(--blue)}
+.case-cta{max-width:1100px;margin:0 auto 112px;padding:48px;display:flex;align-items:center;justify-content:space-between;gap:32px;background:var(--black-2);border:1px solid var(--border);border-radius:var(--r-l)}.case-cta h2{font-size:30px;max-width:680px;color:var(--white)}
+.case-study-empty{min-height:70vh;display:flex;flex-direction:column;gap:24px;align-items:center;justify-content:center;color:var(--grey-3)}.case-study-empty h1{color:var(--white)}
+
+/* ═══ LEGAL ═══ */
+.legal-page{min-height:100vh;padding:72px 24px 112px;background:var(--black)}
+.legal-shell{max-width:860px;margin:0 auto}.legal-back{display:inline-block;margin-bottom:64px;color:var(--grey-3);font-size:12px;font-weight:600}.legal-back:hover{color:var(--white)}
+.legal-shell h1{font-size:clamp(40px,6vw,68px);line-height:1;letter-spacing:-.04em;color:var(--white);margin:0 0 14px}.legal-updated{font-size:12px;color:var(--grey-4);margin-bottom:48px}
+.legal-content{display:flex;flex-direction:column;gap:12px}.legal-content section{padding:28px 0;border-top:1px solid var(--border)}.legal-content h2{font-size:19px;color:var(--white);margin:0 0 14px}.legal-content p,.legal-content li{font-size:14px;line-height:1.8;color:var(--grey-3)}.legal-content ul{padding-left:20px;margin:10px 0}.legal-content a{color:#7ba8ff;text-decoration:underline;text-underline-offset:3px}
+.footer-legal{display:flex;gap:14px;font-size:11px}.footer-legal a{color:var(--grey-4)}.footer-legal a:hover{color:var(--white)}
 
 /* ═══ TARIFS / OFFRES ═══ */
 .tarifs-section{border-top:1px solid var(--border);background:var(--black-2)}
@@ -418,6 +442,13 @@ h1.hero-title .serif-word{font-family:var(--font-serif),Georgia,serif;font-style
   .pp-body{padding:32px 20px}
   .pp-grid{grid-template-columns:1fr}
   .nav-right .nav-admin{display:none}
+  .case-hero{grid-template-columns:1fr;padding:64px 20px 48px;gap:36px}
+  .case-hero-media{height:360px}
+  .case-story{grid-template-columns:1fr;padding:24px 20px 72px}
+  .case-story-card{min-height:0}
+  .case-features{grid-template-columns:1fr;gap:36px;padding:72px 20px}
+  .case-cta{margin:0 20px 72px;padding:28px;align-items:flex-start;flex-direction:column}
+  .case-cta h2{font-size:24px}
 }
 
 /* ═══ HERO — Pourquoi me choisir ═══ */

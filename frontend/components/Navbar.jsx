@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { navLinks, siteConfig } from "../data/siteData";
 
@@ -10,6 +10,8 @@ export default function Navbar() {
   const clickCount = useRef(0);
   const clickTimer = useRef(null);
   const router = useRouter();
+  const pathname = usePathname();
+  const resolveHref = (href) => pathname === "/" ? href : `/${href}`;
 
   const handleLogoClick = useCallback(
     (e) => {
@@ -55,7 +57,7 @@ export default function Navbar() {
 
         <div className="nav-links">
           {navLinks.map((l) => (
-            <a key={l.href} className="nav-link" href={l.href}>
+            <a key={l.href} className="nav-link" href={resolveHref(l.href)}>
               {l.label}
             </a>
           ))}
@@ -63,7 +65,8 @@ export default function Navbar() {
 
         <div className="nav-right">
           <a
-            href="#contact"
+            href={resolveHref("#contact")}
+            data-conversion="navbar-contact"
             className="btn btn-blue"
             style={{ padding: "9px 18px", fontSize: 12 }}
           >
@@ -82,12 +85,13 @@ export default function Navbar() {
 
       <div className={`mobile-menu${mobileOpen ? " open" : ""}`}>
         {navLinks.map((l) => (
-          <a key={l.href} href={l.href} onClick={() => setMobileOpen(false)}>
+          <a key={l.href} href={resolveHref(l.href)} onClick={() => setMobileOpen(false)}>
             {l.label}
           </a>
         ))}
         <a
-          href="#contact"
+          href={resolveHref("#contact")}
+          data-conversion="mobile-navbar-contact"
           className="btn btn-blue"
           style={{ alignSelf: "flex-start" }}
           onClick={() => setMobileOpen(false)}

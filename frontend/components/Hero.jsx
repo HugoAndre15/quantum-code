@@ -25,13 +25,13 @@ export default function Hero() {
           </p>
 
           <div className="hero-ctas">
-            <a href="#simulateur" className="btn btn-blue">
+            <a href="#simulateur" className="btn btn-blue" data-conversion="hero-simulator">
               Simuler mon prix en 1 minute
             </a>
-            <a href="#contact" className="btn btn-outline">
+            <a href="#contact" className="btn btn-outline" data-conversion="hero-contact">
               Obtenir un devis gratuit
             </a>
-            <a href="#portfolio" className="btn btn-ghost">
+            <a href="#portfolio" className="btn btn-ghost" data-conversion="hero-portfolio">
               Voir mes réalisations
             </a>
           </div>

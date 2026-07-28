@@ -9,45 +9,43 @@ import {
 
 const API = "/api";
 
-type ProjectStatus = "EN_ATTENTE" | "EN_COURS" | "EN_REVISION" | "LIVRE" | "TERMINE";
+type ProjectStatus = "EN_ATTENTE" | "EN_COURS" | "EN_LIGNE" | "LIVRE" | "ARCHIVE";
 
 interface ClientProject {
   id: string;
-  title: string;
+  name: string;
   status: ProjectStatus;
   clientId: string;
   client?: { company: string; contactName: string };
-  startDate?: string;
-  deliveryDate?: string;
+  devis?: { id: string; number: string; totalHT: number; status: string };
+  productionUrl?: string;
   notes?: string;
-  tasksTotal: number;
-  tasksDone: number;
   createdAt: string;
 }
 
 const STATUS_COLORS: Record<ProjectStatus, string> = {
   EN_ATTENTE: "#aaa",
   EN_COURS: "var(--blue)",
-  EN_REVISION: "var(--gold)",
+  EN_LIGNE: "var(--gold)",
   LIVRE: "var(--green)",
-  TERMINE: "#5D8AFF",
+  ARCHIVE: "#5D8AFF",
 };
 
 const STATUS_LABELS: Record<ProjectStatus, string> = {
   EN_ATTENTE: "En attente",
   EN_COURS: "En cours",
-  EN_REVISION: "En révision",
+  EN_LIGNE: "En ligne",
   LIVRE: "Livré",
-  TERMINE: "Terminé",
+  ARCHIVE: "Archivé",
 };
 
 const TABS = [
   { key: "all", label: "Tous" },
   { key: "EN_ATTENTE", label: "En attente" },
   { key: "EN_COURS", label: "En cours" },
-  { key: "EN_REVISION", label: "En révision" },
+  { key: "EN_LIGNE", label: "En ligne" },
   { key: "LIVRE", label: "Livrés" },
-  { key: "TERMINE", label: "Terminés" },
+  { key: "ARCHIVE", label: "Archivés" },
 ];
 
 export default function ClientProjectsPage() {
@@ -60,7 +58,7 @@ export default function ClientProjectsPage() {
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({ title: "", clientId: "", status: "EN_ATTENTE" as ProjectStatus, startDate: "", deliveryDate: "", notes: "" });
+  const [form, setForm] = useState({ name: "", clientId: "", status: "EN_ATTENTE" as ProjectStatus, productionUrl: "", notes: "" });
 
   const load = useCallback(async () => {
     const [projRes, clientRes] = await Promise.all([
@@ -95,7 +93,7 @@ export default function ClientProjectsPage() {
 
   return (
     <div>
-      <PageHeader title="Projets clients" subtitle="Suivi des projets en cours" count={filtered.length} onAdd={() => { setForm({ title: "", clientId: "", status: "EN_ATTENTE", startDate: "", deliveryDate: "", notes: "" }); setError(""); setShowModal(true); }} addLabel="Nouveau projet" />
+      <PageHeader title="Projets clients" subtitle="Suivi des projets en cours" count={filtered.length} onAdd={() => { setForm({ name: "", clientId: "", status: "EN_ATTENTE", productionUrl: "", notes: "" }); setError(""); setShowModal(true); }} addLabel="Nouveau projet" />
 
       <TabBar tabs={tabsWithCounts} activeTab={tab} onTabChange={setTab} />
 
@@ -106,7 +104,6 @@ export default function ClientProjectsPage() {
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
           {filtered.map((project) => {
-            const progress = project.tasksTotal > 0 ? Math.round((project.tasksDone / project.tasksTotal) * 100) : 0;
             return (
               <div
                 key={project.id}
@@ -116,26 +113,20 @@ export default function ClientProjectsPage() {
                 onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.borderColor = "var(--border)")}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--white)" }}>{project.title}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--white)" }}>{project.name}</div>
                   <Badge color={STATUS_COLORS[project.status]}>{STATUS_LABELS[project.status]}</Badge>
                 </div>
                 <div style={{ fontSize: 12, color: "var(--grey-3)", marginBottom: 14 }}>
                   {project.client?.company} · {project.client?.contactName}
                 </div>
-                {project.tasksTotal > 0 && (
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, fontSize: 11, color: "var(--grey-3)" }}>
-                      <span>Avancement</span>
-                      <span>{progress}% ({project.tasksDone}/{project.tasksTotal} tâches)</span>
-                    </div>
-                    <div style={{ height: 4, background: "var(--black-3)", borderRadius: 2 }}>
-                      <div style={{ height: 4, borderRadius: 2, background: "var(--blue)", width: `${progress}%`, transition: "width .3s" }} />
-                    </div>
+                {project.devis && (
+                  <div style={{ marginTop: 10, fontSize: 11, color: "var(--grey-3)" }}>
+                    {project.devis.number} · {project.devis.totalHT.toFixed(0)} € HT
                   </div>
                 )}
-                {project.deliveryDate && (
-                  <div style={{ marginTop: 10, fontSize: 11, color: "var(--grey-3)" }}>
-                    Livraison prévue : {new Date(project.deliveryDate).toLocaleDateString("fr-FR")}
+                {project.productionUrl && (
+                  <div style={{ marginTop: 8, fontSize: 11, color: "var(--blue)", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {project.productionUrl}
                   </div>
                 )}
               </div>
@@ -150,7 +141,7 @@ export default function ClientProjectsPage() {
           {error && <ErrorMsg>{error}</ErrorMsg>}
           <form onSubmit={handleSubmit}>
             <Field label="Titre du projet *">
-              <input required style={inputStyle} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+              <input required style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </Field>
             <Field label="Client *">
               <select required style={inputStyle} value={form.clientId} onChange={(e) => setForm({ ...form, clientId: e.target.value })}>
@@ -158,14 +149,9 @@ export default function ClientProjectsPage() {
                 {clients.map((c) => <option key={c.id} value={c.id}>{c.company}</option>)}
               </select>
             </Field>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <Field label="Date de début">
-                <input type="date" style={inputStyle} value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
-              </Field>
-              <Field label="Date de livraison">
-                <input type="date" style={inputStyle} value={form.deliveryDate} onChange={(e) => setForm({ ...form, deliveryDate: e.target.value })} />
-              </Field>
-            </div>
+            <Field label="URL de production">
+              <input type="url" style={inputStyle} value={form.productionUrl} onChange={(e) => setForm({ ...form, productionUrl: e.target.value })} placeholder="https://…" />
+            </Field>
             <Field label="Notes">
               <textarea rows={3} style={{ ...inputStyle, resize: "vertical" }} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </Field>

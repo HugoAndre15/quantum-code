@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { navLinks, siteConfig } from "../data/siteData";
 
 export default function Footer() {
@@ -20,7 +21,7 @@ export default function Footer() {
       </div>
       <div className="footer-links">
         {navLinks.map((l) => (
-          <a key={l.href} href={l.href}>
+          <a key={l.href} href={`/${l.href}`}>
             {l.label}
           </a>
         ))}
@@ -28,6 +29,10 @@ export default function Footer() {
       <div className="footer-copy">
         {siteConfig.copyright} — Développeur web freelance dans{" "}
         {siteConfig.locationShort}
+      </div>
+      <div className="footer-legal">
+        <Link href="/mentions-legales">Mentions légales</Link>
+        <Link href="/politique-confidentialite">Confidentialité</Link>
       </div>
     </footer>
   );

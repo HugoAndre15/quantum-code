@@ -1,17 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/app/context/AuthContext";
 
+function getSafeDestination() {
+  if (typeof window === "undefined") return "/admin";
+
+  const next = new URLSearchParams(window.location.search).get("next");
+  return next?.startsWith("/admin") && !next.startsWith("//")
+    ? next
+    : "/admin";
+}
+
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { user, loading: authLoading, login } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace(getSafeDestination());
+    }
+  }, [authLoading, router, user]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -19,12 +34,30 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      router.push("/admin");
+      router.replace(getSafeDestination());
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Erreur de connexion");
     } finally {
       setLoading(false);
     }
+  }
+
+  if (authLoading || user) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "var(--black)",
+          color: "var(--grey-3)",
+          fontSize: 14,
+        }}
+      >
+        {authLoading ? "Vérification de la session..." : "Redirection vers le dashboard..."}
+      </div>
+    );
   }
 
   return (

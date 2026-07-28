@@ -1,8 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { getConversionSessionId, trackConversion } from "../lib/conversion";
 
 const API = "/api";
 
 export default function PriceSimulator() {
+  const simulatorStarted = useRef(false);
+  const simulatorCompleted = useRef(false);
   const [base, setBase] = useState(null);
   const [packs, setPacks] = useState([]);
   const [options, setOptions] = useState([]);
@@ -49,6 +52,20 @@ export default function PriceSimulator() {
     }
     load();
   }, []);
+
+  useEffect(() => {
+    if (mode && !simulatorStarted.current) {
+      simulatorStarted.current = true;
+      trackConversion("SIMULATOR_STARTED", { mode });
+    }
+  }, [mode]);
+
+  useEffect(() => {
+    if (step === 3 && !simulatorCompleted.current) {
+      simulatorCompleted.current = true;
+      trackConversion("SIMULATOR_COMPLETED");
+    }
+  }, [step]);
 
   const selectedPack = packs.find((p) => p.id === selectedPackId);
 
@@ -111,6 +128,7 @@ export default function PriceSimulator() {
     setLeadError("");
     try {
       const payload = {
+        sessionId: getConversionSessionId(),
         contactName: lead.contactName.trim(),
         email: lead.email.trim(),
         company: lead.company.trim(),
@@ -453,7 +471,10 @@ export default function PriceSimulator() {
                 {!showLead && !leadSent && (
                   <button
                     className="btn btn-blue"
-                    onClick={() => setShowLead(true)}
+                    onClick={() => {
+                      trackConversion("CTA_CLICKED", { cta: "simulator-lead" });
+                      setShowLead(true);
+                    }}
                   >
                     Aller plus loin — recevoir un devis →
                   </button>

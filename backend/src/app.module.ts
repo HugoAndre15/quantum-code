@@ -16,16 +16,18 @@ import { SimulatorModule } from './simulator/simulator.module';
 import { StripeModule } from './stripe/stripe.module';
 import { LeadsModule } from './crm/leads/leads.module';
 import { ProjectsModule } from './crm/projects/projects.module';
-
+import { SettingsModule } from './settings/settings.module';
+import { ConversionModule } from './conversion/conversion.module';
+import { SalesModule } from './sales/sales.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot({
       throttlers: [
-        { name: 'short', ttl: 1000, limit: 3 },   // 3 req/sec
+        { name: 'short', ttl: 1000, limit: 3 }, // 3 req/sec
         { name: 'medium', ttl: 10000, limit: 20 }, // 20 req/10sec
-        { name: 'long', ttl: 60000, limit: 100 },  // 100 req/min
+        { name: 'long', ttl: 60000, limit: 100 }, // 100 req/min
       ],
     }),
     PrismaModule,
@@ -42,8 +44,11 @@ import { ProjectsModule } from './crm/projects/projects.module';
     StripeModule,
     LeadsModule,
     ProjectsModule,
+    SettingsModule,
+    ConversionModule,
+    SalesModule,
   ],
-providers: [
+  providers: [
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,

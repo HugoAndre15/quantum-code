@@ -2,6 +2,10 @@ import { IsString, IsEmail, IsOptional, IsNotEmpty } from 'class-validator';
 
 export class ContactDto {
   @IsString()
+  @IsOptional()
+  sessionId?: string;
+
+  @IsString()
   @IsNotEmpty()
   name: string;
 
