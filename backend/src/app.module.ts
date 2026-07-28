@@ -19,6 +19,8 @@ import { ProjectsModule } from './crm/projects/projects.module';
 import { SettingsModule } from './settings/settings.module';
 import { ConversionModule } from './conversion/conversion.module';
 import { SalesModule } from './sales/sales.module';
+import { CommercialModule } from './crm/commercial/commercial.module';
+import { WorkflowModule } from './crm/workflow/workflow.module';
 
 @Module({
   imports: [
@@ -47,6 +49,8 @@ import { SalesModule } from './sales/sales.module';
     SettingsModule,
     ConversionModule,
     SalesModule,
+    CommercialModule,
+    WorkflowModule,
   ],
   providers: [
     {

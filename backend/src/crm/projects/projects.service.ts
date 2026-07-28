@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateProjectDto, UpdateProjectDto } from './dto/project.dto';
+import { ActivityType } from '@prisma/client';
 
 @Injectable()
 export class ProjectsService {
@@ -40,7 +41,7 @@ export class ProjectsService {
       where: { id },
       include: {
         client: true,
-        devis: { include: { items: true, facture: true } },
+        devis: { include: { items: true, factures: true } },
       },
     });
     if (!project) throw new NotFoundException('Projet introuvable');
@@ -66,13 +67,25 @@ export class ProjectsService {
   async update(id: string, dto: UpdateProjectDto) {
     const project = await this.prisma.clientProject.findUnique({ where: { id } });
     if (!project) throw new NotFoundException('Projet introuvable');
-    return this.prisma.clientProject.update({
+    const updated = await this.prisma.clientProject.update({
       where: { id },
       data: dto,
       include: {
         client: { select: { id: true, company: true, contactName: true } },
       },
     });
+    if (dto.status && dto.status !== project.status) {
+      await this.prisma.crmActivity.create({
+        data: {
+          type: ActivityType.STATUT,
+          title: `Projet : ${project.status} → ${dto.status}`,
+          clientId: project.clientId,
+          devisId: project.devisId,
+          projectId: project.id,
+        },
+      });
+    }
+    return updated;
   }
 
   async remove(id: string) {

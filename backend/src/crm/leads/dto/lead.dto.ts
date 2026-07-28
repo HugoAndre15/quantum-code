@@ -8,6 +8,9 @@ import {
   Min,
 } from 'class-validator';
 import { LeadSource, LeadStatus } from '@prisma/client';
+import { ConvertLeadDto } from '../../commercial/dto/commercial.dto';
+
+export { ConvertLeadDto };
 
 export class CreateLeadDto {
   @IsString()

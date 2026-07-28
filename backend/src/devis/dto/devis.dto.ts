@@ -51,6 +51,10 @@ export class CreateDevisDto {
   clientId: string;
 
   @IsOptional()
+  @IsString()
+  sourceLeadId?: string;
+
+  @IsOptional()
   @IsDateString()
   validUntil?: string;
 

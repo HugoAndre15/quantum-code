@@ -1,7 +1,13 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateFactureDto } from './dto/facture.dto';
-import { PaymentStatus, PaymentType } from '@prisma/client';
+import {
+  ActivityType,
+  PaymentStatus,
+  PaymentType,
+  TaskStatus,
+  TaskType,
+} from '@prisma/client';
 
 @Injectable()
 export class FacturesService {
@@ -49,7 +55,7 @@ export class FacturesService {
       });
     }
 
-    return this.prisma.facture.update({
+    const updated = await this.prisma.facture.update({
       where: { id },
       data,
       include: {
@@ -57,6 +63,57 @@ export class FacturesService {
         devis: { include: { items: true } },
       },
     });
+    if (dto.status && dto.status !== facture.status) {
+      await this.prisma.crmActivity.create({
+        data: {
+          type:
+            dto.status === 'PAYEE'
+              ? ActivityType.PAIEMENT
+              : ActivityType.STATUT,
+          title:
+            dto.status === 'PAYEE'
+              ? `Facture ${facture.number} marquée comme payée`
+              : `Facture ${facture.number} : ${facture.status} → ${dto.status}`,
+          clientId: facture.clientId,
+          devisId: facture.devisId,
+          factureId: facture.id,
+        },
+      });
+      if (dto.status === 'ENVOYEE') {
+        const existingTask = await this.prisma.crmTask.findFirst({
+          where: {
+            factureId: facture.id,
+            type: TaskType.PAIEMENT,
+            status: TaskStatus.A_FAIRE,
+          },
+        });
+        if (!existingTask) {
+          const dueAt = new Date();
+          dueAt.setDate(dueAt.getDate() + 7);
+          await this.prisma.crmTask.create({
+            data: {
+              title: `Vérifier le paiement de ${facture.number}`,
+              type: TaskType.PAIEMENT,
+              dueAt,
+              clientId: facture.clientId,
+              devisId: facture.devisId,
+              factureId: facture.id,
+            },
+          });
+        }
+      }
+      if (dto.status === 'PAYEE') {
+        await this.prisma.crmTask.updateMany({
+          where: {
+            factureId: facture.id,
+            type: TaskType.PAIEMENT,
+            status: TaskStatus.A_FAIRE,
+          },
+          data: { status: TaskStatus.TERMINEE, completedAt: new Date() },
+        });
+      }
+    }
+    return updated;
   }
 
   async remove(id: string) {

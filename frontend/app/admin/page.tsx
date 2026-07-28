@@ -38,6 +38,26 @@ interface Stats {
     byStatus: Record<string, { count: number; total: number }>;
     recent: Array<{ id: string; number: string; totalHT: number; status: string; client?: { company: string } }>;
   };
+  tasks: {
+    overdue: DashboardTask[];
+    today: DashboardTask[];
+  };
+  commercialAlerts: {
+    quoteFollowUps: Array<{ id: string; number: string; updatedAt: string; client: { company: string } }>;
+    expiringQuotes: Array<{ id: string; number: string; validUntil: string; client: { company: string } }>;
+    unpaidInvoices: Array<{ id: string; number: string; remaining: number; client: { company: string } }>;
+  };
+}
+
+interface DashboardTask {
+  id: string;
+  title: string;
+  dueAt: string;
+  priority: string;
+  client?: { id: string; company: string };
+  devis?: { id: string; number: string };
+  project?: { id: string; name: string };
+  facture?: { id: string; number: string };
 }
 
 export default function DashboardPage() {
@@ -54,6 +74,14 @@ export default function DashboardPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  async function completeTask(id: string) {
+    const response = await apiFetch(`${API}/crm/tasks/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "TERMINEE" }),
+    });
+    if (response.ok) await load();
+  }
+
   const card: React.CSSProperties = {
     background: "var(--black-2)",
     border: "1px solid var(--border)",
@@ -64,7 +92,7 @@ export default function DashboardPage() {
   if (loading) return <div style={{ padding: 60, textAlign: "center", color: "var(--grey-3)" }}>Chargement...</div>;
   if (!stats) return <div style={{ padding: 60, textAlign: "center", color: "var(--grey-3)" }}>Erreur de chargement</div>;
 
-  const { clients, devis, factures } = stats;
+  const { clients, devis, factures, tasks, commercialAlerts } = stats;
   const devisEnAttente = devis.byStatus?.ENVOYE?.count || 0;
   const devisAcceptes = devis.byStatus?.ACCEPTE?.count || 0;
   const facturesEnvoyees = factures.byStatus?.ENVOYEE?.count || 0;
@@ -91,6 +119,49 @@ export default function DashboardPage() {
           color={tauxConversion >= 50 ? "var(--green)" : "var(--gold)"}
           sub={`${devisAcceptes}/${devis.total} devis`}
         />
+      </div>
+
+      {/* Daily commercial actions */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.15fr .85fr", gap: 20, marginBottom: 28 }}>
+        <div style={card}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--white)" }}>À faire aujourd&apos;hui</div>
+              <div style={{ fontSize: 11, color: tasks.overdue.length ? "#ff6b6b" : "var(--grey-3)", marginTop: 3 }}>
+                {tasks.overdue.length ? `${tasks.overdue.length} tâche${tasks.overdue.length > 1 ? "s" : ""} en retard` : "Aucun retard"}
+              </div>
+            </div>
+            <button onClick={() => router.push("/admin/crm/tasks")} style={linkButton}>Toutes les tâches →</button>
+          </div>
+          {[...tasks.overdue, ...tasks.today].length === 0 ? (
+            <div style={{ padding: "20px 0", color: "var(--grey-3)", fontSize: 12 }}>Rien d&apos;urgent : la journée est à jour.</div>
+          ) : [...tasks.overdue, ...tasks.today].map((task) => {
+            const overdue = tasks.overdue.some((item) => item.id === task.id);
+            return (
+              <div key={task.id} style={{ display: "grid", gridTemplateColumns: "26px 1fr auto", gap: 9, alignItems: "center", padding: "9px 0", borderBottom: "1px solid var(--border)" }}>
+                <button onClick={() => completeTask(task.id)} style={taskCheck}>✓</button>
+                <button onClick={() => task.devis ? router.push(`/admin/sales/quotes/${task.devis.id}`) : task.project ? router.push(`/admin/crm/projects/${task.project.id}`) : task.facture ? router.push(`/admin/sales/invoices/${task.facture.id}`) : task.client && router.push(`/admin/crm/clients/${task.client.id}`)} style={{ background: "none", border: 0, padding: 0, textAlign: "left", cursor: "pointer" }}>
+                  <div style={{ fontSize: 12, color: "var(--white)", fontWeight: 600 }}>{task.title}</div>
+                  <div style={{ fontSize: 10, color: "var(--grey-3)", marginTop: 2 }}>{task.client?.company || task.project?.name || task.devis?.number || "Action CRM"}</div>
+                </button>
+                <span style={{ fontSize: 10, fontWeight: 650, color: overdue ? "#ff6b6b" : "var(--grey-3)" }}>{overdue ? "En retard" : "Aujourd’hui"}</span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={card}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--white)", marginBottom: 14 }}>Points d&apos;attention</div>
+          <AlertRow label="Devis à relancer" count={commercialAlerts.quoteFollowUps.length} color="var(--blue)" onClick={() => router.push("/admin/sales/quotes")} />
+          <AlertRow label="Devis expirant sous 7 jours" count={commercialAlerts.expiringQuotes.length} color="var(--gold)" onClick={() => router.push("/admin/sales/quotes")} />
+          <AlertRow label="Factures impayées" count={commercialAlerts.unpaidInvoices.length} color="#ff6b6b" onClick={() => router.push("/admin/sales/invoices")} />
+          {commercialAlerts.unpaidInvoices.length > 0 && (
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+              <span style={{ color: "var(--grey-3)" }}>Solde restant</span>
+              <span style={{ color: "var(--gold)", fontWeight: 700 }}>{commercialAlerts.unpaidInvoices.reduce((sum, invoice) => sum + invoice.remaining, 0).toFixed(0)} €</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Status breakdown */}
@@ -211,3 +282,31 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+function AlertRow({ label, count, color, onClick }: { label: string; count: number; color: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", background: "none", border: 0, borderBottom: "1px solid var(--border)", color: "var(--grey-2)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+      <span style={{ fontSize: 12 }}>{label}</span>
+      <span style={{ minWidth: 26, padding: "3px 8px", borderRadius: 20, background: `${color}18`, color, fontSize: 11, fontWeight: 700 }}>{count}</span>
+    </button>
+  );
+}
+
+const linkButton: React.CSSProperties = {
+  background: "none",
+  border: 0,
+  color: "var(--blue)",
+  cursor: "pointer",
+  fontFamily: "var(--font-sans)",
+  fontSize: 11,
+};
+
+const taskCheck: React.CSSProperties = {
+  width: 23,
+  height: 23,
+  borderRadius: "50%",
+  border: "1px solid var(--border-2)",
+  background: "var(--black-3)",
+  color: "var(--green)",
+  cursor: "pointer",
+};

@@ -14,6 +14,7 @@ interface Invoice {
   id: string;
   number: string;
   status: InvoiceStatus;
+  type: "ACOMPTE" | "SOLDE" | "COMPLETE";
   paymentStatus?: PaymentStatus;
   totalHT: number;
   paidAmount?: number;
@@ -94,16 +95,17 @@ export default function InvoicesPage() {
         <Empty>Aucune facture</Empty>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "110px 1fr 100px 120px 80px 80px 80px", gap: 12, padding: "6px 16px", fontSize: 11, color: "var(--grey-3)", fontWeight: 600, letterSpacing: ".05em", textTransform: "uppercase" }}>
-            <span>Numéro</span><span>Client</span><span>Statut</span><span>Paiement</span><span>Total HT</span><span>Payé</span><span style={{ textAlign: "right" }}>Actions</span>
+          <div style={{ display: "grid", gridTemplateColumns: "110px 1fr 90px 100px 120px 80px 80px 80px", gap: 12, padding: "6px 16px", fontSize: 11, color: "var(--grey-3)", fontWeight: 600, letterSpacing: ".05em", textTransform: "uppercase" }}>
+            <span>Numéro</span><span>Client</span><span>Type</span><span>Statut</span><span>Paiement</span><span>Total HT</span><span>Payé</span><span style={{ textAlign: "right" }}>Actions</span>
           </div>
           {filtered.map((inv) => (
-            <div key={inv.id} style={{ display: "grid", gridTemplateColumns: "110px 1fr 100px 120px 80px 80px 80px", gap: 12, padding: "12px 16px", background: "var(--black-2)", border: "1px solid var(--border)", borderRadius: 8, alignItems: "center" }}>
+            <div key={inv.id} style={{ display: "grid", gridTemplateColumns: "110px 1fr 90px 100px 120px 80px 80px 80px", gap: 12, padding: "12px 16px", background: "var(--black-2)", border: "1px solid var(--border)", borderRadius: 8, alignItems: "center" }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: "var(--white)", fontFamily: "var(--font-mono)" }}>{inv.number}</span>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "var(--white)" }}>{inv.client?.company || "—"}</div>
                 <div style={{ fontSize: 11, color: "var(--grey-3)" }}>{inv.devis?.number && `Devis ${inv.devis.number}`}</div>
               </div>
+              <span style={{ fontSize: 11, color: "var(--grey-2)" }}>{inv.type === "ACOMPTE" ? "Acompte" : inv.type === "SOLDE" ? "Solde" : "Complète"}</span>
               <Badge color={STATUS_COLORS[inv.status]}>{STATUS_LABELS[inv.status]}</Badge>
               {inv.paymentStatus ? (
                 <Badge color={PAYMENT_COLORS[inv.paymentStatus]}>{PAYMENT_LABELS[inv.paymentStatus]}</Badge>

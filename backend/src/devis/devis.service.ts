@@ -2,6 +2,12 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDevisDto, UpdateDevisDto } from './dto/devis.dto';
 import { randomUUID } from 'crypto';
+import {
+  ActivityType,
+  FactureType,
+  TaskStatus,
+  TaskType,
+} from '@prisma/client';
 
 @Injectable()
 export class DevisService {
@@ -22,7 +28,16 @@ export class DevisService {
       include: {
         client: { select: { id: true, company: true, contactName: true, email: true } },
         items: true,
-        facture: { select: { id: true, number: true, status: true } },
+        factures: {
+          select: {
+            id: true,
+            number: true,
+            status: true,
+            type: true,
+            totalHT: true,
+          },
+          orderBy: { createdAt: 'asc' },
+        },
         promoCode: { select: { id: true, code: true, discountType: true, discountValue: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -35,7 +50,12 @@ export class DevisService {
       include: {
         client: true,
         items: { include: { pack: true, serviceOption: true } },
-        facture: true,
+        factures: { orderBy: { createdAt: 'asc' } },
+        project: true,
+        tasks: {
+          where: { status: TaskStatus.A_FAIRE },
+          orderBy: { dueAt: 'asc' },
+        },
         promoCode: true,
       },
     });
@@ -209,10 +229,11 @@ export class DevisService {
       }
     }
 
-    return this.prisma.devis.create({
+    const quote = await this.prisma.devis.create({
       data: {
         number,
         clientId: dto.clientId,
+        sourceLeadId: dto.sourceLeadId,
         validUntil: dto.validUntil ? new Date(dto.validUntil) : null,
         notes: dto.notes,
         totalHT,
@@ -238,6 +259,18 @@ export class DevisService {
         items: true,
       },
     });
+
+    await this.prisma.crmActivity.create({
+      data: {
+        type: ActivityType.DEVIS,
+        title: `Devis ${quote.number} créé`,
+        clientId: quote.clientId,
+        devisId: quote.id,
+        leadId: dto.sourceLeadId,
+      },
+    });
+
+    return quote;
   }
 
   async update(id: string, dto: UpdateDevisDto) {
@@ -264,10 +297,14 @@ export class DevisService {
       // Delete existing items and recreate
       await this.prisma.devisItem.deleteMany({ where: { devisId: id } });
 
-      return this.prisma.devis.update({
+      const updated = await this.prisma.devis.update({
         where: { id },
         data: {
           status: dto.status as any,
+          acceptedAt:
+            dto.status === 'ACCEPTE' && devis.status !== 'ACCEPTE'
+              ? new Date()
+              : undefined,
           validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,
           notes: dto.notes,
           totalHT,
@@ -288,23 +325,38 @@ export class DevisService {
         },
         include: { client: true, items: true },
       });
+      if (dto.status && dto.status !== devis.status) {
+        await this.recordStatusChange(updated, devis.status);
+      }
+      return updated;
     }
 
-    return this.prisma.devis.update({
+    const updated = await this.prisma.devis.update({
       where: { id },
       data: {
         status: dto.status as any,
+        acceptedAt:
+          dto.status === 'ACCEPTE' && devis.status !== 'ACCEPTE'
+            ? new Date()
+            : undefined,
         validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,
         notes: dto.notes,
       },
       include: { client: true, items: true },
     });
+    if (dto.status && dto.status !== devis.status) {
+      await this.recordStatusChange(updated, devis.status);
+    }
+    return updated;
   }
 
   async remove(id: string) {
-    const devis = await this.prisma.devis.findUnique({ where: { id }, include: { facture: true } });
+    const devis = await this.prisma.devis.findUnique({
+      where: { id },
+      include: { factures: true },
+    });
     if (!devis) throw new NotFoundException('Devis introuvable');
-    if (devis.facture) {
+    if (devis.factures.length) {
       throw new BadRequestException('Impossible de supprimer un devis lié à une facture');
     }
     await this.prisma.devis.delete({ where: { id } });
@@ -314,12 +366,23 @@ export class DevisService {
   async transformToFacture(id: string) {
     const devis = await this.prisma.devis.findUnique({
       where: { id },
-      include: { facture: true, items: true },
+      include: { factures: true, items: true },
     });
     if (!devis) throw new NotFoundException('Devis introuvable');
-    if (devis.facture) throw new BadRequestException('Ce devis a déjà une facture');
     if (devis.status !== 'ACCEPTE') {
       throw new BadRequestException('Seuls les devis acceptés peuvent être transformés en facture');
+    }
+
+    const deposit = devis.factures.find(
+      (invoice) => invoice.type === FactureType.ACOMPTE,
+    );
+    const existingFinal = devis.factures.find(
+      (invoice) =>
+        invoice.type === FactureType.SOLDE ||
+        invoice.type === FactureType.COMPLETE,
+    );
+    if (existingFinal) {
+      throw new BadRequestException('La facture finale existe déjà');
     }
 
     const year = new Date().getFullYear();
@@ -328,12 +391,21 @@ export class DevisService {
     });
     const factureNumber = `FAC-${year}-${String(count + 1).padStart(3, '0')}`;
 
+    const totalHT = deposit
+      ? Math.max(0, Math.round((devis.totalHT - deposit.totalHT) * 100) / 100)
+      : devis.totalHT;
+    const type = deposit ? FactureType.SOLDE : FactureType.COMPLETE;
+
     const facture = await this.prisma.facture.create({
       data: {
         number: factureNumber,
         devisId: devis.id,
         clientId: devis.clientId,
-        totalHT: devis.totalHT,
+        type,
+        percentage: deposit
+          ? Math.max(0, 100 - (deposit.percentage || 0))
+          : 100,
+        totalHT,
       },
       include: {
         devis: { include: { items: true } },
@@ -341,7 +413,19 @@ export class DevisService {
       },
     });
 
-    // Update devis status to FACTURE in client
+    await this.prisma.crmActivity.create({
+      data: {
+        type: ActivityType.FACTURE,
+        title:
+          type === FactureType.SOLDE
+            ? `Facture de solde ${facture.number} créée`
+            : `Facture ${facture.number} créée`,
+        clientId: devis.clientId,
+        devisId: devis.id,
+        factureId: facture.id,
+      },
+    });
+
     await this.prisma.client.update({
       where: { id: devis.clientId },
       data: { status: 'FACTURE' },
@@ -392,7 +476,7 @@ export class DevisService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
-    return this.prisma.devis.update({
+    const updated = await this.prisma.devis.update({
       where: { id },
       data: {
         acceptToken: token,
@@ -401,17 +485,20 @@ export class DevisService {
       },
       include: { client: true, items: true },
     });
+    if (devis.status !== 'ENVOYE') {
+      await this.recordStatusChange(updated, devis.status);
+    }
+    return updated;
   }
 
   /**
    * Accepte un devis via token public (lien reçu par email).
-   * Crée automatiquement un ClientProject lié au devis.
-   * Met à jour le statut du client et du lead associé.
+   * La finalisation reste volontairement confirmée dans l'administration.
    */
   async acceptByToken(token: string) {
     const devis = await this.prisma.devis.findUnique({
       where: { acceptToken: token },
-      include: { client: { include: { lead: true } }, project: true },
+      include: { client: true, project: true },
     });
 
     if (!devis) throw new NotFoundException('Lien invalide ou expiré');
@@ -429,47 +516,143 @@ export class DevisService {
       throw new BadRequestException('Ce lien a expiré. Contactez-nous pour un nouveau devis.');
     }
 
-    // 1) Accepte le devis
-    const updatedDevis = await this.prisma.devis.update({
-      where: { id: devis.id },
-      data: {
-        status: 'ACCEPTE',
-        acceptedAt: new Date(),
-        acceptToken: null,
-        acceptTokenExpiresAt: null,
-      },
-    });
-
-    // 2) Crée le projet client
-    const project = await this.prisma.clientProject.create({
-      data: {
-        clientId: devis.clientId,
-        devisId: devis.id,
-        name: `Projet ${devis.client.company}`,
-        status: 'EN_ATTENTE',
-      },
-    });
-
-    // 3) Met à jour le statut du client
-    await this.prisma.client.update({
-      where: { id: devis.clientId },
-      data: { status: 'EN_COURS' },
-    });
-
-    // 4) Marque le lead comme CONVERTI si existant et pas déjà converti
-    if (devis.client.lead && devis.client.lead.status !== 'CONVERTI') {
-      await this.prisma.lead.update({
-        where: { id: devis.client.lead.id },
-        data: { status: 'CONVERTI' },
+    const updatedDevis = await this.prisma.$transaction(async (tx) => {
+      const accepted = await tx.devis.update({
+        where: { id: devis.id },
+        data: {
+          status: 'ACCEPTE',
+          acceptedAt: new Date(),
+          acceptToken: null,
+          acceptTokenExpiresAt: null,
+        },
       });
-    }
+
+      await tx.crmTask.updateMany({
+        where: {
+          devisId: devis.id,
+          type: TaskType.RELANCE_DEVIS,
+          status: TaskStatus.A_FAIRE,
+        },
+        data: { status: TaskStatus.TERMINEE, completedAt: new Date() },
+      });
+
+      const finalizeTask = await tx.crmTask.findFirst({
+        where: {
+          devisId: devis.id,
+          status: TaskStatus.A_FAIRE,
+          title: { startsWith: 'Finaliser le devis' },
+        },
+      });
+      if (!finalizeTask) {
+        await tx.crmTask.create({
+          data: {
+            title: `Finaliser le devis ${devis.number}`,
+            description:
+              "Créer le projet et la facture d'acompte après vérification.",
+            type: TaskType.AUTRE,
+            priority: 'HAUTE',
+            dueAt: new Date(),
+            clientId: devis.clientId,
+            devisId: devis.id,
+            leadId: devis.sourceLeadId,
+          },
+        });
+      }
+
+      await tx.crmActivity.create({
+        data: {
+          type: ActivityType.DEVIS,
+          title: `Devis ${devis.number} accepté par le client`,
+          clientId: devis.clientId,
+          devisId: devis.id,
+          leadId: devis.sourceLeadId,
+        },
+      });
+
+      return accepted;
+    });
 
     return {
       message: 'Devis accepté avec succès',
       devisId: updatedDevis.id,
-      projectId: project.id,
       clientId: devis.clientId,
+      requiresFinalization: true,
     };
   }
-}
 
+  private async recordStatusChange(
+    devis: { id: string; number: string; clientId: string; status: string },
+    previousStatus: string,
+  ) {
+    await this.prisma.crmActivity.create({
+      data: {
+        type: ActivityType.STATUT,
+        title: `Devis ${devis.number} : ${previousStatus} → ${devis.status}`,
+        clientId: devis.clientId,
+        devisId: devis.id,
+      },
+    });
+
+    if (devis.status === 'ENVOYE') {
+      const dueAt = new Date();
+      dueAt.setDate(dueAt.getDate() + 4);
+      const existing = await this.prisma.crmTask.findFirst({
+        where: {
+          devisId: devis.id,
+          type: TaskType.RELANCE_DEVIS,
+          status: TaskStatus.A_FAIRE,
+        },
+      });
+      if (!existing) {
+        await this.prisma.crmTask.create({
+          data: {
+            title: `Relancer le devis ${devis.number}`,
+            type: TaskType.RELANCE_DEVIS,
+            dueAt,
+            clientId: devis.clientId,
+            devisId: devis.id,
+          },
+        });
+      }
+    }
+
+    if (
+      devis.status === 'ACCEPTE' ||
+      devis.status === 'REFUSE' ||
+      devis.status === 'EXPIRE'
+    ) {
+      await this.prisma.crmTask.updateMany({
+        where: {
+          devisId: devis.id,
+          type: TaskType.RELANCE_DEVIS,
+          status: TaskStatus.A_FAIRE,
+        },
+        data: { status: TaskStatus.TERMINEE, completedAt: new Date() },
+      });
+    }
+
+    if (devis.status === 'ACCEPTE') {
+      const finalizeTask = await this.prisma.crmTask.findFirst({
+        where: {
+          devisId: devis.id,
+          status: TaskStatus.A_FAIRE,
+          title: { startsWith: 'Finaliser le devis' },
+        },
+      });
+      if (!finalizeTask) {
+        await this.prisma.crmTask.create({
+          data: {
+            title: `Finaliser le devis ${devis.number}`,
+            description:
+              "Créer le projet et la facture d'acompte après vérification.",
+            type: TaskType.AUTRE,
+            priority: 'HAUTE',
+            dueAt: new Date(),
+            clientId: devis.clientId,
+            devisId: devis.id,
+          },
+        });
+      }
+    }
+  }
+}

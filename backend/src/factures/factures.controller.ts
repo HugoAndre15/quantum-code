@@ -56,7 +56,22 @@ export class FacturesController {
   @Get(':id/pdf')
   async downloadPdf(@Param('id') id: string, @Res() res: Response) {
     const facture = await this.facturesService.findOne(id);
-    const items = facture.devis?.items || [];
+    const items =
+      facture.type === 'COMPLETE'
+        ? facture.devis?.items || []
+        : [
+            {
+              label:
+                facture.type === 'ACOMPTE'
+                  ? `Acompte de ${facture.percentage || 0}%`
+                  : 'Solde du projet',
+              description: `Selon devis ${facture.devis.number}`,
+              quantity: 1,
+              unitPrice: facture.totalHT,
+              recurring: false,
+              recurringUnit: null,
+            },
+          ];
 
     const pdf = await this.pdfService.generate({
       type: 'facture',
@@ -74,8 +89,14 @@ export class FacturesController {
       totalHT: facture.totalHT,
       notes: facture.notes,
       paidAt: facture.paidAt,
-      discountAmount: facture.devis?.discountAmount,
-      promoCode: facture.devis?.promoCode?.code,
+      discountAmount:
+        facture.type === 'COMPLETE'
+          ? facture.devis?.discountAmount
+          : undefined,
+      promoCode:
+        facture.type === 'COMPLETE'
+          ? facture.devis?.promoCode?.code
+          : undefined,
     });
 
     res.set({
@@ -89,7 +110,22 @@ export class FacturesController {
   @Post(':id/send-email')
   async sendByEmail(@Param('id') id: string) {
     const facture = await this.facturesService.findOne(id);
-    const items = facture.devis?.items || [];
+    const items =
+      facture.type === 'COMPLETE'
+        ? facture.devis?.items || []
+        : [
+            {
+              label:
+                facture.type === 'ACOMPTE'
+                  ? `Acompte de ${facture.percentage || 0}%`
+                  : 'Solde du projet',
+              description: `Selon devis ${facture.devis.number}`,
+              quantity: 1,
+              unitPrice: facture.totalHT,
+              recurring: false,
+              recurringUnit: null,
+            },
+          ];
 
     if (!facture.client.email) {
       throw new BadRequestException('Le client n\'a pas d\'adresse email');
@@ -111,8 +147,14 @@ export class FacturesController {
       totalHT: facture.totalHT,
       notes: facture.notes,
       paidAt: facture.paidAt,
-      discountAmount: facture.devis?.discountAmount,
-      promoCode: facture.devis?.promoCode?.code,
+      discountAmount:
+        facture.type === 'COMPLETE'
+          ? facture.devis?.discountAmount
+          : undefined,
+      promoCode:
+        facture.type === 'COMPLETE'
+          ? facture.devis?.promoCode?.code
+          : undefined,
     });
 
     const html = this.mailService.buildFactureEmail({

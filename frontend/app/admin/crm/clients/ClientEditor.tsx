@@ -11,6 +11,7 @@ import {
   PageHeader,
   inputStyle,
 } from "@/app/admin/components/SharedUI";
+import CommercialPanel from "@/app/admin/components/CommercialPanel";
 
 const API = "/api";
 
@@ -218,6 +219,8 @@ export default function ClientEditor({ clientId }: { clientId?: string }) {
           </Card>
         </div>
       )}
+
+      {clientId && <CommercialPanel context={{ clientId }} />}
 
       {clientId && (
         <button onClick={remove} style={{ marginTop: 20, padding: "9px 14px", border: "1px solid rgba(255,107,107,.35)", background: "rgba(255,107,107,.08)", color: "#ff6b6b", borderRadius: 6, cursor: "pointer" }}>
