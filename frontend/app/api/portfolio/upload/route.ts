@@ -32,7 +32,9 @@ async function isAdmin(request: NextRequest) {
 }
 
 function hasBlobConfig() {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  return Boolean(
+    process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN,
+  );
 }
 
 function isManagedBlobUrl(value: string) {
