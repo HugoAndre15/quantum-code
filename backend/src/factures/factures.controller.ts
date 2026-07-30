@@ -78,7 +78,7 @@ export class FacturesController {
       number: facture.number,
       date: facture.createdAt,
       client: facture.client,
-      items: items.map(i => ({
+      items: items.map((i) => ({
         label: i.label,
         description: i.description,
         quantity: i.quantity,
@@ -90,9 +90,7 @@ export class FacturesController {
       notes: facture.notes,
       paidAt: facture.paidAt,
       discountAmount:
-        facture.type === 'COMPLETE'
-          ? facture.devis?.discountAmount
-          : undefined,
+        facture.type === 'COMPLETE' ? facture.devis?.discountAmount : undefined,
       promoCode:
         facture.type === 'COMPLETE'
           ? facture.devis?.promoCode?.code
@@ -128,7 +126,7 @@ export class FacturesController {
           ];
 
     if (!facture.client.email) {
-      throw new BadRequestException('Le client n\'a pas d\'adresse email');
+      throw new BadRequestException("Le client n'a pas d'adresse email");
     }
 
     const pdf = await this.pdfService.generate({
@@ -136,7 +134,7 @@ export class FacturesController {
       number: facture.number,
       date: facture.createdAt,
       client: facture.client,
-      items: items.map(i => ({
+      items: items.map((i) => ({
         label: i.label,
         description: i.description,
         quantity: i.quantity,
@@ -148,9 +146,7 @@ export class FacturesController {
       notes: facture.notes,
       paidAt: facture.paidAt,
       discountAmount:
-        facture.type === 'COMPLETE'
-          ? facture.devis?.discountAmount
-          : undefined,
+        facture.type === 'COMPLETE' ? facture.devis?.discountAmount : undefined,
       promoCode:
         facture.type === 'COMPLETE'
           ? facture.devis?.promoCode?.code
@@ -159,13 +155,14 @@ export class FacturesController {
 
     const html = this.mailService.buildFactureEmail({
       number: facture.number,
+      contactName: facture.client.contactName,
       company: facture.client.company,
       total: facture.totalHT,
     });
 
     await this.mailService.sendDocument({
       to: facture.client.email,
-      subject: `Facture ${facture.number} — Quantum Code`,
+      subject: `${facture.client.contactName}, votre facture ${facture.number}`,
       html,
       pdf,
       filename: `${facture.number}.pdf`,

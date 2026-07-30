@@ -105,7 +105,7 @@ const STATUS_LABELS: Record<QuoteStatus, string> = {
 
 let itemSequence = 0;
 
-function createItem(kind: ItemKind): QuoteItem {
+function createItem(kind: ItemKind, recurring = false): QuoteItem {
   itemSequence += 1;
   return {
     key: `quote-item-${itemSequence}`,
@@ -115,8 +115,8 @@ function createItem(kind: ItemKind): QuoteItem {
     quantity: 1,
     unitPrice: 0,
     devTime: 0,
-    recurring: false,
-    recurringUnit: "",
+    recurring,
+    recurringUnit: recurring ? "mois" : "",
   };
 }
 
@@ -285,6 +285,12 @@ export default function QuoteEditor({ quoteId }: { quoteId?: string }) {
   const selectedCatalogValues = new Set(
     items.map(catalogValue).filter(Boolean),
   );
+  const oneTimeEntries = items
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => !item.recurring);
+  const subscriptionEntries = items
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => item.recurring);
 
   function updateItem(index: number, patch: Partial<QuoteItem>) {
     setItems((current) =>
@@ -294,9 +300,13 @@ export default function QuoteEditor({ quoteId }: { quoteId?: string }) {
     );
   }
 
-  function selectCatalogItem(index: number, value: string) {
+  function selectCatalogItem(
+    index: number,
+    value: string,
+    recurringSection = false,
+  ) {
     if (!value) {
-      const empty = createItem("catalog");
+      const empty = createItem("catalog", recurringSection);
       updateItem(index, { ...empty, key: items[index].key });
       return;
     }
@@ -338,7 +348,7 @@ export default function QuoteEditor({ quoteId }: { quoteId?: string }) {
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
-    if (!clientId || items.length === 0) {
+    if (!clientId || oneTimeEntries.length === 0) {
       setError("Choisissez un client et ajoutez au moins une prestation.");
       return;
     }
@@ -673,302 +683,55 @@ export default function QuoteEditor({ quoteId }: { quoteId?: string }) {
         </Card>
 
         <div style={{ marginTop: 18 }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 10,
-              flexWrap: "wrap",
-              marginBottom: 10,
-            }}
-          >
-            <div>
-              <h2 style={{ margin: 0, fontSize: 15, color: "var(--white)" }}>
-                Lignes du devis
-              </h2>
-              <div
-                style={{ marginTop: 4, fontSize: 11, color: "var(--grey-3)" }}
-              >
-                Les tarifs du catalogue sont verrouillés sur la grille active.
-              </div>
-            </div>
-            {!readOnly && (
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  style={actionButton}
-                  onClick={() =>
-                    setItems((current) => [...current, createItem("catalog")])
-                  }
-                >
-                  + Ajouter depuis le catalogue
-                </button>
-                <button
-                  type="button"
-                  style={actionButton}
-                  onClick={() =>
-                    setItems((current) => [...current, createItem("custom")])
-                  }
-                >
-                  + Ligne personnalisée
-                </button>
-              </div>
-            )}
-          </div>
+          <QuoteLinesSection
+            title="Prestations ponctuelles"
+            description="Packs et options facturés une seule fois. Les tarifs du catalogue restent verrouillés sur la grille active."
+            emptyLabel="Ajoutez un pack, une option ou une prestation personnalisée."
+            entries={oneTimeEntries}
+            readOnly={readOnly}
+            recurring={false}
+            packs={packs}
+            options={options}
+            selectedCatalogValues={selectedCatalogValues}
+            onAddCatalog={() =>
+              setItems((current) => [...current, createItem("catalog")])
+            }
+            onAddCustom={() =>
+              setItems((current) => [...current, createItem("custom")])
+            }
+            onSelectCatalog={selectCatalogItem}
+            onUpdate={updateItem}
+            onRemove={(key) =>
+              setItems((current) =>
+                current.filter((entry) => entry.key !== key),
+              )
+            }
+          />
 
-          <div style={{ overflowX: "auto" }}>
-            {items.map((item, index) => {
-              const value = catalogValue(item);
-              return (
-                <div
-                  key={item.key}
-                  style={{
-                    minWidth: 920,
-                    display: "grid",
-                    gridTemplateColumns:
-                      "minmax(190px,2fr) minmax(200px,2fr) 70px 105px 115px 95px 34px",
-                    gap: 8,
-                    padding: 10,
-                    marginBottom: 8,
-                    border: "1px solid var(--border)",
-                    borderRadius: 8,
-                    background: "var(--black-2)",
-                    alignItems: "center",
-                  }}
-                >
-                  {item.kind === "catalog" ? (
-                    <select
-                      disabled={readOnly}
-                      required
-                      style={inputStyle}
-                      value={value}
-                      onChange={(event) =>
-                        selectCatalogItem(index, event.target.value)
-                      }
-                    >
-                      <option value="">-- Pack ou option --</option>
-                      <optgroup label="Packs">
-                        {packs.map((pack) => {
-                          const optionValue = `pack:${pack.id}`;
-                          return (
-                            <option
-                              key={pack.id}
-                              value={optionValue}
-                              disabled={
-                                !pack.active ||
-                                (selectedCatalogValues.has(optionValue) &&
-                                  value !== optionValue)
-                              }
-                            >
-                              {pack.name} — {pack.price.toFixed(0)} €
-                            </option>
-                          );
-                        })}
-                      </optgroup>
-                      <optgroup label="Options">
-                        {options.map((option) => {
-                          const optionValue = `option:${option.id}`;
-                          const suffix = option.recurring
-                            ? `/${option.recurringUnit || "mois"}`
-                            : "";
-                          return (
-                            <option
-                              key={option.id}
-                              value={optionValue}
-                              disabled={
-                                !option.active ||
-                                (selectedCatalogValues.has(optionValue) &&
-                                  value !== optionValue)
-                              }
-                            >
-                              {option.name} — {option.price.toFixed(0)} €
-                              {suffix}
-                            </option>
-                          );
-                        })}
-                      </optgroup>
-                    </select>
-                  ) : (
-                    <input
-                      disabled={readOnly}
-                      required
-                      style={inputStyle}
-                      value={item.label}
-                      onChange={(event) =>
-                        updateItem(index, { label: event.target.value })
-                      }
-                      placeholder="Prestation personnalisée"
-                    />
-                  )}
-
-                  {item.kind === "catalog" ? (
-                    <div
-                      style={{
-                        padding: "0 6px",
-                        color: "var(--grey-3)",
-                        fontSize: 11,
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      {item.description || "Sélectionnez une prestation."}
-                    </div>
-                  ) : (
-                    <input
-                      disabled={readOnly}
-                      style={inputStyle}
-                      value={item.description}
-                      onChange={(event) =>
-                        updateItem(index, { description: event.target.value })
-                      }
-                      placeholder="Description"
-                    />
-                  )}
-
-                  <input
-                    aria-label={`Quantité ${index + 1}`}
-                    disabled={readOnly}
-                    type="number"
-                    min={1}
-                    step={1}
-                    style={inputStyle}
-                    value={item.quantity}
-                    onChange={(event) =>
-                      updateItem(index, {
-                        quantity: Math.max(1, Number(event.target.value)),
-                      })
-                    }
-                  />
-
-                  {item.kind === "catalog" ? (
-                    <div
-                      style={{
-                        padding: "8px 10px",
-                        color: "var(--white)",
-                        fontSize: 12,
-                        textAlign: "right",
-                      }}
-                    >
-                      {item.unitPrice.toFixed(2)} €
-                    </div>
-                  ) : (
-                    <input
-                      aria-label={`Prix unitaire ${index + 1}`}
-                      disabled={readOnly}
-                      type="number"
-                      min={0}
-                      step={0.01}
-                      style={inputStyle}
-                      value={item.unitPrice}
-                      onChange={(event) =>
-                        updateItem(index, {
-                          unitPrice: Math.max(0, Number(event.target.value)),
-                        })
-                      }
-                    />
-                  )}
-
-                  {item.kind === "catalog" ? (
-                    <div
-                      style={{
-                        color: item.recurring ? "var(--blue)" : "var(--grey-3)",
-                        fontSize: 11,
-                        textAlign: "center",
-                      }}
-                    >
-                      {item.recurring
-                        ? `Récurrent / ${item.recurringUnit || "mois"}`
-                        : "Ponctuel"}
-                    </div>
-                  ) : (
-                    <select
-                      aria-label={`Périodicité ${index + 1}`}
-                      disabled={readOnly}
-                      style={inputStyle}
-                      value={
-                        item.recurring
-                          ? item.recurringUnit || "mois"
-                          : "ponctuel"
-                      }
-                      onChange={(event) =>
-                        updateItem(
-                          index,
-                          event.target.value === "ponctuel"
-                            ? { recurring: false, recurringUnit: "" }
-                            : {
-                                recurring: true,
-                                recurringUnit: event.target.value,
-                              },
-                        )
-                      }
-                    >
-                      <option value="ponctuel">Ponctuel</option>
-                      <option value="mois">Mensuel</option>
-                      <option value="trimestre">Trimestriel</option>
-                      <option value="an">Annuel</option>
-                    </select>
-                  )}
-
-                  <div
-                    style={{
-                      textAlign: "right",
-                      fontSize: 13,
-                      fontWeight: 700,
-                      color: "var(--gold)",
-                    }}
-                  >
-                    {(item.quantity * item.unitPrice).toFixed(0)} €
-                    {item.recurring && (
-                      <span
-                        style={{
-                          display: "block",
-                          color: "var(--grey-3)",
-                          fontSize: 9,
-                        }}
-                      >
-                        / {item.recurringUnit || "mois"}
-                      </span>
-                    )}
-                  </div>
-
-                  <button
-                    aria-label={`Supprimer la ligne ${index + 1}`}
-                    disabled={readOnly}
-                    type="button"
-                    onClick={() =>
-                      setItems((current) =>
-                        current.filter((entry) => entry.key !== item.key),
-                      )
-                    }
-                    style={{
-                      background: "transparent",
-                      border: 0,
-                      color: "#ff6b6b",
-                      cursor: readOnly ? "not-allowed" : "pointer",
-                      fontSize: 18,
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
-          {items.length === 0 && (
-            <div
-              style={{
-                padding: 24,
-                border: "1px dashed var(--border-2)",
-                borderRadius: 8,
-                textAlign: "center",
-                color: "var(--grey-3)",
-                fontSize: 12,
-              }}
-            >
-              Ajoutez un pack, une option ou une ligne personnalisée.
-            </div>
-          )}
+          <QuoteLinesSection
+            title="Abonnements"
+            description="Maintenance, hébergement et autres services facturés selon leur propre périodicité."
+            emptyLabel="Aucun abonnement ajouté à ce devis."
+            entries={subscriptionEntries}
+            readOnly={readOnly}
+            recurring
+            packs={packs}
+            options={options}
+            selectedCatalogValues={selectedCatalogValues}
+            onAddCatalog={() =>
+              setItems((current) => [...current, createItem("catalog", true)])
+            }
+            onAddCustom={() =>
+              setItems((current) => [...current, createItem("custom", true)])
+            }
+            onSelectCatalog={selectCatalogItem}
+            onUpdate={updateItem}
+            onRemove={(key) =>
+              setItems((current) =>
+                current.filter((entry) => entry.key !== key),
+              )
+            }
+          />
 
           <div
             style={{
@@ -990,7 +753,7 @@ export default function QuoteEditor({ quoteId }: { quoteId?: string }) {
                 <>
                   <SummaryRow
                     label="Sous-total ponctuel"
-                    value={`${oneTimeSubtotal.toFixed(2)} € HT`}
+                    value={`${oneTimeSubtotal.toFixed(2)} €`}
                   />
                   <SummaryRow
                     label={`Promotion ${selectedPromotion?.code}`}
@@ -1000,15 +763,15 @@ export default function QuoteEditor({ quoteId }: { quoteId?: string }) {
                 </>
               )}
               <SummaryRow
-                label="Total ponctuel"
-                value={`${oneTimeTotal.toFixed(2)} € HT`}
+                label="Prix final ponctuel"
+                value={`${oneTimeTotal.toFixed(2)} €`}
                 strong
               />
               {recurringTotals.map(([unit, amount]) => (
                 <SummaryRow
                   key={unit}
                   label={`Abonnement / ${unit}`}
-                  value={`${amount.toFixed(2)} € HT`}
+                  value={`${amount.toFixed(2)} €`}
                   color="var(--blue)"
                 />
               ))}
@@ -1139,7 +902,7 @@ export default function QuoteEditor({ quoteId }: { quoteId?: string }) {
                   quote.totalHT *
                   (Number(depositPercentage || 0) / 100)
                 ).toFixed(2)}{" "}
-                € HT
+                €
               </strong>
             </div>
             <div
@@ -1173,6 +936,374 @@ export default function QuoteEditor({ quoteId }: { quoteId?: string }) {
         </Modal>
       )}
     </div>
+  );
+}
+
+function QuoteLinesSection({
+  title,
+  description,
+  emptyLabel,
+  entries,
+  readOnly,
+  recurring,
+  packs,
+  options,
+  selectedCatalogValues,
+  onAddCatalog,
+  onAddCustom,
+  onSelectCatalog,
+  onUpdate,
+  onRemove,
+}: {
+  title: string;
+  description: string;
+  emptyLabel: string;
+  entries: Array<{ item: QuoteItem; index: number }>;
+  readOnly: boolean;
+  recurring: boolean;
+  packs: Pack[];
+  options: ServiceOption[];
+  selectedCatalogValues: Set<string>;
+  onAddCatalog: () => void;
+  onAddCustom: () => void;
+  onSelectCatalog: (
+    index: number,
+    value: string,
+    recurringSection?: boolean,
+  ) => void;
+  onUpdate: (index: number, patch: Partial<QuoteItem>) => void;
+  onRemove: (key: string) => void;
+}) {
+  const catalogOptions = options.filter(
+    (option) => option.recurring === recurring,
+  );
+
+  return (
+    <section
+      style={{
+        marginBottom: recurring ? 0 : 20,
+        padding: 16,
+        border: `1px solid ${
+          recurring ? "rgba(45,111,255,.22)" : "var(--border)"
+        }`,
+        borderRadius: 10,
+        background: recurring
+          ? "linear-gradient(120deg, rgba(45,111,255,.055), transparent 45%)"
+          : "transparent",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 10,
+          flexWrap: "wrap",
+          marginBottom: 12,
+        }}
+      >
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <h2 style={{ margin: 0, fontSize: 15, color: "var(--white)" }}>
+              {title}
+            </h2>
+            {recurring && (
+              <span
+                style={{
+                  padding: "2px 7px",
+                  borderRadius: 999,
+                  color: "var(--blue)",
+                  background: "rgba(45,111,255,.1)",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                }}
+              >
+                À part
+              </span>
+            )}
+          </div>
+          <div
+            style={{
+              maxWidth: 660,
+              marginTop: 4,
+              color: "var(--grey-3)",
+              fontSize: 11,
+              lineHeight: 1.45,
+            }}
+          >
+            {description}
+          </div>
+        </div>
+        {!readOnly && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button type="button" style={actionButton} onClick={onAddCatalog}>
+              {recurring ? "+ Ajouter un abonnement" : "+ Ajouter du catalogue"}
+            </button>
+            <button type="button" style={actionButton} onClick={onAddCustom}>
+              {recurring
+                ? "+ Abonnement personnalisé"
+                : "+ Prestation personnalisée"}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {entries.length === 0 ? (
+        <div
+          style={{
+            padding: 22,
+            border: "1px dashed var(--border-2)",
+            borderRadius: 8,
+            color: "var(--grey-3)",
+            textAlign: "center",
+            fontSize: 11,
+          }}
+        >
+          {emptyLabel}
+        </div>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          {entries.map(({ item, index }) => {
+            const value = catalogValue(item);
+            return (
+              <div
+                key={item.key}
+                style={{
+                  minWidth: 920,
+                  display: "grid",
+                  gridTemplateColumns:
+                    "minmax(190px,2fr) minmax(200px,2fr) 70px 105px 115px 95px 34px",
+                  gap: 8,
+                  alignItems: "center",
+                  padding: 10,
+                  marginBottom: 8,
+                  border: `1px solid ${
+                    recurring ? "rgba(45,111,255,.18)" : "var(--border)"
+                  }`,
+                  borderRadius: 8,
+                  background: "var(--black-2)",
+                }}
+              >
+                {item.kind === "catalog" ? (
+                  <select
+                    disabled={readOnly}
+                    required
+                    style={inputStyle}
+                    value={value}
+                    onChange={(event) =>
+                      onSelectCatalog(index, event.target.value, recurring)
+                    }
+                  >
+                    <option value="">
+                      {recurring
+                        ? "-- Choisir un abonnement --"
+                        : "-- Choisir un pack ou une option --"}
+                    </option>
+                    {!recurring && (
+                      <optgroup label="Packs">
+                        {packs.map((pack) => {
+                          const optionValue = `pack:${pack.id}`;
+                          return (
+                            <option
+                              key={pack.id}
+                              value={optionValue}
+                              disabled={
+                                !pack.active ||
+                                (selectedCatalogValues.has(optionValue) &&
+                                  value !== optionValue)
+                              }
+                            >
+                              {pack.name} — {pack.price.toFixed(0)} €
+                            </option>
+                          );
+                        })}
+                      </optgroup>
+                    )}
+                    <optgroup
+                      label={recurring ? "Abonnements" : "Options ponctuelles"}
+                    >
+                      {catalogOptions.map((option) => {
+                        const optionValue = `option:${option.id}`;
+                        return (
+                          <option
+                            key={option.id}
+                            value={optionValue}
+                            disabled={
+                              !option.active ||
+                              (selectedCatalogValues.has(optionValue) &&
+                                value !== optionValue)
+                            }
+                          >
+                            {option.name} — {option.price.toFixed(0)} €
+                            {recurring
+                              ? `/${option.recurringUnit || "mois"}`
+                              : ""}
+                          </option>
+                        );
+                      })}
+                    </optgroup>
+                  </select>
+                ) : (
+                  <input
+                    disabled={readOnly}
+                    required
+                    style={inputStyle}
+                    value={item.label}
+                    onChange={(event) =>
+                      onUpdate(index, { label: event.target.value })
+                    }
+                    placeholder={
+                      recurring
+                        ? "Abonnement personnalisé"
+                        : "Prestation personnalisée"
+                    }
+                  />
+                )}
+
+                {item.kind === "catalog" ? (
+                  <div
+                    style={{
+                      padding: "0 6px",
+                      color: "var(--grey-3)",
+                      fontSize: 11,
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {item.description ||
+                      (recurring
+                        ? "Sélectionnez un abonnement."
+                        : "Sélectionnez une prestation.")}
+                  </div>
+                ) : (
+                  <input
+                    disabled={readOnly}
+                    style={inputStyle}
+                    value={item.description}
+                    onChange={(event) =>
+                      onUpdate(index, { description: event.target.value })
+                    }
+                    placeholder="Description"
+                  />
+                )}
+
+                <input
+                  aria-label={`Quantité ${index + 1}`}
+                  disabled={readOnly}
+                  type="number"
+                  min={1}
+                  step={1}
+                  style={inputStyle}
+                  value={item.quantity}
+                  onChange={(event) =>
+                    onUpdate(index, {
+                      quantity: Math.max(1, Number(event.target.value)),
+                    })
+                  }
+                />
+
+                {item.kind === "catalog" ? (
+                  <div
+                    style={{
+                      padding: "8px 10px",
+                      color: "var(--white)",
+                      fontSize: 12,
+                      textAlign: "right",
+                    }}
+                  >
+                    {item.unitPrice.toFixed(2)} €
+                  </div>
+                ) : (
+                  <input
+                    aria-label={`Prix unitaire ${index + 1}`}
+                    disabled={readOnly}
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    style={inputStyle}
+                    value={item.unitPrice}
+                    onChange={(event) =>
+                      onUpdate(index, {
+                        unitPrice: Math.max(0, Number(event.target.value)),
+                      })
+                    }
+                  />
+                )}
+
+                {recurring && item.kind === "custom" ? (
+                  <select
+                    aria-label={`Périodicité ${index + 1}`}
+                    disabled={readOnly}
+                    style={inputStyle}
+                    value={item.recurringUnit || "mois"}
+                    onChange={(event) =>
+                      onUpdate(index, {
+                        recurring: true,
+                        recurringUnit: event.target.value,
+                      })
+                    }
+                  >
+                    <option value="mois">Mensuel</option>
+                    <option value="trimestre">Trimestriel</option>
+                    <option value="an">Annuel</option>
+                  </select>
+                ) : (
+                  <div
+                    style={{
+                      color: recurring ? "var(--blue)" : "var(--grey-3)",
+                      fontSize: 11,
+                      textAlign: "center",
+                    }}
+                  >
+                    {recurring
+                      ? `/${item.recurringUnit || "mois"}`
+                      : "Ponctuel"}
+                  </div>
+                )}
+
+                <div
+                  style={{
+                    color: recurring ? "var(--blue)" : "var(--gold)",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    textAlign: "right",
+                  }}
+                >
+                  {(item.quantity * item.unitPrice).toFixed(0)} €
+                  {recurring && (
+                    <span
+                      style={{
+                        display: "block",
+                        color: "var(--grey-3)",
+                        fontSize: 9,
+                      }}
+                    >
+                      / {item.recurringUnit || "mois"}
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  aria-label={`Supprimer la ligne ${index + 1}`}
+                  disabled={readOnly}
+                  type="button"
+                  onClick={() => onRemove(item.key)}
+                  style={{
+                    border: 0,
+                    color: "#ff6b6b",
+                    background: "transparent",
+                    cursor: readOnly ? "not-allowed" : "pointer",
+                    fontSize: 18,
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 

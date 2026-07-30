@@ -233,4 +233,53 @@ describe('DevisService', () => {
       data: { currentUses: { decrement: 1 } },
     });
   });
+
+  it('keeps an accepted quote accessible through its acceptance link', async () => {
+    const prisma = {
+      devis: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'quote-accepted',
+          number: 'DEV-2026-042',
+          status: 'ACCEPTE',
+          createdAt: new Date('2026-07-30T08:00:00.000Z'),
+          validUntil: new Date('2026-08-29T08:00:00.000Z'),
+          acceptedAt: new Date('2026-07-31T08:00:00.000Z'),
+          acceptTokenExpiresAt: new Date('2026-07-30T09:00:00.000Z'),
+          totalHT: 890,
+          discountAmount: 0,
+          client: { company: 'Atelier', contactName: 'Camille Martin' },
+          items: [],
+          promoCode: null,
+        }),
+      },
+    };
+    const service = new DevisService(prisma as never);
+
+    const preview = await service.getAcceptancePreview('accepted-token');
+
+    expect(preview.status).toBe('ACCEPTE');
+    expect(preview.acceptedAt).toEqual(new Date('2026-07-31T08:00:00.000Z'));
+  });
+
+  it('treats a repeated acceptance as an idempotent success', async () => {
+    const prisma = {
+      devis: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'quote-accepted',
+          clientId: 'client-1',
+          status: 'ACCEPTE',
+          project: null,
+        }),
+      },
+    };
+    const service = new DevisService(prisma as never);
+
+    await expect(service.acceptByToken('accepted-token')).resolves.toEqual({
+      message: 'Devis déjà accepté',
+      devisId: 'quote-accepted',
+      clientId: 'client-1',
+      alreadyAccepted: true,
+      requiresFinalization: true,
+    });
+  });
 });

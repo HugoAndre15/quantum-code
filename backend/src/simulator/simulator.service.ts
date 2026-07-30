@@ -83,7 +83,10 @@ export class SimulatorService {
     });
     await this.conversion.attachLead(dto.sessionId, lead.id);
 
-    const adminEmail = this.config.get('MAIL_FROM', 'contact@quantum-code.fr');
+    const adminEmail = this.config.get(
+      'MAIL_ADMIN_TO',
+      this.config.get('MAIL_FROM', 'contact@quantum-code.fr'),
+    );
     const adminUrl = `${this.config.get('FRONTEND_URL', 'http://localhost:3000')}/admin/crm/leads/${lead.id}`;
     try {
       await this.mail.sendMail({
@@ -99,20 +102,23 @@ export class SimulatorService {
         ),
       });
     } catch (err) {
-      this.logger.error(`Échec envoi mail simulateur : ${(err as Error).message}`);
+      this.logger.error(
+        `Échec envoi mail simulateur : ${(err as Error).message}`,
+      );
     }
 
-    return { message: 'Demande enregistrée avec succès', leadId: lead.id, score };
+    return {
+      message: 'Demande enregistrée avec succès',
+      leadId: lead.id,
+      score,
+    };
   }
 
   private async calculatePricing(
     dto: SimulatorLeadDto,
   ): Promise<PricingSnapshot> {
     const selectedIds = [
-      ...new Set([
-        ...(dto.optionIds || []),
-        ...(dto.recurringOptionIds || []),
-      ]),
+      ...new Set([...(dto.optionIds || []), ...(dto.recurringOptionIds || [])]),
     ];
     const selectedOptionsPromise: Promise<ServiceOption[]> = selectedIds.length
       ? this.prisma.serviceOption.findMany({
@@ -133,7 +139,10 @@ export class SimulatorService {
     const includedIds = new Set(
       pack?.includedOptions.map((entry) => entry.serviceOptionId) || [],
     );
-    const pages = Math.max(1, dto.pages || pack?.includedPages || base?.basePages || 1);
+    const pages = Math.max(
+      1,
+      dto.pages || pack?.includedPages || base?.basePages || 1,
+    );
     const includedPages = pack?.includedPages || base?.basePages || 1;
     const extraPages = Math.max(0, pages - includedPages);
     const oneTimeOptions = selectedOptions.filter(
@@ -179,7 +188,8 @@ export class SimulatorService {
     else if (dto.timeline === 'explore') score += 3;
 
     if (dto.projectType === 'shop' || dto.projectType === 'custom') score += 15;
-    else if (dto.projectType === 'booking' || dto.projectType === 'leads') score += 10;
+    else if (dto.projectType === 'booking' || dto.projectType === 'leads')
+      score += 10;
     else if (dto.projectType) score += 5;
 
     if (dto.contentReadiness === 'ready') score += 10;
@@ -208,7 +218,13 @@ export class SimulatorService {
     adminUrl: string,
   ): string {
     const scoreLabel =
-      score >= 81 ? 'Très chaud 🔥' : score >= 61 ? 'Chaud' : score >= 31 ? 'Tiède' : 'Froid';
+      score >= 81
+        ? 'Très chaud 🔥'
+        : score >= 61
+          ? 'Chaud'
+          : score >= 31
+            ? 'Tiède'
+            : 'Froid';
 
     const rows: Array<{ label: string; value: string }> = [
       { label: 'Contact', value: dto.contactName },
@@ -232,9 +248,7 @@ export class SimulatorService {
       ...(dto.selectedFeatures?.length
         ? [{ label: 'Fonctionnalités', value: dto.selectedFeatures.join(', ') }]
         : []),
-      ...(dto.timeline
-        ? [{ label: 'Lancement', value: dto.timeline }]
-        : []),
+      ...(dto.timeline ? [{ label: 'Lancement', value: dto.timeline }] : []),
       ...(dto.contentReadiness
         ? [{ label: 'Contenus', value: dto.contentReadiness }]
         : []),
