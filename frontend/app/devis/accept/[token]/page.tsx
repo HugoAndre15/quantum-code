@@ -103,9 +103,6 @@ export default function AcceptQuotePage({
 
   return (
     <main className={styles.page}>
-      <div className={styles.ambient} aria-hidden="true" />
-      <div className={styles.grid} aria-hidden="true" />
-
       <div className={styles.shell}>
         <header className={styles.siteHeader}>
           <Link href="/" className={styles.brand} aria-label="Quantum Code">

@@ -1,9 +1,9 @@
 .page {
-  --accept-bg: #0d1016;
-  --accept-panel: rgba(24, 28, 37, 0.92);
-  --accept-panel-soft: rgba(255, 255, 255, 0.035);
-  --accept-border: rgba(255, 255, 255, 0.09);
-  --accept-muted: #9299aa;
+  --accept-bg: #101216;
+  --accept-panel: #181b21;
+  --accept-panel-soft: #1d2129;
+  --accept-border: #2a2e37;
+  --accept-muted: #989eaa;
   min-height: 100vh;
   position: relative;
   overflow: hidden;
@@ -12,42 +12,8 @@
   font-family: var(--font-sans), Arial, sans-serif;
 }
 
-.ambient {
-  position: fixed;
-  z-index: 0;
-  top: -420px;
-  left: 50%;
-  width: 1100px;
-  height: 760px;
-  transform: translateX(-50%);
-  border-radius: 50%;
-  background:
-    radial-gradient(
-      circle at 38% 55%,
-      rgba(45, 111, 255, 0.28),
-      transparent 42%
-    ),
-    radial-gradient(circle at 68% 44%, rgba(240, 192, 64, 0.1), transparent 34%);
-  filter: blur(55px);
-  pointer-events: none;
-}
-
-.grid {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  opacity: 0.22;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-  background-size: 64px 64px;
-  mask-image: linear-gradient(to bottom, #000, transparent 60%);
-  pointer-events: none;
-}
-
 .shell {
   position: relative;
-  z-index: 1;
   width: min(1180px, calc(100% - 40px));
   margin: 0 auto;
 }
@@ -71,7 +37,7 @@
 }
 
 .brand strong {
-  color: #7ba8ff;
+  color: #86a9ef;
 }
 
 .brandMark {
@@ -79,11 +45,10 @@
   width: 34px;
   height: 34px;
   place-items: center;
-  border: 1px solid rgba(123, 168, 255, 0.45);
-  border-radius: 9px;
-  color: #fff;
-  background: #2d6fff;
-  box-shadow: 0 8px 25px rgba(45, 111, 255, 0.28);
+  border: 1px solid #465066;
+  border-radius: 7px;
+  color: #9ab8f4;
+  background: #171a20;
   font-size: 14px;
   font-weight: 800;
 }
@@ -105,15 +70,15 @@
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 370px;
-  gap: 62px;
+  gap: 56px;
   align-items: center;
-  padding: 86px 0 76px;
+  padding: 64px 0 58px;
 }
 
 .eyebrow,
 .acceptLabel {
   margin-bottom: 14px;
-  color: #7ba8ff;
+  color: #86a9ef;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.14em;
@@ -125,17 +90,17 @@
 .stateCard h1 {
   margin: 0;
   color: #fff;
-  font-size: clamp(42px, 6vw, 74px);
-  font-weight: 650;
-  line-height: 0.98;
-  letter-spacing: -0.055em;
+  font-size: clamp(42px, 5.4vw, 66px);
+  font-weight: 620;
+  line-height: 1.03;
+  letter-spacing: -0.045em;
 }
 
 .hero h1 span,
 .successCard h1 span {
-  color: #707789;
-  font-family: var(--font-serif), Georgia, serif;
-  font-style: italic;
+  color: #858b98;
+  font-family: inherit;
+  font-style: normal;
   font-weight: 400;
 }
 
@@ -158,10 +123,9 @@
 .successCard,
 .stateCard {
   border: 1px solid var(--accept-border);
-  border-radius: 22px;
+  border-radius: 15px;
   background: var(--accept-panel);
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(18px);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.2);
 }
 
 .summaryCard {
@@ -171,9 +135,7 @@
 .summaryTop {
   padding: 26px;
   border-bottom: 1px solid var(--accept-border);
-  background:
-    linear-gradient(135deg, rgba(45, 111, 255, 0.17), transparent 70%),
-    var(--accept-panel-soft);
+  background: var(--accept-panel-soft);
 }
 
 .summaryTop > span {
@@ -242,9 +204,9 @@
 }
 
 .documentLink:hover {
-  border-color: rgba(123, 168, 255, 0.42);
+  border-color: #56617a;
   color: #fff;
-  background: rgba(45, 111, 255, 0.08);
+  background: #20242c;
 }
 
 .contentCard,
@@ -265,7 +227,7 @@
 .sectionHeading span {
   display: block;
   margin-bottom: 8px;
-  color: #7ba8ff;
+  color: #86a9ef;
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -295,9 +257,9 @@
 }
 
 .subscriptionBadge {
-  border-color: rgba(123, 168, 255, 0.3);
-  color: #7ba8ff;
-  background: rgba(45, 111, 255, 0.08);
+  border-color: #3b4d72;
+  color: #8caef1;
+  background: #1b2435;
 }
 
 .items {
@@ -387,7 +349,7 @@
 }
 
 .totalStrong strong {
-  color: #7ba8ff;
+  color: #8caef1;
   font-size: 20px;
 }
 
@@ -399,10 +361,8 @@
 }
 
 .subscriptionCard {
-  border-color: rgba(123, 168, 255, 0.19);
-  background:
-    linear-gradient(145deg, rgba(45, 111, 255, 0.075), transparent 58%),
-    var(--accept-panel);
+  border-color: #2f3c56;
+  background: #171b23;
 }
 
 .sectionIntro {
@@ -426,14 +386,14 @@
   justify-content: space-between;
   gap: 18px;
   padding: 18px;
-  border: 1px solid rgba(123, 168, 255, 0.16);
-  border-radius: 13px;
-  background: rgba(10, 15, 28, 0.35);
+  border: 1px solid #2c3443;
+  border-radius: 10px;
+  background: #13171e;
 }
 
 .subscriptionItem > strong {
   flex-shrink: 0;
-  color: #7ba8ff;
+  color: #8caef1;
   font-size: 16px;
 }
 
@@ -453,7 +413,7 @@
   margin: 34px 0;
   overflow: hidden;
   border: 1px solid var(--accept-border);
-  border-radius: 16px;
+  border-radius: 12px;
   background: var(--accept-border);
 }
 
@@ -482,14 +442,8 @@
   align-items: center;
   margin: 0 0 38px;
   padding: clamp(26px, 5vw, 48px);
-  border-color: rgba(93, 216, 160, 0.22);
-  background:
-    radial-gradient(
-      circle at 10% 0%,
-      rgba(93, 216, 160, 0.08),
-      transparent 42%
-    ),
-    var(--accept-panel);
+  border-color: #304038;
+  background: #181d1b;
 }
 
 .acceptCard > div:first-child > p {
@@ -508,7 +462,7 @@
   padding: 20px;
   border: 1px solid var(--accept-border);
   border-radius: 14px;
-  background: rgba(0, 0, 0, 0.16);
+  background: #121614;
 }
 
 .checkbox {
@@ -536,7 +490,6 @@
   border-radius: 10px;
   color: #fff;
   background: #2d6fff;
-  box-shadow: 0 12px 30px rgba(45, 111, 255, 0.24);
   font-size: 12px;
   font-weight: 800;
   transition:
@@ -641,7 +594,7 @@
   padding: 18px;
   border: 1px solid var(--accept-border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.025);
+  background: #15181e;
 }
 
 .nextSteps span {
@@ -787,7 +740,7 @@
   .itemRow > strong {
     grid-column: 2;
     padding-top: 0;
-    color: #7ba8ff;
+    color: #8caef1;
   }
 
   .subscriptionGrid,

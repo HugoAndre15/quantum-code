@@ -23,6 +23,7 @@
     "prisma:seed": "npx ts-node prisma/seed.ts"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.2.8",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.3",
     "@nestjs/core": "^11.0.1",
