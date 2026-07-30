@@ -647,30 +647,25 @@ export class DevisService {
   }
 
   async getAcceptancePreview(token: string) {
-    const devis = await this.prisma.devis.findUnique({
-      where: { acceptToken: token },
-      include: {
-        client: {
-          select: { company: true, contactName: true },
-        },
-        items: true,
-        promoCode: { select: { code: true } },
-      },
-    });
-    if (!devis) throw new NotFoundException('Lien invalide ou expiré');
-
+    const devis = await this.findAcceptanceDocument(token);
     const expired = Boolean(
-      devis.acceptTokenExpiresAt && devis.acceptTokenExpiresAt < new Date(),
+      devis.status !== 'ACCEPTE' &&
+      devis.acceptTokenExpiresAt &&
+      devis.acceptTokenExpiresAt < new Date(),
     );
     return {
       number: devis.number,
       status: expired ? 'EXPIRE' : devis.status,
       createdAt: devis.createdAt,
       validUntil: devis.validUntil,
+      acceptedAt: devis.acceptedAt,
       totalHT: devis.totalHT,
       discountAmount: devis.discountAmount,
       promoCode: devis.promoCode?.code,
-      client: devis.client,
+      client: {
+        company: devis.client.company,
+        contactName: devis.client.contactName,
+      },
       items: devis.items.map((item) => ({
         label: item.label,
         description: item.description,
@@ -680,6 +675,19 @@ export class DevisService {
         recurringUnit: item.recurringUnit,
       })),
     };
+  }
+
+  async findAcceptanceDocument(token: string) {
+    const devis = await this.prisma.devis.findUnique({
+      where: { acceptToken: token },
+      include: {
+        client: true,
+        items: true,
+        promoCode: true,
+      },
+    });
+    if (!devis) throw new NotFoundException('Lien invalide ou expiré');
+    return devis;
   }
 
   /**
@@ -735,7 +743,13 @@ export class DevisService {
 
     if (!devis) throw new NotFoundException('Lien invalide ou expiré');
     if (devis.status === 'ACCEPTE') {
-      return { message: 'Devis déjà accepté', devisId: devis.id };
+      return {
+        message: 'Devis déjà accepté',
+        devisId: devis.id,
+        clientId: devis.clientId,
+        alreadyAccepted: true,
+        requiresFinalization: !devis.project,
+      };
     }
     if (devis.status === 'REFUSE' || devis.status === 'EXPIRE') {
       throw new BadRequestException('Ce devis ne peut plus être accepté');
@@ -760,8 +774,6 @@ export class DevisService {
         data: {
           status: 'ACCEPTE',
           acceptedAt: new Date(),
-          acceptToken: null,
-          acceptTokenExpiresAt: null,
         },
       });
 
@@ -814,6 +826,7 @@ export class DevisService {
       message: 'Devis accepté avec succès',
       devisId: updatedDevis.id,
       clientId: devis.clientId,
+      alreadyAccepted: false,
       requiresFinalization: true,
     };
   }

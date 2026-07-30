@@ -48,10 +48,10 @@ const WHITE = '#FFFFFF';
 const COMPANY = {
   name: 'Quantum Code',
   tagline: 'Développement Web & Applications',
-  owner: 'Quantum Code — Micro-entreprise',
+  owner: 'Hugo André — Entrepreneur individuel',
   siret: 'SIRET : 102 934 916 00010',
   address: 'Oise, Hauts-de-France',
-  email: 'devis@quantum-code.fr',
+  email: 'contact@quantum-code.fr',
   phone: '+33 6 03 68 11 98',
   website: 'quantum-code.fr',
   tvaNote: 'TVA non applicable, art. 293 B du CGI',
@@ -79,19 +79,32 @@ export class PdfService {
       doc.rect(0, 0, W, 5).fill(BLUE);
 
       // Logo / Nom entreprise
-      doc.fontSize(22).fill(DARK).font('Helvetica-Bold')
+      doc
+        .fontSize(22)
+        .fill(DARK)
+        .font('Helvetica-Bold')
         .text(COMPANY.name, M, 28);
-      doc.fontSize(9).fill(GREY).font('Helvetica')
-        .text(COMPANY.tagline, M, 54);
+      doc.fontSize(9).fill(GREY).font('Helvetica').text(COMPANY.tagline, M, 54);
 
       // Type document + numéro (aligné à droite)
-      doc.fontSize(18).fill(BLUE).font('Helvetica-Bold')
+      doc
+        .fontSize(18)
+        .fill(BLUE)
+        .font('Helvetica-Bold')
         .text(title, M, 28, { width: contentW, align: 'right' });
-      doc.fontSize(10).fill(TEXT).font('Helvetica')
+      doc
+        .fontSize(10)
+        .fill(TEXT)
+        .font('Helvetica')
         .text(data.number, M, 52, { width: contentW, align: 'right' });
 
       // Ligne de séparation
-      doc.moveTo(M, 72).lineTo(W - M, 72).strokeColor(BORDER).lineWidth(0.5).stroke();
+      doc
+        .moveTo(M, 72)
+        .lineTo(W - M, 72)
+        .strokeColor(BORDER)
+        .lineWidth(0.5)
+        .stroke();
 
       // ═══════════════════════════════════════════
       //  INFO BLOCKS — émetteur + client côte à côte
@@ -102,7 +115,11 @@ export class PdfService {
       // Émetteur
       doc.fontSize(8).fill(BLUE).font('Helvetica-Bold').text('ÉMETTEUR', M, y);
       y += 14;
-      doc.fontSize(9).fill(DARK).font('Helvetica-Bold').text(COMPANY.name, M, y);
+      doc
+        .fontSize(9)
+        .fill(DARK)
+        .font('Helvetica-Bold')
+        .text(COMPANY.name, M, y);
       doc.fontSize(8.5).fill(TEXT).font('Helvetica');
       doc.text(COMPANY.owner, M, y + 13);
       doc.text(COMPANY.siret, M, y + 25);
@@ -113,18 +130,37 @@ export class PdfService {
       // Client — dans un encadré
       const clientX = M + colW + 30;
       const clientBoxY = y - 14;
-      doc.roundedRect(clientX - 10, clientBoxY - 4, colW + 10, 88, 4)
+      doc
+        .roundedRect(clientX - 10, clientBoxY - 4, colW + 10, 88, 4)
         .fillAndStroke(LIGHT_BG, BORDER);
 
-      doc.fontSize(8).fill(BLUE).font('Helvetica-Bold').text('CLIENT', clientX, clientBoxY + 4);
-      doc.fontSize(9).fill(DARK).font('Helvetica-Bold')
-        .text(data.client.company, clientX, clientBoxY + 18, { width: colW - 5 });
+      doc
+        .fontSize(8)
+        .fill(BLUE)
+        .font('Helvetica-Bold')
+        .text('CLIENT', clientX, clientBoxY + 4);
+      doc
+        .fontSize(9)
+        .fill(DARK)
+        .font('Helvetica-Bold')
+        .text(data.client.company, clientX, clientBoxY + 18, {
+          width: colW - 5,
+        });
       doc.fontSize(8.5).fill(TEXT).font('Helvetica');
       let clientY = clientBoxY + 31;
-      doc.text(data.client.contactName, clientX, clientY); clientY += 12;
-      if (data.client.address) { doc.text(data.client.address, clientX, clientY); clientY += 12; }
-      if (data.client.email) { doc.text(data.client.email, clientX, clientY); clientY += 12; }
-      if (data.client.phone) { doc.text(data.client.phone, clientX, clientY); }
+      doc.text(data.client.contactName, clientX, clientY);
+      clientY += 12;
+      if (data.client.address) {
+        doc.text(data.client.address, clientX, clientY);
+        clientY += 12;
+      }
+      if (data.client.email) {
+        doc.text(data.client.email, clientX, clientY);
+        clientY += 12;
+      }
+      if (data.client.phone) {
+        doc.text(data.client.phone, clientX, clientY);
+      }
 
       // ═══════════════════════════════════════════
       //  DATE / VALIDITÉ
@@ -137,7 +173,10 @@ export class PdfService {
         doc.text(`Validité : ${fmtDate(data.validUntil)}`, M + 200, y);
       }
       if (!isDevis && data.paidAt) {
-        doc.fontSize(8.5).fill('#2e7d32').font('Helvetica-Bold')
+        doc
+          .fontSize(8.5)
+          .fill('#2e7d32')
+          .font('Helvetica-Bold')
           .text(`Payée le : ${fmtDate(data.paidAt)}`, M + 200, y);
       }
 
@@ -145,10 +184,10 @@ export class PdfService {
       //  TABLEAU — prestations
       // ═══════════════════════════════════════════
       y = 206;
-      const oneTimeItems = data.items.filter(i => !i.recurring);
-      const recurringItems = data.items.filter(i => i.recurring);
+      const oneTimeItems = data.items.filter((i) => !i.recurring);
+      const recurringItems = data.items.filter((i) => i.recurring);
 
-      // Colonnes : Prestation | Qté | P.U. HT | Total HT
+      // Colonnes : Prestation | Qté | P.U. | Total
       const col = { desc: M, qty: 340, pu: 400, total: 470 };
       const colDescW = col.qty - col.desc - 8;
 
@@ -157,8 +196,8 @@ export class PdfService {
       doc.fontSize(8).fill(WHITE).font('Helvetica-Bold');
       doc.text('Prestation', col.desc + 8, y + 6, { width: colDescW });
       doc.text('Qté', col.qty, y + 6, { width: 40, align: 'center' });
-      doc.text('P.U. HT', col.pu, y + 6, { width: 55, align: 'right' });
-      doc.text('Total HT', col.total, y + 6, { width: 75, align: 'right' });
+      doc.text('P.U.', col.pu, y + 6, { width: 55, align: 'right' });
+      doc.text('Total', col.total, y + 6, { width: 75, align: 'right' });
       y += 22;
 
       // Rows
@@ -177,19 +216,42 @@ export class PdfService {
         const bg = i % 2 === 0 ? WHITE : TABLE_STRIPE;
         doc.rect(M, y, contentW, rowH).fill(bg);
         // Bottom border
-        doc.moveTo(M, y + rowH).lineTo(W - M, y + rowH).strokeColor('#E5E8EE').lineWidth(0.3).stroke();
+        doc
+          .moveTo(M, y + rowH)
+          .lineTo(W - M, y + rowH)
+          .strokeColor('#E5E8EE')
+          .lineWidth(0.3)
+          .stroke();
 
-        doc.fontSize(8.5).fill(DARK).font('Helvetica-Bold')
+        doc
+          .fontSize(8.5)
+          .fill(DARK)
+          .font('Helvetica-Bold')
           .text(item.label, col.desc + 8, y + 4, { width: colDescW });
         if (hasDesc) {
-          doc.fontSize(7.5).fill(GREY).font('Helvetica')
+          doc
+            .fontSize(7.5)
+            .fill(GREY)
+            .font('Helvetica')
             .text(item.description!, col.desc + 8, y + 16, { width: colDescW });
         }
         doc.fontSize(8.5).fill(TEXT).font('Helvetica');
-        doc.text(String(item.quantity), col.qty, y + 4, { width: 40, align: 'center' });
-        doc.text(`${item.unitPrice.toFixed(2)} €`, col.pu, y + 4, { width: 55, align: 'right' });
-        doc.font('Helvetica-Bold')
-          .text(`${(item.unitPrice * item.quantity).toFixed(2)} €`, col.total, y + 4, { width: 75, align: 'right' });
+        doc.text(String(item.quantity), col.qty, y + 4, {
+          width: 40,
+          align: 'center',
+        });
+        doc.text(`${item.unitPrice.toFixed(2)} €`, col.pu, y + 4, {
+          width: 55,
+          align: 'right',
+        });
+        doc
+          .font('Helvetica-Bold')
+          .text(
+            `${(item.unitPrice * item.quantity).toFixed(2)} €`,
+            col.total,
+            y + 4,
+            { width: 75, align: 'right' },
+          );
         y += rowH;
       }
 
@@ -200,59 +262,120 @@ export class PdfService {
       const totX = col.pu - 30;
       const totW = W - M - totX;
 
-      // Sous-total HT (avant réduction si promo)
+      // Sous-total avant réduction si promo
       if (data.discountAmount && data.discountAmount > 0) {
         const subtotalBeforeDiscount = data.totalHT + data.discountAmount;
-        doc.fontSize(8.5).fill(TEXT).font('Helvetica')
-          .text('Sous-total HT', totX, y, { width: totW - 80, align: 'right' });
-        doc.font('Helvetica-Bold')
-          .text(`${subtotalBeforeDiscount.toFixed(2)} €`, totX + totW - 80, y, { width: 80, align: 'right' });
+        doc
+          .fontSize(8.5)
+          .fill(TEXT)
+          .font('Helvetica')
+          .text('Sous-total', totX, y, { width: totW - 80, align: 'right' });
+        doc
+          .font('Helvetica-Bold')
+          .text(`${subtotalBeforeDiscount.toFixed(2)} €`, totX + totW - 80, y, {
+            width: 80,
+            align: 'right',
+          });
         y += 16;
 
         // Ligne réduction
-        const promoLabel = data.promoCode ? `Réduction (${data.promoCode})` : 'Réduction';
-        doc.fontSize(8.5).fill('#2e7d32').font('Helvetica')
+        const promoLabel = data.promoCode
+          ? `Réduction (${data.promoCode})`
+          : 'Réduction';
+        doc
+          .fontSize(8.5)
+          .fill('#2e7d32')
+          .font('Helvetica')
           .text(promoLabel, totX, y, { width: totW - 80, align: 'right' });
-        doc.font('Helvetica-Bold').fill('#2e7d32')
-          .text(`-${data.discountAmount.toFixed(2)} €`, totX + totW - 80, y, { width: 80, align: 'right' });
+        doc
+          .font('Helvetica-Bold')
+          .fill('#2e7d32')
+          .text(`-${data.discountAmount.toFixed(2)} €`, totX + totW - 80, y, {
+            width: 80,
+            align: 'right',
+          });
         y += 16;
       }
 
-      // Total HT
-      doc.fontSize(8.5).fill(TEXT).font('Helvetica')
-        .text('Total HT', totX, y, { width: totW - 80, align: 'right' });
-      doc.font('Helvetica-Bold')
-        .text(`${data.totalHT.toFixed(2)} €`, totX + totW - 80, y, { width: 80, align: 'right' });
+      // Montant ponctuel
+      doc
+        .fontSize(8.5)
+        .fill(TEXT)
+        .font('Helvetica')
+        .text('Montant ponctuel', totX, y, {
+          width: totW - 80,
+          align: 'right',
+        });
+      doc
+        .font('Helvetica-Bold')
+        .text(`${data.totalHT.toFixed(2)} €`, totX + totW - 80, y, {
+          width: 80,
+          align: 'right',
+        });
       y += 16;
 
       // TVA
-      doc.fontSize(8).fill(GREY).font('Helvetica')
+      doc
+        .fontSize(8)
+        .fill(GREY)
+        .font('Helvetica')
         .text(COMPANY.tvaNote, totX, y, { width: totW, align: 'right' });
       y += 16;
 
-      // Total TTC (même montant car pas de TVA)
+      // Prix final (même montant car pas de TVA)
       doc.roundedRect(totX - 5, y - 3, totW + 5, 28, 4).fill(DARK);
-      doc.fontSize(10).fill(WHITE).font('Helvetica-Bold')
-        .text('Total TTC', totX + 5, y + 4);
-      doc.fontSize(12).fill(ACCENT_GOLD).font('Helvetica-Bold')
-        .text(`${data.totalHT.toFixed(2)} €`, totX + totW - 100, y + 3, { width: 95, align: 'right' });
+      doc
+        .fontSize(10)
+        .fill(WHITE)
+        .font('Helvetica-Bold')
+        .text('PRIX FINAL', totX + 5, y + 4);
+      doc
+        .fontSize(12)
+        .fill(ACCENT_GOLD)
+        .font('Helvetica-Bold')
+        .text(`${data.totalHT.toFixed(2)} €`, totX + totW - 100, y + 3, {
+          width: 95,
+          align: 'right',
+        });
       y += 40;
 
       // ═══════════════════════════════════════════
       //  ABONNEMENTS RÉCURRENTS
       // ═══════════════════════════════════════════
       if (recurringItems.length > 0) {
-        if (y + 60 > 700) { doc.addPage({ size: 'A4', margin: 0 }); doc.rect(0, 0, W, 5).fill(BLUE); y = 30; }
+        if (y + 60 > 700) {
+          doc.addPage({ size: 'A4', margin: 0 });
+          doc.rect(0, 0, W, 5).fill(BLUE);
+          y = 30;
+        }
 
-        doc.fontSize(9).fill(DARK).font('Helvetica-Bold')
-          .text('Prestations récurrentes', M, y);
+        doc
+          .fontSize(9)
+          .fill(DARK)
+          .font('Helvetica-Bold')
+          .text('ABONNEMENTS & SERVICES RÉCURRENTS', M, y);
         y += 16;
         for (const item of recurringItems) {
           const recurringTotal = item.unitPrice * item.quantity;
-          doc.fontSize(8.5).fill(TEXT).font('Helvetica')
-            .text(`• ${item.label}${item.quantity > 1 ? ` × ${item.quantity}` : ''}`, M + 8, y, { width: 300 });
-          doc.fill(BLUE).font('Helvetica-Bold')
-            .text(`${recurringTotal.toFixed(2)} € / ${item.recurringUnit || 'mois'}`, col.total, y, { width: 75, align: 'right' });
+          doc
+            .fontSize(8.5)
+            .fill(TEXT)
+            .font('Helvetica')
+            .text(
+              `• ${item.label}${item.quantity > 1 ? ` × ${item.quantity}` : ''}`,
+              M + 8,
+              y,
+              { width: 300 },
+            );
+          doc
+            .fill(BLUE)
+            .font('Helvetica-Bold')
+            .text(
+              `${recurringTotal.toFixed(2)} € / ${item.recurringUnit || 'mois'}`,
+              col.total,
+              y,
+              { width: 75, align: 'right' },
+            );
           y += 15;
         }
         y += 10;
@@ -262,10 +385,17 @@ export class PdfService {
       //  NOTES
       // ═══════════════════════════════════════════
       if (data.notes) {
-        if (y + 50 > 700) { doc.addPage({ size: 'A4', margin: 0 }); doc.rect(0, 0, W, 5).fill(BLUE); y = 30; }
+        if (y + 50 > 700) {
+          doc.addPage({ size: 'A4', margin: 0 });
+          doc.rect(0, 0, W, 5).fill(BLUE);
+          y = 30;
+        }
         doc.fontSize(8).fill(BLUE).font('Helvetica-Bold').text('NOTES', M, y);
         y += 12;
-        doc.fontSize(8.5).fill(TEXT).font('Helvetica')
+        doc
+          .fontSize(8.5)
+          .fill(TEXT)
+          .font('Helvetica')
           .text(data.notes, M, y, { width: contentW });
         y += 30;
       }
@@ -274,54 +404,160 @@ export class PdfService {
       //  CONDITIONS (devis uniquement)
       // ═══════════════════════════════════════════
       if (isDevis) {
-        if (y + 110 > 700) { doc.addPage({ size: 'A4', margin: 0 }); doc.rect(0, 0, W, 5).fill(BLUE); y = 30; }
-        doc.fontSize(8).fill(BLUE).font('Helvetica-Bold').text('CONDITIONS & ENGAGEMENTS', M, y);
+        if (y + 110 > 700) {
+          doc.addPage({ size: 'A4', margin: 0 });
+          doc.rect(0, 0, W, 5).fill(BLUE);
+          y = 30;
+        }
+        doc
+          .fontSize(8)
+          .fill(BLUE)
+          .font('Helvetica-Bold')
+          .text('CONDITIONS & ENGAGEMENTS', M, y);
         y += 12;
         doc.fontSize(7.5).fill(GREY).font('Helvetica');
-        doc.text('• Ce devis est valable pour la durée indiquée ci-dessus.', M, y, { width: contentW }); y += 11;
-        doc.text('• Un acompte de 30% est demandé à la signature, le solde à la livraison.', M, y, { width: contentW }); y += 11;
-        doc.text('• Tout projet commencé est dû. Les modifications hors périmètre feront l\'objet d\'un avenant.', M, y, { width: contentW }); y += 11;
-        doc.text('• Délais de réalisation communiqués après validation du devis.', M, y, { width: contentW }); y += 11;
-        doc.text('• Propriété : le client devient pleinement propriétaire du code source livré dès le paiement intégral (cession des droits patrimoniaux).', M, y, { width: contentW }); y += 18;
-        doc.text('• Hébergement : le site est hébergé par Quantum Code (serveur, nom de domaine, SSL, sauvegardes), facturé en option récurrente ci-dessus.', M, y, { width: contentW }); y += 18;
-        doc.text('• Suivi : 14 jours de suivi post-livraison inclus (corrections de bugs et ajustements mineurs offerts).', M, y, { width: contentW }); y += 11;
-        doc.text('• Au-delà des 14 jours, toute intervention fera l\'objet d\'un devis complémentaire ou sera couverte par un contrat de maintenance.', M, y, { width: contentW }); y += 18;
+        doc.text(
+          '• Ce devis est valable pour la durée indiquée ci-dessus.',
+          M,
+          y,
+          { width: contentW },
+        );
+        y += 11;
+        doc.text(
+          '• Un acompte de 30% est demandé après acceptation, le solde à la livraison.',
+          M,
+          y,
+          { width: contentW },
+        );
+        y += 11;
+        doc.text(
+          "• Tout projet commencé est dû. Les modifications hors périmètre feront l'objet d'un avenant.",
+          M,
+          y,
+          { width: contentW },
+        );
+        y += 11;
+        doc.text(
+          '• Délais de réalisation communiqués après validation du devis.',
+          M,
+          y,
+          { width: contentW },
+        );
+        y += 11;
+        doc.text(
+          '• Propriété : le client devient pleinement propriétaire du code source livré dès le paiement intégral (cession des droits patrimoniaux).',
+          M,
+          y,
+          { width: contentW },
+        );
+        y += 18;
+        doc.text(
+          '• Les abonnements éventuellement retenus sont optionnels, facturés selon leur périodicité et présentés séparément du projet.',
+          M,
+          y,
+          { width: contentW },
+        );
+        y += 18;
+        doc.text(
+          '• Suivi : 14 jours de suivi post-livraison inclus (corrections de bugs et ajustements mineurs offerts).',
+          M,
+          y,
+          { width: contentW },
+        );
+        y += 11;
+        doc.text(
+          "• Au-delà des 14 jours, toute intervention fera l'objet d'un devis complémentaire ou sera couverte par un contrat de maintenance.",
+          M,
+          y,
+          { width: contentW },
+        );
+        y += 18;
       }
 
       // ═══════════════════════════════════════════
       //  CONDITIONS DE PAIEMENT (facture uniquement)
       // ═══════════════════════════════════════════
       if (!isDevis) {
-        if (y + 80 > 700) { doc.addPage({ size: 'A4', margin: 0 }); doc.rect(0, 0, W, 5).fill(BLUE); y = 30; }
-        doc.fontSize(8).fill(BLUE).font('Helvetica-Bold').text('PAIEMENT & ENGAGEMENTS', M, y);
+        if (y + 80 > 700) {
+          doc.addPage({ size: 'A4', margin: 0 });
+          doc.rect(0, 0, W, 5).fill(BLUE);
+          y = 30;
+        }
+        doc
+          .fontSize(8)
+          .fill(BLUE)
+          .font('Helvetica-Bold')
+          .text('PAIEMENT & ENGAGEMENTS', M, y);
         y += 12;
         doc.fontSize(7.5).fill(GREY).font('Helvetica');
-        doc.text('• Paiement par virement bancaire sous 30 jours.', M, y, { width: contentW }); y += 11;
-        doc.text('• En cas de retard, une pénalité de 3x le taux d\'intérêt légal sera appliquée.', M, y, { width: contentW }); y += 11;
-        doc.text('• Indemnité forfaitaire de recouvrement : 40 € (art. L441-10 du Code de commerce).', M, y, { width: contentW }); y += 11;
-        doc.text('• Propriété : le client est pleinement propriétaire du code source livré dès le paiement intégral.', M, y, { width: contentW }); y += 11;
-        doc.text('• Hébergement assuré par Quantum Code (serveur, nom de domaine, SSL, sauvegardes) — voir prestations récurrentes ci-dessus.', M, y, { width: contentW }); y += 18;
-        doc.text('• 14 jours de suivi post-livraison inclus (corrections de bugs et ajustements mineurs offerts).', M, y, { width: contentW }); y += 18;
+        doc.text('• Paiement par virement bancaire sous 30 jours.', M, y, {
+          width: contentW,
+        });
+        y += 11;
+        doc.text(
+          "• En cas de retard, une pénalité de 3x le taux d'intérêt légal sera appliquée.",
+          M,
+          y,
+          { width: contentW },
+        );
+        y += 11;
+        doc.text(
+          '• Indemnité forfaitaire de recouvrement : 40 € (art. L441-10 du Code de commerce).',
+          M,
+          y,
+          { width: contentW },
+        );
+        y += 11;
+        doc.text(
+          '• Propriété : le client est pleinement propriétaire du code source livré dès le paiement intégral.',
+          M,
+          y,
+          { width: contentW },
+        );
+        y += 11;
+        doc.text(
+          '• Les abonnements éventuellement souscrits sont facturés séparément selon leur périodicité.',
+          M,
+          y,
+          { width: contentW },
+        );
+        y += 18;
+        doc.text(
+          '• 14 jours de suivi post-livraison inclus (corrections de bugs et ajustements mineurs offerts).',
+          M,
+          y,
+          { width: contentW },
+        );
+        y += 18;
       }
 
       // ═══════════════════════════════════════════
       //  FOOTER — infos légales
       // ═══════════════════════════════════════════
       const footerY = 780;
-      doc.moveTo(M, footerY - 8).lineTo(W - M, footerY - 8).strokeColor(BORDER).lineWidth(0.3).stroke();
+      doc
+        .moveTo(M, footerY - 8)
+        .lineTo(W - M, footerY - 8)
+        .strokeColor(BORDER)
+        .lineWidth(0.3)
+        .stroke();
       doc.fontSize(7).fill(GREY).font('Helvetica');
       doc.text(
         `${COMPANY.name} — ${COMPANY.owner} — ${COMPANY.siret}`,
-        M, footerY, { width: contentW, align: 'center' },
+        M,
+        footerY,
+        { width: contentW, align: 'center' },
       );
       doc.text(
         `${COMPANY.address} — ${COMPANY.email} — ${COMPANY.website}`,
-        M, footerY + 10, { width: contentW, align: 'center' },
+        M,
+        footerY + 10,
+        { width: contentW, align: 'center' },
       );
-      doc.text(
-        COMPANY.tvaNote,
-        M, footerY + 20, { width: contentW, align: 'center' },
-      );
+      doc.text(COMPANY.tvaNote, M, footerY + 20, {
+        width: contentW,
+        align: 'center',
+      });
 
       doc.end();
     });

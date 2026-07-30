@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import styles from "./acceptance.module.css";
 
 interface AcceptanceItem {
   label: string;
@@ -17,6 +18,7 @@ interface AcceptancePreview {
   status: string;
   createdAt: string;
   validUntil?: string;
+  acceptedAt?: string;
   totalHT: number;
   discountAmount: number;
   promoCode?: string;
@@ -32,22 +34,31 @@ export default function AcceptQuotePage({
   const [quote, setQuote] = useState<AcceptancePreview | null>(null);
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
-  const [accepted, setAccepted] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
-    const response = await fetch(`/api/devis/accept/${params.token}`);
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
+    try {
+      const response = await fetch(`/api/devis/accept/${params.token}`, {
+        cache: "no-store",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(
+          data.message || "Ce lien d’acceptation est invalide ou a expiré.",
+        );
+      } else {
+        setQuote(data);
+      }
+    } catch {
       setError(
-        data.message || "Ce lien d’acceptation est invalide ou a expiré.",
+        "Impossible de charger le devis pour le moment. Réessayez dans quelques instants.",
       );
-    } else {
-      setQuote(data);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [params.token]);
 
   useEffect(() => {
@@ -55,260 +66,376 @@ export default function AcceptQuotePage({
   }, [load]);
 
   async function acceptQuote() {
+    if (!agreed || accepting) return;
     setAccepting(true);
     setError("");
-    const response = await fetch(`/api/devis/accept/${params.token}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
-    const data = await response.json().catch(() => ({}));
-    setAccepting(false);
-    if (!response.ok) {
-      setError(data.message || "L’acceptation du devis a échoué.");
-      return;
+    try {
+      const response = await fetch(`/api/devis/accept/${params.token}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(data.message || "L’acceptation du devis a échoué.");
+        return;
+      }
+      setQuote((current) =>
+        current
+          ? {
+              ...current,
+              status: "ACCEPTE",
+              acceptedAt: new Date().toISOString(),
+            }
+          : current,
+      );
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch {
+      setError(
+        "La confirmation n’a pas pu être envoyée. Vérifiez votre connexion et réessayez.",
+      );
+    } finally {
+      setAccepting(false);
     }
-    setAccepted(true);
   }
 
   const recurringItems = quote?.items.filter((item) => item.recurring) || [];
   const oneTimeItems = quote?.items.filter((item) => !item.recurring) || [];
 
   return (
-    <main style={pageStyle}>
-      <div style={glowStyle} />
-      <section style={shellStyle}>
-        <Link href="/" style={brandStyle}>
-          Quantum Code
-        </Link>
+    <main className={styles.page}>
+      <div className={styles.ambient} aria-hidden="true" />
+      <div className={styles.grid} aria-hidden="true" />
+
+      <div className={styles.shell}>
+        <header className={styles.siteHeader}>
+          <Link href="/" className={styles.brand} aria-label="Quantum Code">
+            <span className={styles.brandMark}>Q</span>
+            <span>
+              Quantum <strong>Code</strong>
+            </span>
+          </Link>
+          <a href="mailto:contact@quantum-code.fr" className={styles.helpLink}>
+            Une question ? <strong>Écrivez-moi</strong>
+          </a>
+        </header>
 
         {loading ? (
-          <div style={stateCardStyle}>Chargement du devis…</div>
-        ) : accepted ? (
-          <div style={stateCardStyle}>
-            <div style={successIconStyle}>✓</div>
-            <h1 style={titleStyle}>Devis accepté</h1>
-            <p style={paragraphStyle}>
-              Merci pour votre confiance. Quantum Code a bien reçu votre accord
-              et vous recontactera pour organiser le lancement du projet.
-            </p>
-            <Link href="/" style={primaryLinkStyle}>
-              Retour au site
-            </Link>
-          </div>
+          <StateCard label="Ouverture sécurisée">
+            <div className={styles.loader} aria-hidden="true" />
+            <h1>Préparation de votre devis…</h1>
+            <p>Quelques secondes suffisent.</p>
+          </StateCard>
+        ) : quote?.status === "ACCEPTE" ? (
+          <SuccessState quote={quote} token={params.token} />
         ) : error && !quote ? (
-          <div style={stateCardStyle}>
-            <h1 style={titleStyle}>Lien indisponible</h1>
-            <p style={paragraphStyle}>{error}</p>
-            <a href="mailto:contact@quantum-code.fr" style={primaryLinkStyle}>
-              Contacter Quantum Code
+          <StateCard label="Lien indisponible">
+            <div className={styles.errorIcon}>!</div>
+            <h1>Ce devis n’est plus accessible.</h1>
+            <p>{error}</p>
+            <a
+              href="mailto:contact@quantum-code.fr"
+              className={styles.primaryLink}
+            >
+              Demander un nouveau lien
             </a>
-          </div>
+          </StateCard>
         ) : quote ? (
           <>
-            <header style={{ marginBottom: 26 }}>
-              <div style={eyebrowStyle}>Validation en ligne</div>
-              <h1 style={titleStyle}>Devis {quote.number}</h1>
-              <p style={paragraphStyle}>
-                Bonjour {quote.client.contactName}, vérifiez le récapitulatif
-                ci-dessous avant de confirmer l’accord de {quote.client.company}
-                .
-              </p>
-            </header>
-
-            <div style={cardStyle}>
-              <div style={metaGridStyle}>
-                <Meta
-                  label="Émis le"
-                  value={new Date(quote.createdAt).toLocaleDateString("fr-FR")}
-                />
-                <Meta
-                  label="Valable jusqu’au"
-                  value={
-                    quote.validUntil
-                      ? new Date(quote.validUntil).toLocaleDateString("fr-FR")
-                      : "Non précisé"
-                  }
-                />
-                <Meta label="Client" value={quote.client.company} />
+            <section className={styles.hero}>
+              <div>
+                <div className={styles.eyebrow}>
+                  Proposition commerciale · {quote.number}
+                </div>
+                <h1>
+                  Bonjour {firstName(quote.client.contactName)},
+                  <br />
+                  <span>voici votre projet.</span>
+                </h1>
+                <p>
+                  Cette proposition a été préparée pour{" "}
+                  <strong>{quote.client.company}</strong>. Vous pouvez examiner
+                  chaque prestation, télécharger le document complet, puis
+                  confirmer votre accord en bas de page.
+                </p>
               </div>
 
-              <div style={{ marginTop: 24 }}>
+              <aside className={styles.summaryCard}>
+                <div className={styles.summaryTop}>
+                  <span>Montant ponctuel</span>
+                  <strong>{formatMoney(quote.totalHT)}</strong>
+                  <small>Prix final · TVA non applicable</small>
+                </div>
+                <dl className={styles.metaList}>
+                  <div>
+                    <dt>Émis le</dt>
+                    <dd>{formatDate(quote.createdAt)}</dd>
+                  </div>
+                  <div>
+                    <dt>Valable jusqu’au</dt>
+                    <dd>
+                      {quote.validUntil
+                        ? formatDate(quote.validUntil)
+                        : "Non précisé"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Destinataire</dt>
+                    <dd>{quote.client.company}</dd>
+                  </div>
+                </dl>
+                <a
+                  href={`/api/devis/accept/${params.token}/pdf`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={styles.documentLink}
+                >
+                  Télécharger le devis PDF <span>↗</span>
+                </a>
+              </aside>
+            </section>
+
+            <section className={styles.contentCard}>
+              <div className={styles.sectionHeading}>
+                <div>
+                  <span>01 · Périmètre</span>
+                  <h2>Ce qui est compris dans le projet</h2>
+                </div>
+                <div className={styles.itemCount}>
+                  {oneTimeItems.length} prestation
+                  {oneTimeItems.length > 1 ? "s" : ""}
+                </div>
+              </div>
+
+              <div className={styles.items}>
                 {oneTimeItems.map((item, index) => (
-                  <div key={`${item.label}-${index}`} style={itemRowStyle}>
-                    <div>
-                      <div
-                        style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}
-                      >
-                        {item.label}
-                      </div>
-                      {item.description && (
-                        <div
-                          style={{
-                            color: "#8f96a8",
-                            fontSize: 11,
-                            marginTop: 4,
-                          }}
-                        >
-                          {item.description}
-                        </div>
-                      )}
-                    </div>
-                    <div
-                      style={{
-                        color: "#fff",
-                        fontSize: 13,
-                        fontWeight: 700,
-                        textAlign: "right",
-                      }}
-                    >
-                      {(item.quantity * item.unitPrice).toFixed(2)} €
+                  <div
+                    key={`${item.label}-${index}`}
+                    className={styles.itemRow}
+                  >
+                    <span className={styles.itemIndex}>
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <div className={styles.itemCopy}>
+                      <h3>{item.label}</h3>
+                      {item.description && <p>{item.description}</p>}
                       {item.quantity > 1 && (
-                        <div
-                          style={{
-                            color: "#737b8e",
-                            fontSize: 9,
-                            fontWeight: 400,
-                          }}
-                        >
-                          {item.quantity} × {item.unitPrice.toFixed(2)} €
-                        </div>
+                        <small>
+                          {item.quantity} × {formatMoney(item.unitPrice)}
+                        </small>
                       )}
                     </div>
+                    <strong>
+                      {formatMoney(item.quantity * item.unitPrice)}
+                    </strong>
                   </div>
                 ))}
               </div>
 
-              <div style={totalBoxStyle}>
+              <div className={styles.totals}>
                 {quote.discountAmount > 0 && (
                   <>
                     <TotalRow
                       label="Sous-total"
-                      value={`${(quote.totalHT + quote.discountAmount).toFixed(2)} € HT`}
+                      value={formatMoney(quote.totalHT + quote.discountAmount)}
                     />
                     <TotalRow
-                      label={`Réduction${quote.promoCode ? ` ${quote.promoCode}` : ""}`}
-                      value={`−${quote.discountAmount.toFixed(2)} €`}
-                      color="#5dd8a0"
+                      label={`Remise${quote.promoCode ? ` · ${quote.promoCode}` : ""}`}
+                      value={`− ${formatMoney(quote.discountAmount)}`}
+                      accent
                     />
                   </>
                 )}
                 <TotalRow
-                  label="Total ponctuel"
-                  value={`${quote.totalHT.toFixed(2)} € HT`}
+                  label="Prix final du projet"
+                  value={formatMoney(quote.totalHT)}
                   strong
                 />
-                <div
-                  style={{
-                    color: "#737b8e",
-                    fontSize: 10,
-                    textAlign: "right",
-                    marginTop: 5,
-                  }}
-                >
-                  TVA non applicable, art. 293 B du CGI
-                </div>
+                <p>TVA non applicable, art. 293 B du CGI</p>
               </div>
+            </section>
 
-              {recurringItems.length > 0 && (
-                <div style={recurringBoxStyle}>
-                  <div
-                    style={{
-                      color: "#9aa3b7",
-                      fontSize: 10,
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      letterSpacing: ".08em",
-                      marginBottom: 10,
-                    }}
-                  >
-                    Prestations récurrentes
+            {recurringItems.length > 0 && (
+              <section className={styles.subscriptionCard}>
+                <div className={styles.sectionHeading}>
+                  <div>
+                    <span>02 · Suivi optionnel</span>
+                    <h2>Abonnements et services récurrents</h2>
                   </div>
+                  <div className={styles.subscriptionBadge}>À part</div>
+                </div>
+                <p className={styles.sectionIntro}>
+                  Ces services sont facturés selon leur propre périodicité. Ils
+                  ne sont pas inclus dans le montant ponctuel de création du
+                  site.
+                </p>
+                <div className={styles.subscriptionGrid}>
                   {recurringItems.map((item, index) => (
                     <div
                       key={`${item.label}-${index}`}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 20,
-                        padding: "5px 0",
-                        color: "#d9ddea",
-                        fontSize: 12,
-                      }}
+                      className={styles.subscriptionItem}
                     >
-                      <span>
-                        {item.label}
-                        {item.quantity > 1 ? ` × ${item.quantity}` : ""}
-                      </span>
-                      <strong style={{ color: "#77a0ff" }}>
-                        {(item.quantity * item.unitPrice).toFixed(2)} € /{" "}
-                        {item.recurringUnit || "mois"}
+                      <div>
+                        <h3>{item.label}</h3>
+                        {item.description && <p>{item.description}</p>}
+                      </div>
+                      <strong>
+                        {formatMoney(item.quantity * item.unitPrice)}
+                        <small>/ {item.recurringUnit || "mois"}</small>
                       </strong>
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
-
-            {error && <div style={errorStyle}>{error}</div>}
-            {quote.status === "EXPIRE" ? (
-              <div style={errorStyle}>
-                Ce devis a expiré. Contactez Quantum Code pour recevoir une
-                nouvelle proposition.
-              </div>
-            ) : (
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  marginTop: 18,
-                }}
-              >
-                <button
-                  disabled={accepting}
-                  onClick={acceptQuote}
-                  style={primaryButtonStyle}
-                >
-                  {accepting ? "Validation…" : "J’accepte ce devis"}
-                </button>
-              </div>
+              </section>
             )}
-            <p
-              style={{
-                color: "#737b8e",
-                fontSize: 10,
-                lineHeight: 1.6,
-                marginTop: 16,
-              }}
-            >
-              En cliquant sur « J’accepte ce devis », vous confirmez votre
-              accord sur les prestations et montants présentés dans le PDF reçu
-              par email.
-            </p>
+
+            <section className={styles.reassurance}>
+              <div>
+                <span>Échange direct</span>
+                <p>Vous échangez avec Hugo, du cadrage jusqu’à la livraison.</p>
+              </div>
+              <div>
+                <span>Production maîtrisée</span>
+                <p>
+                  Chaque étape, chaque test et la mise en ligne sont contrôlés.
+                </p>
+              </div>
+              <div>
+                <span>Propriété claire</span>
+                <p>Le code livré vous appartient après le paiement intégral.</p>
+              </div>
+            </section>
+
+            <section className={styles.acceptCard}>
+              <div>
+                <span className={styles.acceptLabel}>03 · Votre accord</span>
+                <h2>Prêt à lancer le projet ?</h2>
+                <p>
+                  Après votre confirmation, je vous recontacte personnellement
+                  pour fixer le planning et organiser le démarrage.
+                </p>
+              </div>
+
+              {quote.status === "EXPIRE" ? (
+                <div className={styles.expiredBox}>
+                  Ce devis a expiré. Écrivez-moi pour recevoir une proposition
+                  actualisée.
+                </div>
+              ) : (
+                <div className={styles.acceptAction}>
+                  <label className={styles.checkbox}>
+                    <input
+                      type="checkbox"
+                      checked={agreed}
+                      onChange={(event) => setAgreed(event.target.checked)}
+                    />
+                    <span>
+                      J’ai lu le devis PDF et j’accepte les prestations, les
+                      montants, les abonnements éventuels et les conditions
+                      présentés.
+                    </span>
+                  </label>
+                  {error && <div className={styles.inlineError}>{error}</div>}
+                  <button
+                    type="button"
+                    disabled={!agreed || accepting}
+                    onClick={acceptQuote}
+                    className={styles.acceptButton}
+                  >
+                    {accepting
+                      ? "Enregistrement de votre accord…"
+                      : "Accepter le devis et démarrer"}
+                  </button>
+                  <small>
+                    Votre accord est horodaté et enregistré dans le suivi du
+                    projet.
+                  </small>
+                </div>
+              )}
+            </section>
           </>
         ) : null}
-      </section>
+
+        <footer className={styles.footer}>
+          <span>Quantum Code · Hugo André</span>
+          <span>SIRET 102 934 916 00010 · Oise, Hauts-de-France</span>
+        </footer>
+      </div>
     </main>
   );
 }
 
-function Meta({ label, value }: { label: string; value: string }) {
+function SuccessState({
+  quote,
+  token,
+}: {
+  quote: AcceptancePreview;
+  token: string;
+}) {
   return (
-    <div>
-      <div
-        style={{
-          color: "#737b8e",
-          fontSize: 9,
-          textTransform: "uppercase",
-          letterSpacing: ".08em",
-          marginBottom: 5,
-        }}
-      >
-        {label}
+    <section className={styles.successCard}>
+      <div className={styles.successMark}>✓</div>
+      <div className={styles.eyebrow}>Accord enregistré</div>
+      <h1>
+        Merci {firstName(quote.client.contactName)}.
+        <br />
+        <span>Le projet peut commencer.</span>
+      </h1>
+      <p className={styles.successIntro}>
+        L’acceptation du devis <strong>{quote.number}</strong> pour{" "}
+        <strong>{quote.client.company}</strong> est bien enregistrée. Une
+        confirmation vient également de vous être envoyée par email.
+      </p>
+
+      <div className={styles.nextSteps}>
+        <div>
+          <span>01</span>
+          <strong>Confirmation du planning</strong>
+          <p>Je vous recontacte pour définir la date de lancement.</p>
+        </div>
+        <div>
+          <span>02</span>
+          <strong>Acompte et démarrage</strong>
+          <p>La facture d’acompte prévue au devis sera préparée.</p>
+        </div>
+        <div>
+          <span>03</span>
+          <strong>Collecte des contenus</strong>
+          <p>Nous réunissons les textes, images et accès utiles au projet.</p>
+        </div>
       </div>
-      <div style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>
-        {value}
+
+      <div className={styles.successActions}>
+        <a
+          href={`/api/devis/accept/${token}/pdf`}
+          target="_blank"
+          rel="noreferrer"
+          className={styles.primaryLink}
+        >
+          Conserver le devis PDF
+        </a>
+        <a
+          href="mailto:contact@quantum-code.fr"
+          className={styles.secondaryLink}
+        >
+          Écrire à Hugo
+        </a>
       </div>
-    </div>
+    </section>
+  );
+}
+
+function StateCard({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className={styles.stateCard}>
+      <div className={styles.eyebrow}>{label}</div>
+      {children}
+    </section>
   );
 }
 
@@ -316,179 +443,40 @@ function TotalRow({
   label,
   value,
   strong = false,
-  color = "#fff",
+  accent = false,
 }: {
   label: string;
   value: string;
   strong?: boolean;
-  color?: string;
+  accent?: boolean;
 }) {
   return (
     <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        gap: 20,
-        padding: strong ? "8px 0 0" : "4px 0",
-        borderTop: strong ? "1px solid #2a3040" : undefined,
-      }}
+      className={`${styles.totalRow} ${strong ? styles.totalStrong : ""} ${accent ? styles.totalAccent : ""}`}
     >
-      <span
-        style={{
-          color: strong ? "#fff" : "#8f96a8",
-          fontSize: strong ? 13 : 11,
-          fontWeight: strong ? 700 : 400,
-        }}
-      >
-        {label}
-      </span>
-      <strong style={{ color, fontSize: strong ? 18 : 12 }}>{value}</strong>
+      <span>{label}</span>
+      <strong>{value}</strong>
     </div>
   );
 }
 
-const pageStyle: React.CSSProperties = {
-  minHeight: "100vh",
-  position: "relative",
-  overflow: "hidden",
-  padding: "48px 18px",
-  background: "#090b10",
-  fontFamily: "Arial, sans-serif",
-};
+function firstName(name: string) {
+  return name.trim().split(/\s+/)[0] || "bonjour";
+}
 
-const glowStyle: React.CSSProperties = {
-  position: "fixed",
-  top: -240,
-  left: "50%",
-  width: 700,
-  height: 500,
-  transform: "translateX(-50%)",
-  borderRadius: "50%",
-  background: "rgba(45,111,255,.16)",
-  filter: "blur(90px)",
-  pointerEvents: "none",
-};
+function formatMoney(amount: number) {
+  return new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
 
-const shellStyle: React.CSSProperties = {
-  position: "relative",
-  width: "min(100%, 760px)",
-  margin: "0 auto",
-};
-
-const brandStyle: React.CSSProperties = {
-  display: "inline-block",
-  color: "#fff",
-  fontSize: 16,
-  fontWeight: 800,
-  textDecoration: "none",
-  marginBottom: 52,
-};
-
-const eyebrowStyle: React.CSSProperties = {
-  color: "#77a0ff",
-  fontSize: 10,
-  fontWeight: 800,
-  letterSpacing: ".12em",
-  textTransform: "uppercase",
-  marginBottom: 10,
-};
-
-const titleStyle: React.CSSProperties = {
-  color: "#fff",
-  fontSize: "clamp(28px, 6vw, 46px)",
-  lineHeight: 1.05,
-  margin: "0 0 12px",
-};
-
-const paragraphStyle: React.CSSProperties = {
-  maxWidth: 620,
-  color: "#9aa3b7",
-  fontSize: 14,
-  lineHeight: 1.7,
-  margin: "0 0 24px",
-};
-
-const cardStyle: React.CSSProperties = {
-  padding: "clamp(18px, 4vw, 30px)",
-  border: "1px solid #222836",
-  borderRadius: 14,
-  background: "rgba(17,20,28,.92)",
-  boxShadow: "0 24px 80px rgba(0,0,0,.35)",
-};
-
-const stateCardStyle: React.CSSProperties = {
-  ...cardStyle,
-  padding: "clamp(28px, 7vw, 56px)",
-  textAlign: "center",
-};
-
-const metaGridStyle: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-  gap: 18,
-  paddingBottom: 22,
-  borderBottom: "1px solid #222836",
-};
-
-const itemRowStyle: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1fr auto",
-  gap: 18,
-  alignItems: "center",
-  padding: "14px 0",
-  borderBottom: "1px solid #202531",
-};
-
-const totalBoxStyle: React.CSSProperties = {
-  width: "min(100%, 360px)",
-  margin: "24px 0 0 auto",
-};
-
-const recurringBoxStyle: React.CSSProperties = {
-  marginTop: 24,
-  padding: 16,
-  border: "1px solid rgba(45,111,255,.28)",
-  borderRadius: 9,
-  background: "rgba(45,111,255,.07)",
-};
-
-const primaryButtonStyle: React.CSSProperties = {
-  padding: "13px 20px",
-  border: 0,
-  borderRadius: 8,
-  background: "#2d6fff",
-  color: "#fff",
-  fontSize: 13,
-  fontWeight: 800,
-  cursor: "pointer",
-};
-
-const primaryLinkStyle: React.CSSProperties = {
-  ...primaryButtonStyle,
-  display: "inline-block",
-  textDecoration: "none",
-};
-
-const successIconStyle: React.CSSProperties = {
-  display: "grid",
-  placeItems: "center",
-  width: 58,
-  height: 58,
-  margin: "0 auto 20px",
-  borderRadius: "50%",
-  background: "rgba(93,216,160,.14)",
-  color: "#5dd8a0",
-  fontSize: 28,
-  fontWeight: 800,
-};
-
-const errorStyle: React.CSSProperties = {
-  marginTop: 16,
-  padding: 12,
-  border: "1px solid rgba(255,107,107,.35)",
-  borderRadius: 8,
-  background: "rgba(255,107,107,.08)",
-  color: "#ff9a9a",
-  fontSize: 12,
-  lineHeight: 1.5,
-};
+function formatDate(date: string) {
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(date));
+}

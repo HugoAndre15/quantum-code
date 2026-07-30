@@ -15,7 +15,10 @@ export class ContactService {
   ) {}
 
   async sendContactEmail(dto: ContactDto): Promise<void> {
-    const to = this.config.get('MAIL_FROM', 'contact@quantum-code.fr');
+    const to = this.config.get(
+      'MAIL_ADMIN_TO',
+      this.config.get('MAIL_FROM', 'contact@quantum-code.fr'),
+    );
 
     const html = this.buildContactHtml(dto);
 
@@ -61,18 +64,27 @@ export class ContactService {
               .map(
                 (r) => `
               <tr>
-                <td style="padding: 8px 12px; font-weight: bold; color: #555; white-space: nowrap; vertical-align: top;">${r.label}</td>
-                <td style="padding: 8px 12px; color: #333;">${r.value}</td>
+                <td style="padding: 8px 12px; font-weight: bold; color: #555; white-space: nowrap; vertical-align: top;">${escapeHtml(r.label)}</td>
+                <td style="padding: 8px 12px; color: #333;">${escapeHtml(r.value)}</td>
               </tr>`,
               )
               .join('')}
           </table>
           <div style="background: #f9f9f9; padding: 16px; border-radius: 6px; border-left: 4px solid #2d6fff;">
             <p style="margin: 0 0 4px; font-weight: bold; color: #555;">Message</p>
-            <p style="margin: 0; color: #333; white-space: pre-wrap;">${dto.message}</p>
+            <p style="margin: 0; color: #333; white-space: pre-wrap;">${escapeHtml(dto.message)}</p>
           </div>
         </div>
       </div>
     `;
   }
+}
+
+function escapeHtml(value: string): string {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
