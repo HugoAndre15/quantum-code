@@ -7,11 +7,15 @@ import {
   IsInt,
   IsBoolean,
   IsDateString,
+  Min,
+  IsNotEmpty,
+  ArrayMinSize,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateDevisItemDto {
   @IsString()
+  @IsNotEmpty()
   label: string;
 
   @IsOptional()
@@ -20,13 +24,16 @@ export class CreateDevisItemDto {
 
   @IsOptional()
   @IsInt()
+  @Min(1)
   quantity?: number;
 
   @IsNumber()
+  @Min(0)
   unitPrice: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   devTime?: number;
 
   @IsOptional()
@@ -83,6 +90,7 @@ export class CreateDevisDto {
   // Legacy: direct items (for manual/edit mode)
   @IsOptional()
   @IsArray()
+  @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => CreateDevisItemDto)
   items?: CreateDevisItemDto[];
@@ -102,7 +110,12 @@ export class UpdateDevisDto {
   notes?: string;
 
   @IsOptional()
+  @IsString()
+  promoCode?: string | null;
+
+  @IsOptional()
   @IsArray()
+  @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => CreateDevisItemDto)
   items?: CreateDevisItemDto[];
