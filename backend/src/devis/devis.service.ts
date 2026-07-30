@@ -1,6 +1,14 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateDevisDto, UpdateDevisDto } from './dto/devis.dto';
+import {
+  CreateDevisDto,
+  CreateDevisItemDto,
+  UpdateDevisDto,
+} from './dto/devis.dto';
 import { randomUUID } from 'crypto';
 import {
   ActivityType,
@@ -12,6 +20,189 @@ import {
 @Injectable()
 export class DevisService {
   constructor(private prisma: PrismaService) {}
+
+  private roundMoney(value: number) {
+    return Math.round(value * 100) / 100;
+  }
+
+  private calculateTotals(
+    items: Array<{
+      quantity?: number;
+      unitPrice: number;
+      devTime?: number;
+      recurring?: boolean;
+    }>,
+  ) {
+    let subtotalHT = 0;
+    let devTime = 0;
+
+    for (const item of items) {
+      const quantity = item.quantity ?? 1;
+      if (!item.recurring) {
+        subtotalHT += item.unitPrice * quantity;
+      }
+      devTime += (item.devTime ?? 0) * quantity;
+    }
+
+    return {
+      subtotalHT: this.roundMoney(subtotalHT),
+      devTime: this.roundMoney(devTime),
+    };
+  }
+
+  private calculateDiscount(
+    promo: {
+      discountType: string;
+      discountValue: number;
+      minAmount: number | null;
+    } | null,
+    subtotalHT: number,
+  ) {
+    if (!promo) return 0;
+    if (promo.minAmount && subtotalHT < promo.minAmount) {
+      throw new BadRequestException(
+        `Cette promotion nécessite un montant minimum de ${promo.minAmount} €`,
+      );
+    }
+
+    return promo.discountType === 'PERCENTAGE'
+      ? this.roundMoney(subtotalHT * (promo.discountValue / 100))
+      : Math.min(promo.discountValue, subtotalHT);
+  }
+
+  private async resolvePromotion(
+    code: string | null | undefined,
+    subtotalHT: number,
+    currentPromoCodeId?: string | null,
+  ) {
+    if (!code?.trim()) return null;
+
+    const promo = await this.prisma.promoCode.findUnique({
+      where: { code: code.trim().toUpperCase() },
+    });
+    if (!promo) throw new BadRequestException('Code promo introuvable');
+    if (!promo.active) throw new BadRequestException('Code promo désactivé');
+
+    const now = new Date();
+    if (promo.startDate && promo.startDate > now) {
+      throw new BadRequestException('Code promo pas encore actif');
+    }
+    if (promo.endDate && promo.endDate < now) {
+      throw new BadRequestException('Code promo expiré');
+    }
+    if (
+      promo.maxUses !== null &&
+      promo.currentUses >= promo.maxUses &&
+      promo.id !== currentPromoCodeId
+    ) {
+      throw new BadRequestException("Limite d'utilisation atteinte");
+    }
+
+    this.calculateDiscount(promo, subtotalHT);
+    return promo;
+  }
+
+  private async syncPromotionUsage(
+    previousPromoCodeId: string | null | undefined,
+    nextPromoCodeId: string | null | undefined,
+  ) {
+    if (previousPromoCodeId === nextPromoCodeId) return;
+
+    if (previousPromoCodeId) {
+      await this.prisma.promoCode.updateMany({
+        where: { id: previousPromoCodeId, currentUses: { gt: 0 } },
+        data: { currentUses: { decrement: 1 } },
+      });
+    }
+    if (nextPromoCodeId) {
+      await this.prisma.promoCode.update({
+        where: { id: nextPromoCodeId },
+        data: { currentUses: { increment: 1 } },
+      });
+    }
+  }
+
+  /**
+   * Les lignes issues du catalogue sont toujours recalculées côté serveur.
+   * Seules les lignes sans packId/serviceOptionId restent librement éditables.
+   */
+  private async resolveManualItems(items: CreateDevisItemDto[]) {
+    const packIds = [
+      ...new Set(items.flatMap((item) => (item.packId ? [item.packId] : []))),
+    ];
+    const optionIds = [
+      ...new Set(
+        items.flatMap((item) =>
+          item.serviceOptionId ? [item.serviceOptionId] : [],
+        ),
+      ),
+    ];
+
+    const [packs, options] = await Promise.all([
+      this.prisma.pack.findMany({ where: { id: { in: packIds } } }),
+      this.prisma.serviceOption.findMany({
+        where: { id: { in: optionIds } },
+      }),
+    ]);
+    const packsById = new Map(packs.map((pack) => [pack.id, pack]));
+    const optionsById = new Map(options.map((option) => [option.id, option]));
+
+    return items.map((item) => {
+      if (item.packId && item.serviceOptionId) {
+        throw new BadRequestException(
+          'Une ligne ne peut pas référencer un pack et une option',
+        );
+      }
+
+      if (item.packId) {
+        const pack = packsById.get(item.packId);
+        if (!pack) throw new BadRequestException('Pack introuvable');
+        return {
+          label: `Pack ${pack.name}`,
+          description: pack.description,
+          quantity: item.quantity ?? 1,
+          unitPrice: pack.price,
+          devTime: pack.devTime,
+          recurring: false,
+          recurringUnit: undefined,
+          packId: pack.id,
+          serviceOptionId: undefined,
+        };
+      }
+
+      if (item.serviceOptionId) {
+        const option = optionsById.get(item.serviceOptionId);
+        if (!option) throw new BadRequestException('Option introuvable');
+        return {
+          label: option.name,
+          description: option.description,
+          quantity: item.quantity ?? 1,
+          unitPrice: option.price,
+          devTime: option.devTime,
+          recurring: option.recurring,
+          recurringUnit: option.recurring
+            ? option.recurringUnit || 'mois'
+            : undefined,
+          packId: undefined,
+          serviceOptionId: option.id,
+        };
+      }
+
+      return {
+        label: item.label.trim(),
+        description: item.description?.trim() || undefined,
+        quantity: item.quantity ?? 1,
+        unitPrice: item.unitPrice,
+        devTime: item.devTime ?? 0,
+        recurring: item.recurring ?? false,
+        recurringUnit: item.recurring
+          ? item.recurringUnit?.trim() || 'mois'
+          : undefined,
+        packId: undefined,
+        serviceOptionId: undefined,
+      };
+    });
+  }
 
   private async generateNumber(): Promise<string> {
     const year = new Date().getFullYear();
@@ -26,7 +217,9 @@ export class DevisService {
   async findAll() {
     return this.prisma.devis.findMany({
       include: {
-        client: { select: { id: true, company: true, contactName: true, email: true } },
+        client: {
+          select: { id: true, company: true, contactName: true, email: true },
+        },
         items: true,
         factures: {
           select: {
@@ -38,7 +231,14 @@ export class DevisService {
           },
           orderBy: { createdAt: 'asc' },
         },
-        promoCode: { select: { id: true, code: true, discountType: true, discountValue: true } },
+        promoCode: {
+          select: {
+            id: true,
+            code: true,
+            discountType: true,
+            discountValue: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -69,9 +269,9 @@ export class DevisService {
    * - no packId: use base price + pages + options à la carte
    */
   async buildDevisItems(dto: CreateDevisDto) {
-    // If items are provided directly (manual mode), use them as-is
+    // Manual mode: catalog prices are still trusted from the database.
     if (dto.items && dto.items.length > 0) {
-      return dto.items;
+      return this.resolveManualItems(dto.items);
     }
 
     const items: any[] = [];
@@ -96,22 +296,32 @@ export class DevisService {
       // Extra pages beyond what the pack includes
       const extraPages = (dto.pages || 0) - (pack.includedPages || 0);
       if (extraPages > 0) {
-        const base = await this.prisma.pricingBase.findFirst();
-        const pagePrice = base?.pagePrice || 70;
-        const devTimePage = base?.devTimePage || 2;
+        const [base, pageOption] = await Promise.all([
+          this.prisma.pricingBase.findFirst(),
+          this.prisma.serviceOption.findUnique({
+            where: { name: 'Page supplémentaire' },
+          }),
+        ]);
+        const pagePrice = pageOption?.price ?? base?.pagePrice ?? 70;
+        const devTimePage = pageOption?.devTime ?? base?.devTimePage ?? 2;
         items.push({
-          label: 'Pages supplémentaires',
+          label: pageOption?.name || 'Pages supplémentaires',
           description: `${extraPages} page(s) en plus des ${pack.includedPages} incluse(s)`,
           unitPrice: pagePrice,
           devTime: devTimePage,
           quantity: extraPages,
+          serviceOptionId: pageOption?.id,
         });
       }
 
       // Extra options (not included in pack)
       if (dto.optionIds?.length) {
-        const includedIds = pack.includedOptions.map((po) => po.serviceOptionId);
-        const extraOptionIds = dto.optionIds.filter((id) => !includedIds.includes(id));
+        const includedIds = pack.includedOptions.map(
+          (po) => po.serviceOptionId,
+        );
+        const extraOptionIds = dto.optionIds.filter(
+          (id) => !includedIds.includes(id),
+        );
 
         if (extraOptionIds.length > 0) {
           const extraOptions = await this.prisma.serviceOption.findMany({
@@ -134,7 +344,8 @@ export class DevisService {
     } else {
       // ── Base + sur mesure mode ──
       const base = await this.prisma.pricingBase.findFirst();
-      if (!base) throw new BadRequestException('Configuration de base introuvable');
+      if (!base)
+        throw new BadRequestException('Configuration de base introuvable');
 
       items.push({
         label: base.name || 'Base site web',
@@ -148,12 +359,16 @@ export class DevisService {
       const totalPages = dto.pages || base.basePages || 1;
       const extraPages = totalPages - (base.basePages || 1);
       if (extraPages > 0) {
+        const pageOption = await this.prisma.serviceOption.findUnique({
+          where: { name: 'Page supplémentaire' },
+        });
         items.push({
-          label: 'Pages supplémentaires',
+          label: pageOption?.name || 'Pages supplémentaires',
           description: `${extraPages} page(s) en plus de la base (${base.basePages} incluse(s))`,
-          unitPrice: base.pagePrice,
-          devTime: base.devTimePage || 0,
+          unitPrice: pageOption?.price ?? base.pagePrice,
+          devTime: pageOption?.devTime ?? base.devTimePage ?? 0,
           quantity: extraPages,
+          serviceOptionId: pageOption?.id,
         });
       }
 
@@ -183,51 +398,10 @@ export class DevisService {
   async create(dto: CreateDevisDto) {
     const number = await this.generateNumber();
     const items = await this.buildDevisItems(dto);
-
-    // Calculate totals
-    let totalHT = 0;
-    let devTime = 0;
-    for (const item of items) {
-      const qty = item.quantity ?? 1;
-      if (!item.recurring) {
-        totalHT += item.unitPrice * qty;
-      }
-      devTime += (item.devTime ?? 0) * qty;
-    }
-
-    // Promo code validation
-    let discountAmount = 0;
-    let promoCodeId: string | undefined;
-
-    if (dto.promoCode) {
-      const promo = await this.prisma.promoCode.findUnique({
-        where: { code: dto.promoCode.toUpperCase() },
-      });
-
-      if (promo && promo.active) {
-        const now = new Date();
-        const validStart = !promo.startDate || promo.startDate <= now;
-        const validEnd = !promo.endDate || promo.endDate >= now;
-        const validUses = promo.maxUses === null || promo.currentUses < promo.maxUses;
-        const validMin = !promo.minAmount || totalHT >= promo.minAmount;
-
-        if (validStart && validEnd && validUses && validMin) {
-          if (promo.discountType === 'PERCENTAGE') {
-            discountAmount = Math.round(totalHT * (promo.discountValue / 100) * 100) / 100;
-          } else {
-            discountAmount = Math.min(promo.discountValue, totalHT);
-          }
-          promoCodeId = promo.id;
-          totalHT = Math.round((totalHT - discountAmount) * 100) / 100;
-
-          // Increment usage
-          await this.prisma.promoCode.update({
-            where: { id: promo.id },
-            data: { currentUses: { increment: 1 } },
-          });
-        }
-      }
-    }
+    const { subtotalHT, devTime } = this.calculateTotals(items);
+    const promo = await this.resolvePromotion(dto.promoCode, subtotalHT);
+    const discountAmount = this.calculateDiscount(promo, subtotalHT);
+    const totalHT = this.roundMoney(subtotalHT - discountAmount);
 
     const quote = await this.prisma.devis.create({
       data: {
@@ -239,7 +413,7 @@ export class DevisService {
         totalHT,
         devTime,
         discountAmount,
-        promoCodeId,
+        promoCodeId: promo?.id,
         items: {
           create: items.map((item) => ({
             label: item.label,
@@ -260,6 +434,8 @@ export class DevisService {
       },
     });
 
+    await this.syncPromotionUsage(null, promo?.id);
+
     await this.prisma.crmActivity.create({
       data: {
         type: ActivityType.DEVIS,
@@ -274,28 +450,35 @@ export class DevisService {
   }
 
   async update(id: string, dto: UpdateDevisDto) {
-    const devis = await this.prisma.devis.findUnique({ where: { id } });
+    const devis = await this.prisma.devis.findUnique({
+      where: { id },
+      include: { items: true, promoCode: true },
+    });
     if (!devis) throw new NotFoundException('Devis introuvable');
 
-    // Items can only be edited in BROUILLON
-    if (dto.items && devis.status !== 'BROUILLON') {
-      throw new BadRequestException('Seuls les devis en brouillon peuvent être modifiés');
+    const pricingChanged =
+      dto.items !== undefined || dto.promoCode !== undefined;
+    if (pricingChanged && devis.status !== 'BROUILLON') {
+      throw new BadRequestException(
+        'Les lignes et promotions sont modifiables uniquement sur un brouillon',
+      );
     }
 
-    // If items are provided, recalculate totals and replace items
-    if (dto.items) {
-      let totalHT = 0;
-      let devTime = 0;
-      for (const item of dto.items) {
-        const qty = item.quantity ?? 1;
-        if (!item.recurring) {
-          totalHT += item.unitPrice * qty;
-        }
-        devTime += (item.devTime ?? 0) * qty;
-      }
-
-      // Delete existing items and recreate
-      await this.prisma.devisItem.deleteMany({ where: { devisId: id } });
+    if (pricingChanged) {
+      const items = dto.items
+        ? await this.resolveManualItems(dto.items)
+        : devis.items;
+      const { subtotalHT, devTime } = this.calculateTotals(items);
+      const promo =
+        dto.promoCode !== undefined
+          ? await this.resolvePromotion(
+              dto.promoCode,
+              subtotalHT,
+              devis.promoCodeId,
+            )
+          : devis.promoCode;
+      const discountAmount = this.calculateDiscount(promo, subtotalHT);
+      const totalHT = this.roundMoney(subtotalHT - discountAmount);
 
       const updated = await this.prisma.devis.update({
         where: { id },
@@ -309,22 +492,29 @@ export class DevisService {
           notes: dto.notes,
           totalHT,
           devTime,
-          items: {
-            create: dto.items.map((item) => ({
-              label: item.label,
-              description: item.description,
-              quantity: item.quantity ?? 1,
-              unitPrice: item.unitPrice,
-              devTime: item.devTime ?? 0,
-              recurring: item.recurring ?? false,
-              recurringUnit: item.recurringUnit,
-              packId: item.packId,
-              serviceOptionId: item.serviceOptionId,
-            })),
-          },
+          discountAmount,
+          promoCodeId: promo?.id || null,
+          ...(dto.items && {
+            items: {
+              deleteMany: {},
+              create: items.map((item) => ({
+                label: item.label,
+                description: item.description,
+                quantity: item.quantity ?? 1,
+                unitPrice: item.unitPrice,
+                devTime: item.devTime ?? 0,
+                recurring: item.recurring ?? false,
+                recurringUnit: item.recurringUnit,
+                packId: item.packId,
+                serviceOptionId: item.serviceOptionId,
+              })),
+            },
+          }),
         },
-        include: { client: true, items: true },
+        include: { client: true, items: true, promoCode: true },
       });
+
+      await this.syncPromotionUsage(devis.promoCodeId, promo?.id);
       if (dto.status && dto.status !== devis.status) {
         await this.recordStatusChange(updated, devis.status);
       }
@@ -342,7 +532,7 @@ export class DevisService {
         validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,
         notes: dto.notes,
       },
-      include: { client: true, items: true },
+      include: { client: true, items: true, promoCode: true },
     });
     if (dto.status && dto.status !== devis.status) {
       await this.recordStatusChange(updated, devis.status);
@@ -357,7 +547,9 @@ export class DevisService {
     });
     if (!devis) throw new NotFoundException('Devis introuvable');
     if (devis.factures.length) {
-      throw new BadRequestException('Impossible de supprimer un devis lié à une facture');
+      throw new BadRequestException(
+        'Impossible de supprimer un devis lié à une facture',
+      );
     }
     await this.prisma.devis.delete({ where: { id } });
     return { message: 'Devis supprimé' };
@@ -370,7 +562,9 @@ export class DevisService {
     });
     if (!devis) throw new NotFoundException('Devis introuvable');
     if (devis.status !== 'ACCEPTE') {
-      throw new BadRequestException('Seuls les devis acceptés peuvent être transformés en facture');
+      throw new BadRequestException(
+        'Seuls les devis acceptés peuvent être transformés en facture',
+      );
     }
 
     const deposit = devis.factures.find(
@@ -452,6 +646,42 @@ export class DevisService {
     return { total, byStatus: statusMap };
   }
 
+  async getAcceptancePreview(token: string) {
+    const devis = await this.prisma.devis.findUnique({
+      where: { acceptToken: token },
+      include: {
+        client: {
+          select: { company: true, contactName: true },
+        },
+        items: true,
+        promoCode: { select: { code: true } },
+      },
+    });
+    if (!devis) throw new NotFoundException('Lien invalide ou expiré');
+
+    const expired = Boolean(
+      devis.acceptTokenExpiresAt && devis.acceptTokenExpiresAt < new Date(),
+    );
+    return {
+      number: devis.number,
+      status: expired ? 'EXPIRE' : devis.status,
+      createdAt: devis.createdAt,
+      validUntil: devis.validUntil,
+      totalHT: devis.totalHT,
+      discountAmount: devis.discountAmount,
+      promoCode: devis.promoCode?.code,
+      client: devis.client,
+      items: devis.items.map((item) => ({
+        label: item.label,
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        recurring: item.recurring,
+        recurringUnit: item.recurringUnit,
+      })),
+    };
+  }
+
   /**
    * Génère un token d'acceptation et passe le devis en ENVOYE.
    * Retourne le devis mis à jour avec le client (pour l'email).
@@ -469,7 +699,9 @@ export class DevisService {
       throw new BadRequestException('Ce devis est déjà accepté');
     }
     if (devis.status === 'REFUSE' || devis.status === 'EXPIRE') {
-      throw new BadRequestException(`Impossible d'envoyer un devis ${devis.status}`);
+      throw new BadRequestException(
+        `Impossible d'envoyer un devis ${devis.status}`,
+      );
     }
 
     const token = randomUUID();
@@ -483,7 +715,7 @@ export class DevisService {
         acceptTokenExpiresAt: expiresAt,
         status: 'ENVOYE',
       },
-      include: { client: true, items: true },
+      include: { client: true, items: true, promoCode: true },
     });
     if (devis.status !== 'ENVOYE') {
       await this.recordStatusChange(updated, devis.status);
@@ -511,9 +743,15 @@ export class DevisService {
     if (devis.acceptTokenExpiresAt && devis.acceptTokenExpiresAt < new Date()) {
       await this.prisma.devis.update({
         where: { id: devis.id },
-        data: { status: 'EXPIRE', acceptToken: null, acceptTokenExpiresAt: null },
+        data: {
+          status: 'EXPIRE',
+          acceptToken: null,
+          acceptTokenExpiresAt: null,
+        },
       });
-      throw new BadRequestException('Ce lien a expiré. Contactez-nous pour un nouveau devis.');
+      throw new BadRequestException(
+        'Ce lien a expiré. Contactez-nous pour un nouveau devis.',
+      );
     }
 
     const updatedDevis = await this.prisma.$transaction(async (tx) => {

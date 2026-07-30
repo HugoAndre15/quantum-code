@@ -41,6 +41,12 @@ export class DevisController {
     return this.devisService.getStats();
   }
 
+  @Public()
+  @Get('accept/:token')
+  getAcceptancePreview(@Param('token') token: string) {
+    return this.devisService.getAcceptancePreview(token);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.devisService.findOne(id);
@@ -75,7 +81,7 @@ export class DevisController {
       date: devis.createdAt,
       validUntil: devis.validUntil,
       client: devis.client,
-      items: devis.items.map(i => ({
+      items: devis.items.map((i) => ({
         label: i.label,
         description: i.description,
         quantity: i.quantity,
@@ -102,7 +108,7 @@ export class DevisController {
     const devis = await this.devisService.findOne(id);
 
     if (!devis.client.email) {
-      throw new BadRequestException('Le client n\'a pas d\'adresse email');
+      throw new BadRequestException("Le client n'a pas d'adresse email");
     }
 
     const pdf = await this.pdfService.generate({
@@ -111,7 +117,7 @@ export class DevisController {
       date: devis.createdAt,
       validUntil: devis.validUntil,
       client: devis.client,
-      items: devis.items.map(i => ({
+      items: devis.items.map((i) => ({
         label: i.label,
         description: i.description,
         quantity: i.quantity,
@@ -154,8 +160,30 @@ export class DevisController {
   @Post(':id/send-accept-token')
   async sendAcceptToken(@Param('id') id: string) {
     const devis = await this.devisService.generateAcceptToken(id);
-    const frontendUrl = this.config.get('FRONTEND_URL', 'http://localhost:3000');
+    const frontendUrl = this.config.get(
+      'FRONTEND_URL',
+      'http://localhost:3000',
+    );
     const acceptUrl = `${frontendUrl}/devis/accept/${devis.acceptToken}`;
+    const pdf = await this.pdfService.generate({
+      type: 'devis',
+      number: devis.number,
+      date: devis.createdAt,
+      validUntil: devis.validUntil,
+      client: devis.client,
+      items: devis.items.map((item) => ({
+        label: item.label,
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        recurring: item.recurring,
+        recurringUnit: item.recurringUnit,
+      })),
+      totalHT: devis.totalHT,
+      notes: devis.notes,
+      discountAmount: devis.discountAmount,
+      promoCode: devis.promoCode?.code,
+    });
 
     const html = `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
@@ -178,13 +206,15 @@ export class DevisController {
       </div>
     `;
 
-    await this.mailService.sendMail({
+    await this.mailService.sendDocument({
       to: devis.client.email!,
       subject: `Votre devis ${devis.number} est prêt — Quantum Code`,
       html,
+      pdf,
+      filename: `${devis.number}.pdf`,
     });
 
-    return { message: 'Devis envoyé avec lien d\'acceptation', devisId: id };
+    return { message: "Devis envoyé avec lien d'acceptation", devisId: id };
   }
 
   /**
@@ -196,4 +226,3 @@ export class DevisController {
     return this.devisService.acceptByToken(token);
   }
 }
-

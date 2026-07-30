@@ -248,10 +248,11 @@ export class PdfService {
           .text('Prestations récurrentes', M, y);
         y += 16;
         for (const item of recurringItems) {
+          const recurringTotal = item.unitPrice * item.quantity;
           doc.fontSize(8.5).fill(TEXT).font('Helvetica')
-            .text(`• ${item.label}`, M + 8, y, { width: 300 });
+            .text(`• ${item.label}${item.quantity > 1 ? ` × ${item.quantity}` : ''}`, M + 8, y, { width: 300 });
           doc.fill(BLUE).font('Helvetica-Bold')
-            .text(`${item.unitPrice.toFixed(2)} € / ${item.recurringUnit || 'mois'}`, col.total, y, { width: 75, align: 'right' });
+            .text(`${recurringTotal.toFixed(2)} € / ${item.recurringUnit || 'mois'}`, col.total, y, { width: 75, align: 'right' });
           y += 15;
         }
         y += 10;
