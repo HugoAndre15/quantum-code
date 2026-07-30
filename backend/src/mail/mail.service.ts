@@ -129,7 +129,7 @@ export class MailService {
         : '';
 
     const subscriptionsBlock = subscriptions.length
-      ? `<div style="margin-top:16px;padding:18px 20px;background:#f5f7ff;border:1px solid #dce4ff;border-radius:12px;">
+      ? `<div style="margin-top:16px;padding:18px 20px;background:#f6f7fa;border:1px solid #dfe3ea;border-radius:10px;">
           <p style="margin:0 0 10px;color:#315cca;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">Accompagnement optionnel</p>
           ${subscriptions
             .map(
@@ -158,7 +158,7 @@ export class MailService {
         ? `J’ai préparé une proposition claire pour <strong>${escapeHtml(data.company)}</strong>, à partir du périmètre défini ensemble. Prenez le temps de la parcourir : chaque prestation et chaque coût y sont détaillés.`
         : `Vous trouverez en pièce jointe la proposition préparée pour <strong>${escapeHtml(data.company)}</strong>. Elle reprend le périmètre, les prestations et les conditions du projet.`,
       body: `
-        <div style="margin:26px 0;padding:22px;background:#f8fafc;border:1px solid #e4e7ec;border-radius:14px;">
+        <div style="margin:26px 0;padding:22px;background:#f7f8fa;border:1px solid #dfe3ea;border-radius:10px;">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
             <tr>
               <td style="padding:0 0 8px;color:#667085;font-size:13px;">Devis</td>
@@ -199,7 +199,7 @@ export class MailService {
       title: `${firstName}, votre facture est prête.`,
       intro: `Vous trouverez en pièce jointe la facture <strong>${escapeHtml(data.number)}</strong> établie pour <strong>${escapeHtml(data.company)}</strong>.`,
       body: `
-        <div style="margin:26px 0;padding:22px;background:#f8fafc;border:1px solid #e4e7ec;border-radius:14px;">
+        <div style="margin:26px 0;padding:22px;background:#f7f8fa;border:1px solid #dfe3ea;border-radius:10px;">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
             <tr>
               <td style="color:#667085;font-size:13px;">Montant de la facture</td>
@@ -230,7 +230,7 @@ export class MailService {
       title: `Merci ${firstName}, le projet peut démarrer.`,
       intro: `L’acceptation du devis <strong>${escapeHtml(data.number)}</strong> pour <strong>${escapeHtml(data.company)}</strong> a bien été enregistrée.`,
       body: `
-        <div style="margin:26px 0;padding:22px;background:#effbf6;border:1px solid #bfe9d5;border-radius:14px;">
+        <div style="margin:26px 0;padding:22px;background:#f1f8f5;border:1px solid #c9e2d7;border-radius:10px;">
           <p style="margin:0 0 6px;color:#16845b;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">Prochaine étape</p>
           <p style="margin:0;color:#175c45;font-size:14px;line-height:1.7;">Je vous recontacte pour confirmer le planning, organiser le lancement et préparer l’acompte prévu au devis.</p>
         </div>
@@ -269,7 +269,7 @@ export class MailService {
       title: `${escapeHtml(data.company)} a donné son accord.`,
       intro: `<strong>${escapeHtml(data.contactName)}</strong> vient d’accepter le devis <strong>${escapeHtml(data.number)}</strong>.`,
       body: `
-        <div style="margin:26px 0;padding:22px;background:#effbf6;border:1px solid #bfe9d5;border-radius:14px;">
+        <div style="margin:26px 0;padding:22px;background:#f1f8f5;border:1px solid #c9e2d7;border-radius:10px;">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
             <tr>
               <td style="color:#175c45;font-size:13px;">Montant ponctuel</td>
@@ -299,19 +299,19 @@ export class MailService {
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>${escapeHtml(data.eyebrow)}</title>
   </head>
-  <body style="margin:0;padding:0;background:#f1f3f7;font-family:Arial,Helvetica,sans-serif;color:#101828;">
+  <body style="margin:0;padding:0;background:#f2f3f5;font-family:Arial,Helvetica,sans-serif;color:#101828;">
     <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(data.preheader)}</div>
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f1f3f7;border-collapse:collapse;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f2f3f5;border-collapse:collapse;">
       <tr>
         <td align="center" style="padding:30px 14px;">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:640px;border-collapse:separate;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 12px 35px rgba(16,24,40,.08);">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:640px;border:1px solid #dfe3ea;border-collapse:separate;background:#ffffff;border-radius:14px;overflow:hidden;">
             <tr>
-              <td style="padding:22px 30px;background:#20242d;border-bottom:3px solid #2d6fff;">
+              <td style="padding:22px 30px;background:#181b21;border-bottom:2px solid #2d6fff;">
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
                   <tr>
                     <td>
-                      <span style="display:inline-block;padding:8px 10px;background:#2d6fff;border-radius:8px;color:#fff;font-size:15px;font-weight:900;">Q</span>
-                      <span style="margin-left:9px;color:#fff;font-size:16px;font-weight:800;">Quantum <span style="color:#7ba8ff;">Code</span></span>
+                      <span style="display:inline-block;padding:7px 9px;border:1px solid #4d5d7d;border-radius:6px;color:#9bb8f3;font-size:15px;font-weight:900;">Q</span>
+                      <span style="margin-left:9px;color:#fff;font-size:16px;font-weight:800;">Quantum <span style="color:#9bb8f3;">Code</span></span>
                     </td>
                     <td style="color:#98a2b3;font-size:10px;letter-spacing:.08em;text-align:right;text-transform:uppercase;">Web · Design · Conseil</td>
                   </tr>
@@ -344,7 +344,7 @@ export class MailService {
   private emailButton(url: string, label: string): string {
     return `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:26px auto 0;border-collapse:separate;">
       <tr>
-        <td style="background:#2d6fff;border-radius:9px;text-align:center;">
+        <td style="background:#2d6fff;border-radius:7px;text-align:center;">
           <a href="${escapeHtml(url)}" style="display:inline-block;padding:14px 24px;color:#fff;font-size:13px;font-weight:800;text-decoration:none;">${escapeHtml(label)} →</a>
         </td>
       </tr>
