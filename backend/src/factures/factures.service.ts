@@ -144,22 +144,42 @@ export class FacturesService {
     return { total, byStatus: statusMap };
   }
 
-  private withPaymentSummary<T extends { totalHT: number; payments: Array<{ amount: unknown; type: PaymentType; status: PaymentStatus }> }>(
-    facture: T,
-  ) {
-    const paidAmount = facture.payments.reduce((sum, payment) => {
-      const amount = Number(payment.amount);
-      if (payment.type === PaymentType.REMBOURSEMENT) return sum - amount;
-      return payment.status === PaymentStatus.PAYE ? sum + amount : sum;
+  private withPaymentSummary<
+    T extends {
+      totalHT: number;
+      payments: Array<{
+        amount: unknown;
+        type: PaymentType;
+        status: PaymentStatus;
+      }>;
+    },
+  >(facture: T) {
+    const payments = facture.payments.map((payment) => ({
+      ...payment,
+      amount: Number(payment.amount),
+    }));
+    const paidAmount = payments.reduce((sum, payment) => {
+      if (payment.type === PaymentType.REMBOURSEMENT) {
+        return sum - payment.amount;
+      }
+      return payment.status === PaymentStatus.PAYE
+        ? sum + payment.amount
+        : sum;
     }, 0);
-
+    const remainingAmount = Math.max(0, facture.totalHT - paidAmount);
     const paymentStatus =
       paidAmount <= 0
         ? 'NON_PAYEE'
-        : paidAmount >= facture.totalHT
+        : remainingAmount <= 0.005
           ? 'PAYEE'
           : 'ACOMPTE_RECU';
 
-    return { ...facture, paidAmount, paymentStatus };
+    return {
+      ...facture,
+      payments,
+      paidAmount,
+      remainingAmount,
+      paymentStatus,
+    };
   }
 }
