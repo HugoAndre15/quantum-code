@@ -188,6 +188,7 @@ export class StripePaymentsService {
     if (!payment?.facture) {
       throw new Error(`Paiement introuvable pour la session ${session.id}`);
     }
+    const invoice = payment.facture;
 
     const expectedCents = Math.round(Number(payment.amount) * 100);
     if (
@@ -221,8 +222,7 @@ export class StripePaymentsService {
         select: { amount: true, type: true, status: true },
       });
       const paidAmount = this.paidAmount(payments);
-      const isPaid =
-        paidAmount + MONEY_EPSILON >= Number(payment.facture.totalHT);
+      const isPaid = paidAmount + MONEY_EPSILON >= Number(invoice.totalHT);
 
       if (isPaid) {
         await tx.facture.update({
@@ -247,9 +247,9 @@ export class StripePaymentsService {
         data: {
           type: ActivityType.PAIEMENT,
           title: `Paiement carte de ${Number(payment.amount).toFixed(2)} € reçu`,
-          description: `Stripe · ${payment.facture.number}`,
+          description: `Stripe · ${invoice.number}`,
           clientId: payment.clientId,
-          devisId: payment.facture.devisId,
+          devisId: invoice.devisId,
           factureId: payment.factureId,
           metadata: { stripeSessionId: session.id, stripeEventId: eventId },
         },
@@ -258,11 +258,8 @@ export class StripePaymentsService {
       return {
         amount: Number(payment.amount),
         paidAmount,
-        remainingAmount: Math.max(
-          0,
-          Number(payment.facture.totalHT) - paidAmount,
-        ),
-        invoice: payment.facture,
+        remainingAmount: Math.max(0, Number(invoice.totalHT) - paidAmount),
+        invoice,
       };
     });
 
