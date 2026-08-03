@@ -26,6 +26,9 @@ interface DocumentEmailData {
   contactName: string;
   company: string;
   total: number;
+  paidAmount?: number;
+  remainingAmount?: number;
+  paymentUrl?: string;
 }
 
 @Injectable()
@@ -193,25 +196,110 @@ export class MailService {
 
   buildFactureEmail(data: DocumentEmailData): string {
     const firstName = getFirstName(data.contactName);
+    const paidAmount = data.paidAmount || 0;
+    const remainingAmount =
+      data.remainingAmount === undefined
+        ? Math.max(0, data.total - paidAmount)
+        : data.remainingAmount;
+    const paymentRows = paidAmount > 0
+      ? `<tr>
+          <td style="padding:0 0 8px;color:#667085;font-size:13px;">Déjà réglé</td>
+          <td style="padding:0 0 8px;color:#16845b;font-size:13px;font-weight:700;text-align:right;">${formatMoney(paidAmount)}</td>
+        </tr>`
+      : '';
+    const paymentButton =
+      data.paymentUrl && remainingAmount > 0
+        ? `${this.emailButton(data.paymentUrl, `Payer ${formatMoney(remainingAmount)} en ligne`)}
+          <p style="margin:12px 0 0;color:#98a2b3;font-size:10px;line-height:1.6;text-align:center;">Paiement sécurisé par Stripe. Le règlement par virement reste également possible.</p>`
+        : '';
+
     return this.emailLayout({
-      preheader: `Votre facture ${data.number} est jointe à cet email.`,
-      eyebrow: 'Document de facturation',
-      title: `${firstName}, votre facture est prête.`,
+      preheader:
+        remainingAmount > 0
+          ? `Votre facture ${data.number} est prête à être réglée.`
+          : `Le paiement de la facture ${data.number} est enregistré.`,
+      eyebrow:
+        remainingAmount > 0 ? 'Document de facturation' : 'Facture réglée',
+      title:
+        remainingAmount > 0
+          ? `${firstName}, votre facture est prête.`
+          : `${firstName}, cette facture est réglée.`,
       intro: `Vous trouverez en pièce jointe la facture <strong>${escapeHtml(data.number)}</strong> établie pour <strong>${escapeHtml(data.company)}</strong>.`,
       body: `
         <div style="margin:26px 0;padding:22px;background:#f7f8fa;border:1px solid #dfe3ea;border-radius:10px;">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
             <tr>
-              <td style="color:#667085;font-size:13px;">Montant de la facture</td>
-              <td style="color:#2d6fff;font-size:22px;font-weight:800;text-align:right;">${formatMoney(data.total)}</td>
+              <td style="padding:0 0 8px;color:#667085;font-size:13px;">Montant de la facture</td>
+              <td style="padding:0 0 8px;color:#101828;font-size:13px;font-weight:700;text-align:right;">${formatMoney(data.total)}</td>
+            </tr>
+            ${paymentRows}
+            <tr>
+              <td style="padding:10px 0 0;border-top:1px solid #e4e7ec;color:#101828;font-size:14px;font-weight:700;">${remainingAmount > 0 ? 'Reste à payer' : 'Statut'}</td>
+              <td style="padding:10px 0 0;border-top:1px solid #e4e7ec;color:${remainingAmount > 0 ? '#2d6fff' : '#16845b'};font-size:22px;font-weight:800;text-align:right;">${remainingAmount > 0 ? formatMoney(remainingAmount) : 'Payée'}</td>
             </tr>
           </table>
           <p style="margin:8px 0 0;color:#98a2b3;font-size:10px;text-align:right;">Prix final · TVA non applicable, art. 293 B du CGI</p>
         </div>
-        <p style="margin:0;color:#667085;font-size:13px;line-height:1.7;">Merci pour votre confiance. Si vous avez la moindre question concernant ce document, répondez directement à cet email.</p>
+        ${paymentButton}
+        <p style="margin:22px 0 0;color:#667085;font-size:13px;line-height:1.7;">Le PDF complet est joint à cet email. Une question sur cette facture ? Répondez directement à ce message, je vous répondrai personnellement.</p>
       `,
       signature:
         'Hugo André<br><span style="color:#667085;font-weight:400;">Quantum Code</span>',
+    });
+  }
+
+  buildPaymentReceivedClientEmail(data: {
+    number: string;
+    contactName: string;
+    company: string;
+    amount: number;
+    paidAmount: number;
+    remainingAmount: number;
+  }): string {
+    const firstName = getFirstName(data.contactName);
+    return this.emailLayout({
+      preheader: `Votre paiement de ${formatMoney(data.amount)} a bien été reçu.`,
+      eyebrow: 'Paiement confirmé',
+      title: `Merci ${firstName}, le paiement est enregistré.`,
+      intro: `Le règlement par carte de la facture <strong>${escapeHtml(data.number)}</strong> pour <strong>${escapeHtml(data.company)}</strong> a bien été confirmé par Stripe.`,
+      body: `
+        <div style="margin:26px 0;padding:22px;background:#f1f8f5;border:1px solid #c9e2d7;border-radius:10px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+            <tr><td style="padding:0 0 8px;color:#175c45;font-size:13px;">Paiement reçu</td><td style="padding:0 0 8px;color:#16845b;font-size:20px;font-weight:800;text-align:right;">${formatMoney(data.amount)}</td></tr>
+            <tr><td style="padding:10px 0 0;border-top:1px solid #c9e2d7;color:#527566;font-size:12px;">Reste à payer</td><td style="padding:10px 0 0;border-top:1px solid #c9e2d7;color:#175c45;font-size:13px;font-weight:700;text-align:right;">${formatMoney(data.remainingAmount)}</td></tr>
+          </table>
+        </div>
+        <p style="margin:0;color:#667085;font-size:13px;line-height:1.7;">Vous pouvez conserver cet email comme confirmation. Je reste disponible si vous avez la moindre question.</p>
+      `,
+      signature:
+        'Hugo André<br><span style="color:#667085;font-weight:400;">Quantum Code</span>',
+    });
+  }
+
+  buildPaymentReceivedAdminEmail(data: {
+    number: string;
+    contactName: string;
+    company: string;
+    amount: number;
+    paidAmount: number;
+    remainingAmount: number;
+    adminUrl: string;
+  }): string {
+    return this.emailLayout({
+      preheader: `${data.company} vient de régler ${formatMoney(data.amount)} par carte.`,
+      eyebrow: 'Paiement Stripe reçu',
+      title: `${escapeHtml(data.company)} a effectué un paiement.`,
+      intro: `<strong>${escapeHtml(data.contactName)}</strong> vient de régler la facture <strong>${escapeHtml(data.number)}</strong>.`,
+      body: `
+        <div style="margin:26px 0;padding:22px;background:#f1f8f5;border:1px solid #c9e2d7;border-radius:10px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+            <tr><td style="padding:0 0 8px;color:#175c45;font-size:13px;">Reçu maintenant</td><td style="padding:0 0 8px;color:#16845b;font-size:20px;font-weight:800;text-align:right;">${formatMoney(data.amount)}</td></tr>
+            <tr><td style="padding:10px 0 0;border-top:1px solid #c9e2d7;color:#527566;font-size:12px;">Reste à payer</td><td style="padding:10px 0 0;border-top:1px solid #c9e2d7;color:#175c45;font-size:13px;font-weight:700;text-align:right;">${formatMoney(data.remainingAmount)}</td></tr>
+          </table>
+        </div>
+        ${this.emailButton(data.adminUrl, 'Ouvrir la facture dans le CRM')}
+      `,
+      signature: 'Notification automatique Quantum Code',
     });
   }
 
