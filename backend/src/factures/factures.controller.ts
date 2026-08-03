@@ -65,6 +65,11 @@ export class FacturesController {
     return this.stripePayments.ensurePaymentLink(id);
   }
 
+  @Post(":id/payment-link/reset")
+  resetPaymentLink(@Param("id") id: string) {
+    return this.stripePayments.resetPaymentLink(id);
+  }
+
   @Get(":id")
   findOne(@Param("id") id: string) {
     return this.facturesService.findOne(id);
