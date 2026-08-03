@@ -1,0 +1,42 @@
+name: Temporary payment fix validation
+
+on:
+  push:
+    branches:
+      - agent/fix-stripe-reconciliation-public-ui
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - name: Backend dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Prisma
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/quantum_code
+        run: |
+          npx prisma generate
+          npx prisma validate
+      - name: Backend tests
+        working-directory: backend
+        run: npm test -- --runInBand
+      - name: Backend build
+        working-directory: backend
+        run: npm run build
+      - name: Frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
