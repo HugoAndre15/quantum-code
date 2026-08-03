@@ -222,9 +222,11 @@ model Facture {
   percentage Float?
   status     FactureStatus @default(BROUILLON)
   totalHT    Float         @default(0)
-  paidAt     DateTime?
-  notes      String?
-  payments   Payment[]
+  paidAt               DateTime?
+  notes                String?
+  paymentToken         String?        @unique
+  paymentTokenExpiresAt DateTime?
+  payments             Payment[]
   activities CrmActivity[]
   tasks      CrmTask[]
   createdAt  DateTime      @default(now())
@@ -457,11 +459,14 @@ model Payment {
   method                PaymentMethod @default(VIREMENT)
   notes                 String?
   stripeSessionId       String?       @unique
-  stripePaymentIntentId String?
+  stripePaymentIntentId String?       @unique
+  stripeEventId         String?       @unique
   status                PaymentStatus @default(EN_ATTENTE)
   paidAt                DateTime?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
+
+  @@index([factureId, status])
 }
 
 model Subscription {
