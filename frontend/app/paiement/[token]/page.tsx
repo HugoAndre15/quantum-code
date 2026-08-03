@@ -71,6 +71,11 @@ export default function PaymentPage({ params }: { params: { token: string } }) {
       { method: "POST" },
     );
     const data = await response.json().catch(() => ({}));
+    if (response.ok && data.paid) {
+      setRedirecting(false);
+      await load();
+      return;
+    }
     if (!response.ok || !data.url) {
       setError(data.message || "Le paiement ne peut pas être démarré.");
       setRedirecting(false);
@@ -121,8 +126,8 @@ export default function PaymentPage({ params }: { params: { token: string } }) {
               </span>
               <h1>
                 {paid
-                  ? "Merci, tout est réglé."
-                  : "Finalisons cette étape simplement."}
+                  ? <>Merci, <span>tout est réglé.</span></>
+                  : <>Finalisons cette étape, <span>simplement.</span></>}
               </h1>
               <p>
                 {paid
