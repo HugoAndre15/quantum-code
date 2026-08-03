@@ -1,8 +1,8 @@
 .page {
   min-height: 100vh;
-  color: #f7f8fa;
-  background: #101216;
-  font-family: var(--font-sans), Arial, sans-serif;
+  color: var(--grey);
+  background: var(--black);
+  font-family: var(--font-sans);
 }
 
 .shell {
@@ -15,7 +15,7 @@
   min-height: 76px;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #292d35;
+  border-bottom: 1px solid var(--border);
 }
 
 .brand {
@@ -29,7 +29,7 @@
 }
 
 .brand strong {
-  color: #91aff0;
+  color: var(--blue);
 }
 
 .mark {
@@ -37,16 +37,16 @@
   width: 32px;
   height: 32px;
   place-items: center;
-  border: 1px solid #46516a;
-  border-radius: 6px;
-  color: #9bb8f3;
-  background: #171a20;
+  border: 1px solid var(--blue);
+  border-radius: var(--r);
+  color: #fff;
+  background: var(--blue);
   font-size: 13px;
   font-weight: 800;
 }
 
 .secure {
-  color: #9299a6;
+  color: var(--grey-3);
   font-size: 11px;
 }
 
@@ -66,7 +66,7 @@
 .eyebrow {
   display: block;
   margin-bottom: 15px;
-  color: #8eacf0;
+  color: var(--blue);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.13em;
@@ -83,10 +83,19 @@
   letter-spacing: -0.045em;
 }
 
+.intro h1 span,
+.state h1 span {
+  color: var(--gold);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
 .intro > p,
 .state > p {
   margin: 0;
-  color: #a1a7b2;
+  color: var(--grey-3);
   font-size: 15px;
   line-height: 1.8;
 }
@@ -118,9 +127,9 @@
 
 .card {
   overflow: hidden;
-  border: 1px solid #2d313a;
-  border-radius: 14px;
-  background: #181b21;
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-l);
+  background: var(--black-2);
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.2);
 }
 
@@ -129,12 +138,12 @@
   align-items: center;
   justify-content: space-between;
   padding: 22px 24px;
-  border-bottom: 1px solid #2d313a;
-  background: #1d2129;
+  border-bottom: 1px solid var(--border);
+  background: var(--black-3);
 }
 
 .cardTop span {
-  color: #9aa1ad;
+  color: var(--grey-3);
   font-size: 11px;
 }
 .cardTop strong {
@@ -153,35 +162,35 @@
   justify-content: space-between;
   gap: 20px;
   padding: 9px 0;
-  color: #989faa;
+  color: var(--grey-3);
   font-size: 12px;
 }
 
 .rows > div strong {
-  color: #f4f5f7;
+  color: var(--grey);
   font-size: 13px;
 }
 .rows > div .paid {
-  color: #81c8a8;
+  color: var(--green);
 }
 
 .rows .total {
   margin-top: 8px;
   padding-top: 18px;
-  border-top: 1px solid #313640;
+  border-top: 1px solid var(--border-2);
   color: #fff;
   font-size: 14px;
 }
 
 .rows .total strong {
-  color: #91aff0;
+  color: var(--blue);
   font-size: 25px;
 }
 
 .tax {
   margin: 0;
   padding: 0 24px 20px;
-  color: #747b88;
+  color: var(--grey-4);
   font-size: 9px;
   text-align: right;
 }
@@ -195,9 +204,9 @@
   justify-content: center;
   margin: 0 24px 12px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--r);
   color: #fff;
-  background: #2d6fff;
+  background: var(--blue);
   font-family: inherit;
   font-size: 12px;
   font-weight: 800;
@@ -213,7 +222,7 @@
 .pdfLink {
   display: block;
   margin: 16px 24px 0;
-  color: #bbc2ce;
+  color: var(--grey-2);
   font-size: 11px;
   text-align: center;
   text-decoration: underline;
@@ -222,7 +231,7 @@
 
 .reassurance {
   margin: 14px 24px 22px;
-  color: #777e8a;
+  color: var(--grey-3);
   font-size: 9px;
   line-height: 1.5;
   text-align: center;
@@ -244,8 +253,8 @@
   min-height: 74px;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid #292d35;
-  color: #747b87;
+  border-top: 1px solid var(--border);
+  color: var(--grey-3);
   font-size: 10px;
 }
 

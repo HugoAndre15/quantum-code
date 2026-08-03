@@ -148,6 +148,35 @@ export default function InvoiceDetailsPage({
     setMessage("Lien de paiement copié.");
   }
 
+  async function resetPaymentLink() {
+    if (
+      !confirm(
+        "Réinitialiser le paiement ? Stripe sera vérifié avant toute action. Si aucun paiement n’a été reçu, la session en attente sera invalidée et un nouveau lien sera créé.",
+      )
+    )
+      return;
+    setWorking(true);
+    setError("");
+    setMessage("");
+    const response = await apiFetch(
+      `${API}/factures/${params.id}/payment-link/reset`,
+      { method: "POST" },
+    );
+    const data = await response.json().catch(() => ({}));
+    setWorking(false);
+    if (!response.ok) {
+      setError(data.message || "Réinitialisation impossible.");
+      return;
+    }
+    if (data.paid) {
+      setMessage("Le paiement Stripe a été retrouvé et synchronisé.");
+    } else if (data.url) {
+      await navigator.clipboard.writeText(data.url);
+      setMessage("Nouveau lien de paiement créé et copié.");
+    }
+    await load();
+  }
+
   async function remove() {
     if (!confirm("Supprimer définitivement cette facture ?")) return;
     const response = await apiFetch(`${API}/factures/${params.id}`, {
@@ -209,6 +238,15 @@ export default function InvoiceDetailsPage({
             >
               Copier le lien de paiement
             </button>
+            {invoice.remainingAmount > 0 && invoice.status !== "ANNULEE" && (
+              <button
+                disabled={working}
+                onClick={resetPaymentLink}
+                style={buttonStyle}
+              >
+                Réinitialiser le paiement
+              </button>
+            )}
             <button
               onClick={() =>
                 router.push(`/admin/sales/quotes/${invoice.devis.id}`)

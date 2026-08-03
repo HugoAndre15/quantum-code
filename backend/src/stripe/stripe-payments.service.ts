@@ -64,7 +64,10 @@ export class StripePaymentsService {
   }
 
   async getPublicInvoice(token: string) {
-    const facture = await this.findByToken(token);
+    let facture = await this.findByToken(token);
+    if (await this.reconcilePaidPendingSessions(facture)) {
+      facture = await this.findByToken(token);
+    }
     return this.toPublicInvoice(facture);
   }
 
@@ -110,9 +113,20 @@ export class StripePaymentsService {
           payment.stripeSessionId!,
         );
         if (session.payment_status === "paid") {
-          throw new BadRequestException(
-            "Le paiement est en cours de confirmation. Actualisez la page dans quelques instants.",
-          );
+          try {
+            await this.handleCheckoutCompleted(
+              `reconcile:${session.id}`,
+              session,
+            );
+          } catch (error) {
+            this.logger.error(
+              `Paiement Stripe reçu mais non synchronisé pour ${session.id}: ${(error as Error).message}`,
+            );
+            throw new BadRequestException(
+              "Le paiement a bien été reçu par Stripe, mais sa synchronisation a échoué. Contactez Quantum Code sans effectuer un nouveau paiement.",
+            );
+          }
+          return { paid: true };
         }
         if (session.status === "open" && session.url) {
           return { url: session.url };
@@ -171,6 +185,51 @@ export class StripePaymentsService {
       );
     }
     return { url: session.url };
+  }
+
+  async resetPaymentLink(factureId: string) {
+    const facture = await this.prisma.facture.findUnique({
+      where: { id: factureId },
+      include: { client: true, payments: true },
+    });
+    if (!facture) throw new NotFoundException("Facture introuvable");
+    if (facture.status === "ANNULEE") {
+      throw new BadRequestException("Cette facture a été annulée");
+    }
+    if (
+      this.remainingAmount(facture.totalHT, facture.payments) <= MONEY_EPSILON
+    ) {
+      return { paid: true };
+    }
+
+    const reconciled = await this.reconcilePaidPendingSessions(facture);
+    if (reconciled) {
+      const refreshed = await this.prisma.facture.findUnique({
+        where: { id: factureId },
+        include: { payments: true },
+      });
+      if (
+        refreshed &&
+        this.remainingAmount(refreshed.totalHT, refreshed.payments) <=
+          MONEY_EPSILON
+      ) {
+        return { paid: true };
+      }
+    }
+
+    await this.invalidatePendingSessions(factureId);
+    const token = randomBytes(32).toString("hex");
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + TOKEN_LIFETIME_DAYS);
+    await this.prisma.facture.update({
+      where: { id: factureId },
+      data: { paymentToken: token, paymentTokenExpiresAt: expiresAt },
+    });
+    return {
+      url: `${this.frontendUrl()}/paiement/${token}`,
+      expiresAt,
+      paid: false,
+    };
   }
 
   async handleCheckoutCompleted(
@@ -383,6 +442,43 @@ export class StripePaymentsService {
       where: { id, status: PaymentStatus.EN_ATTENTE },
       data: { status: PaymentStatus.ECHOUE },
     });
+  }
+
+  private async reconcilePaidPendingSessions(
+    facture: {
+      payments: Array<{
+        id: string;
+        status: PaymentStatus;
+        stripeSessionId: string | null;
+      }>;
+    },
+  ) {
+    let reconciled = false;
+    const pendingPayments = facture.payments.filter(
+      (payment) =>
+        payment.status === PaymentStatus.EN_ATTENTE &&
+        Boolean(payment.stripeSessionId),
+    );
+
+    for (const payment of pendingPayments) {
+      try {
+        const session = await this.stripe.retrieveSession(
+          payment.stripeSessionId!,
+        );
+        if (session.payment_status === "paid") {
+          await this.handleCheckoutCompleted(
+            `reconcile:${session.id}`,
+            session,
+          );
+          reconciled = true;
+        }
+      } catch (error) {
+        this.logger.warn(
+          `Réconciliation Stripe impossible pour ${payment.stripeSessionId}: ${(error as Error).message}`,
+        );
+      }
+    }
+    return reconciled;
   }
 
   private async sendPaymentNotifications(result: {

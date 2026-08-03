@@ -132,6 +132,92 @@ describe("StripePaymentsService", () => {
     expect(stripe.createCheckoutSession).not.toHaveBeenCalled();
   });
 
+  it("reconciles a paid Checkout session instead of leaving it pending", async () => {
+    (prisma.facture.findUnique as jest.Mock).mockResolvedValue({
+      id: "invoice-1",
+      clientId: "client-1",
+      number: "FAC-2026-001",
+      type: "ACOMPTE",
+      status: "ENVOYEE",
+      totalHT: 250,
+      paymentTokenExpiresAt: new Date(Date.now() + 60_000),
+      client: {
+        company: "Atelier",
+        contactName: "Camille",
+        email: "camille@test.fr",
+      },
+      devis: { items: [] },
+      payments: [
+        {
+          id: "payment-1",
+          amount: 250,
+          type: PaymentType.ACOMPTE,
+          status: PaymentStatus.EN_ATTENTE,
+          stripeSessionId: "cs_paid",
+          createdAt: new Date(),
+        },
+      ],
+    });
+    (stripe.retrieveSession as jest.Mock).mockResolvedValue({
+      id: "cs_paid",
+      status: "complete",
+      payment_status: "paid",
+    });
+    jest
+      .spyOn(service, "handleCheckoutCompleted")
+      .mockResolvedValueOnce({ processed: true });
+
+    await expect(service.createCheckout("token")).resolves.toEqual({
+      paid: true,
+    });
+    expect(service.handleCheckoutCompleted).toHaveBeenCalledWith(
+      "reconcile:cs_paid",
+      expect.objectContaining({ id: "cs_paid" }),
+    );
+    expect(stripe.createCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  it("expires an unpaid session and rotates the public payment link", async () => {
+    (prisma.facture.findUnique as jest.Mock).mockResolvedValue({
+      id: "invoice-1",
+      status: "ENVOYEE",
+      totalHT: 250,
+      client: { email: "camille@test.fr" },
+      payments: [
+        {
+          id: "payment-1",
+          amount: 250,
+          type: PaymentType.ACOMPTE,
+          status: PaymentStatus.EN_ATTENTE,
+          stripeSessionId: "cs_open",
+        },
+      ],
+    });
+    (prisma.payment.findMany as jest.Mock).mockResolvedValue([
+      { id: "payment-1", stripeSessionId: "cs_open" },
+    ]);
+    (stripe.retrieveSession as jest.Mock).mockResolvedValue({
+      id: "cs_open",
+      status: "open",
+      payment_status: "unpaid",
+    });
+    (stripe.expireCheckoutSession as jest.Mock).mockResolvedValue({});
+    (prisma.payment.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+    (prisma.facture.update as jest.Mock).mockResolvedValue({});
+
+    const result = await service.resetPaymentLink("invoice-1");
+    expect(stripe.expireCheckoutSession).toHaveBeenCalledWith("cs_open");
+    expect(prisma.facture.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "invoice-1" },
+        data: expect.objectContaining({ paymentToken: expect.any(String) }),
+      }),
+    );
+    expect(result).toEqual(
+      expect.objectContaining({ paid: false, url: expect.stringContaining("/paiement/") }),
+    );
+  });
+
   it("refuses a manual payment when Stripe already reports the card as paid", async () => {
     (prisma.payment.findMany as jest.Mock).mockResolvedValue([
       { id: "payment-1", stripeSessionId: "cs_paid" },
