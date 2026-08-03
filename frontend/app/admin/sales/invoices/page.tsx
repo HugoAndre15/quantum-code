@@ -18,6 +18,7 @@ interface Invoice {
   paymentStatus?: PaymentStatus;
   totalHT: number;
   paidAmount?: number;
+  remainingAmount?: number;
   paidAt?: string;
   createdAt: string;
   client?: { id: string; company: string; contactName: string };
@@ -74,8 +75,10 @@ export default function InvoicesPage() {
   const filtered = tab === "all" ? invoices : invoices.filter((i) => i.status === tab);
   const tabsWithCounts = TABS.map((t) => ({ ...t, count: t.key === "all" ? invoices.length : invoices.filter((i) => i.status === t.key).length }));
 
-  const totalPaye = invoices.filter((i) => i.status === "PAYEE").reduce((s, i) => s + i.totalHT, 0);
-  const totalEnAttente = invoices.filter((i) => i.status === "ENVOYEE").reduce((s, i) => s + i.totalHT, 0);
+  const totalPaye = invoices.reduce((sum, invoice) => sum + (invoice.paidAmount || 0), 0);
+  const totalEnAttente = invoices
+    .filter((invoice) => invoice.status !== "ANNULEE")
+    .reduce((sum, invoice) => sum + (invoice.remainingAmount ?? invoice.totalHT), 0);
 
   return (
     <div>

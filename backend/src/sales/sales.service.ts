@@ -12,6 +12,7 @@ import {
   TaskType,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { StripePaymentsService } from '../stripe/stripe-payments.service';
 import {
   CreatePaymentDto,
   CreateSubscriptionDto,
@@ -20,7 +21,10 @@ import {
 
 @Injectable()
 export class SalesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly stripePayments: StripePaymentsService,
+  ) {}
 
   async findPayments() {
     const payments = await this.prisma.payment.findMany({
@@ -50,6 +54,24 @@ export class SalesService {
       throw new BadRequestException(
         'Impossible d’enregistrer un paiement sur une facture annulée',
       );
+    }
+
+    if (dto.type !== PaymentType.REMBOURSEMENT) {
+      const alreadyPaid = facture.payments.reduce((sum, payment) => {
+        const amount = Number(payment.amount);
+        if (payment.type === PaymentType.REMBOURSEMENT) return sum - amount;
+        return payment.status === PaymentStatus.PAYE ? sum + amount : sum;
+      }, 0);
+      const remainingAmount = Math.max(0, facture.totalHT - alreadyPaid);
+      if (remainingAmount <= 0.005) {
+        throw new BadRequestException('Cette facture est déjà intégralement payée');
+      }
+      if (dto.amount > remainingAmount + 0.005) {
+        throw new BadRequestException(
+          `Le montant dépasse le reste à payer (${remainingAmount.toFixed(2)} €)`,
+        );
+      }
+      await this.stripePayments.invalidatePendingSessions(facture.id);
     }
 
     return this.prisma.$transaction(async (tx) => {
