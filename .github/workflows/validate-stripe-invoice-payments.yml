@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - agent/stripe-checkout-invoice-payments
+  pull_request:
+    branches:
+      - main
 
 jobs:
   validate:
