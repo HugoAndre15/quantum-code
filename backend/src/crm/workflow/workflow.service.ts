@@ -41,10 +41,10 @@ export class WorkflowService {
         },
       },
     });
-    if (!lead) throw new NotFoundException('Lead introuvable');
+    if (!lead) throw new NotFoundException('Prospect introuvable');
     if (lead.status === 'PERDU') {
       throw new BadRequestException(
-        'Impossible de créer un devis depuis un lead perdu',
+        'Impossible de créer un devis depuis un prospect perdu',
       );
     }
 
@@ -175,7 +175,7 @@ export class WorkflowService {
       });
       await tx.lead.updateMany({
         where: { convertedClientId: quote.clientId },
-        data: { status: 'CONVERTI' },
+        data: { status: 'GAGNE', lastContactAt: new Date() },
       });
       await tx.crmTask.updateMany({
         where: {
