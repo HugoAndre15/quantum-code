@@ -141,6 +141,33 @@ describe('LeadsService prospecting', () => {
     expect(prisma.crmActivity.create).not.toHaveBeenCalled();
   });
 
+  it('moves a legacy prospect without contact fields through the pipeline', async () => {
+    const existing = lead({
+      email: null,
+      phone: null,
+      website: null,
+      status: LeadStatus.NOUVEAU,
+    });
+    const prisma = {
+      lead: {
+        findUnique: jest.fn().mockResolvedValue(existing),
+        update: jest.fn(({ data }) =>
+          Promise.resolve({ ...existing, ...data }),
+        ),
+      },
+      crmActivity: { create: jest.fn().mockResolvedValue({}) },
+    };
+    const service = new LeadsService(prisma as never);
+
+    await expect(
+      service.update('lead-1', { status: LeadStatus.A_CONTACTER }),
+    ).resolves.toEqual(expect.objectContaining({ status: LeadStatus.A_CONTACTER }));
+    expect(prisma.lead.update).toHaveBeenCalledWith({
+      where: { id: 'lead-1' },
+      data: expect.objectContaining({ status: LeadStatus.A_CONTACTER }),
+    });
+  });
+
   it('records a real pipeline transition and its contact date', async () => {
     const existing = lead({ status: LeadStatus.A_CONTACTER });
     const prisma = {
