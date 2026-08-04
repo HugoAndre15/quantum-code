@@ -332,6 +332,12 @@
   margin-top: 12px;
 }
 
+.cardFooter :global(button) {
+  min-height: 36px;
+  padding: 8px 11px;
+  font-size: 10px;
+}
+
 .stageSelect {
   width: 100%;
   min-width: 0;
