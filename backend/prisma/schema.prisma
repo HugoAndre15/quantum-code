@@ -308,9 +308,16 @@ enum DiscountType {
 model Lead {
   id                String             @id @default(cuid())
   name              String
-  email             String
+  email             String?
   phone             String?
   company           String?
+  trade             String?
+  city              String?
+  website           String?
+  websiteStatus     ProspectWebsiteStatus @default(INCONNU)
+  need              String?
+  campaign          String?
+  lostReason        String?
   budget            Float?
   delayMonths       Int?
   pageCount         Int?
@@ -327,10 +334,13 @@ model Lead {
   conversionSession ConversionSession?
   activities        CrmActivity[]
   tasks             CrmTask[]
+  lastContactAt     DateTime?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 
   @@index([convertedClientId])
+  @@index([status, score])
+  @@index([campaign])
 }
 
 model ConversionSession {
@@ -507,14 +517,33 @@ enum LeadSource {
   SIMULATOR
   CONTACT
   MANUEL
+  IMPORT_CSV
+  GOOGLE_MAPS
+  ANNUAIRE
+  RECOMMANDATION
+  RESEAUX_SOCIAUX
 }
 
 enum LeadStatus {
   NOUVEAU
+  A_CONTACTER
   CONTACTE
   QUALIFIE
+  REPONSE_RECUE
+  RENDEZ_VOUS
+  DEVIS_ENVOYE
+  GAGNE
   CONVERTI
   PERDU
+}
+
+enum ProspectWebsiteStatus {
+  INCONNU
+  ABSENT
+  OBSOLETE
+  NON_RESPONSIVE
+  LIMITE
+  CORRECT
 }
 
 enum ProjectStatus {
