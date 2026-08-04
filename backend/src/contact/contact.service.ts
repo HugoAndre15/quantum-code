@@ -4,6 +4,8 @@ import { MailService } from '../mail/mail.service';
 import { ContactDto } from './dto/contact.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConversionService } from '../conversion/conversion.service';
+import { LeadSource, LeadStatus, ProspectWebsiteStatus } from '@prisma/client';
+import { calculateLeadScore } from '../crm/leads/lead-scoring';
 
 @Injectable()
 export class ContactService {
@@ -29,16 +31,21 @@ export class ContactService {
       replyTo: dto.email,
     });
 
+    const leadData = {
+      name: dto.name,
+      email: dto.email,
+      phone: dto.phone,
+      company: dto.company,
+      source: LeadSource.CONTACT,
+      status: LeadStatus.NOUVEAU,
+      websiteStatus: ProspectWebsiteStatus.INCONNU,
+      need: dto.message,
+      notes: dto.message,
+    };
     const lead = await this.prisma.lead.create({
       data: {
-        name: dto.name,
-        email: dto.email,
-        phone: dto.phone,
-        company: dto.company,
-        source: 'CONTACT',
-        status: 'NOUVEAU',
-        score: 10 + (dto.phone ? 5 : 0) + (dto.company ? 5 : 0),
-        notes: dto.message,
+        ...leadData,
+        score: calculateLeadScore(leadData).total,
       },
     });
     await this.conversion.attachLead(dto.sessionId, lead.id);
