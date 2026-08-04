@@ -282,4 +282,44 @@ describe('DevisService', () => {
       requiresFinalization: true,
     });
   });
+
+  it('does not mark a prospect as lost when another quote is still open', async () => {
+    const prisma = {
+      devis: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'quote-refused',
+          number: 'DEV-2026-043',
+          clientId: 'client-1',
+          sourceLeadId: 'lead-1',
+          status: 'ENVOYE',
+          promoCodeId: null,
+          promoCode: null,
+          items: [],
+        }),
+        update: jest.fn().mockResolvedValue({
+          id: 'quote-refused',
+          number: 'DEV-2026-043',
+          clientId: 'client-1',
+          sourceLeadId: 'lead-1',
+          status: 'REFUSE',
+        }),
+        findFirst: jest.fn().mockResolvedValue({ id: 'quote-open' }),
+      },
+      crmActivity: { create: jest.fn().mockResolvedValue({}) },
+      crmTask: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      lead: { update: jest.fn().mockResolvedValue({}) },
+    };
+    const service = new DevisService(prisma as never);
+
+    await service.update('quote-refused', { status: 'REFUSE' });
+
+    expect(prisma.devis.findFirst).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        sourceLeadId: 'lead-1',
+        id: { not: 'quote-refused' },
+      }),
+      select: { id: true },
+    });
+    expect(prisma.lead.update).not.toHaveBeenCalled();
+  });
 });
