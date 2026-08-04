@@ -3,11 +3,27 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
-import { PageHeader, Badge, Empty, TabBar } from "@/app/admin/components/SharedUI";
+import {
+  ActionButton,
+  Badge,
+  Empty,
+  ListActions,
+  ListRow,
+  ListTable,
+  PageHeader,
+  TabBar,
+} from "@/app/admin/components/SharedUI";
 
 const API = "/api";
 
-type ClientStatus = "A_CONTACTER" | "CONTACTE" | "DEVIS" | "FACTURE" | "EN_COURS" | "TERMINE" | "REFUSE";
+type ClientStatus =
+  | "A_CONTACTER"
+  | "CONTACTE"
+  | "DEVIS"
+  | "FACTURE"
+  | "EN_COURS"
+  | "TERMINE"
+  | "REFUSE";
 
 interface Client {
   id: string;
@@ -63,13 +79,19 @@ export default function ClientsPage() {
     setLoading(false);
   }, [apiFetch]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const filtered = tab === "all" ? clients : clients.filter((c) => c.status === tab);
+  const filtered =
+    tab === "all" ? clients : clients.filter((c) => c.status === tab);
 
   const tabsWithCounts = TABS.map((t) => ({
     ...t,
-    count: t.key === "all" ? clients.length : clients.filter((c) => c.status === t.key).length,
+    count:
+      t.key === "all"
+        ? clients.length
+        : clients.filter((c) => c.status === t.key).length,
   }));
 
   return (
@@ -85,41 +107,75 @@ export default function ClientsPage() {
       <TabBar tabs={tabsWithCounts} activeTab={tab} onTabChange={setTab} />
 
       {loading ? (
-        <div style={{ padding: 40, textAlign: "center", color: "var(--grey-3)" }}>Chargement...</div>
+        <div
+          style={{ padding: 40, textAlign: "center", color: "var(--grey-3)" }}
+        >
+          Chargement...
+        </div>
       ) : filtered.length === 0 ? (
         <Empty>Aucun client</Empty>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 140px 90px 80px", gap: 12, padding: "6px 16px", fontSize: 11, color: "var(--grey-3)", fontWeight: 600, letterSpacing: ".05em", textTransform: "uppercase" }}>
-            <span>Entreprise / Contact</span>
-            <span>Secteur</span>
-            <span>Statut</span>
-            <span>Budget</span>
-            <span style={{ textAlign: "right" }}>Actions</span>
-          </div>
+        <ListTable
+          columns="minmax(260px, 1fr) 120px 140px 90px 100px"
+          minWidth={790}
+          header={
+            <>
+              <span>Entreprise / Contact</span>
+              <span>Secteur</span>
+              <span>Statut</span>
+              <span>Budget</span>
+              <span style={{ textAlign: "right" }}>Actions</span>
+            </>
+          }
+        >
           {filtered.map((client) => (
-            <div
+            <ListRow
               key={client.id}
-              onClick={() => router.push(`/admin/crm/clients/${client.id}`)}
-              style={{ display: "grid", gridTemplateColumns: "1fr 120px 140px 90px 80px", gap: 12, padding: "12px 16px", background: "var(--black-2)", border: "1px solid var(--border)", borderRadius: 8, alignItems: "center", cursor: "pointer", transition: "border-color .15s" }}
-              onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.borderColor = "var(--blue)")}
-              onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.borderColor = "var(--border)")}
+              onOpen={() => router.push(`/admin/crm/clients/${client.id}`)}
+              openLabel={`Ouvrir le client ${client.company}`}
             >
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--white)" }}>{client.company}</div>
-                <div style={{ fontSize: 11, color: "var(--grey-3)", marginTop: 2 }}>{client.contactName}{client.email && ` · ${client.email}`}</div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--white)",
+                  }}
+                >
+                  {client.company}
+                </div>
+                <div
+                  style={{ fontSize: 11, color: "var(--grey-3)", marginTop: 2 }}
+                >
+                  {client.contactName}
+                  {client.email && ` · ${client.email}`}
+                </div>
               </div>
-              <span style={{ fontSize: 12, color: "var(--grey-2)" }}>{client.trade || "—"}</span>
-              <Badge color={STATUS_COLORS[client.status]}>{STATUS_LABELS[client.status]}</Badge>
-              <span style={{ fontSize: 13, color: client.budget ? "var(--gold)" : "var(--grey-3)" }}>
+              <span style={{ fontSize: 12, color: "var(--grey-2)" }}>
+                {client.trade || "—"}
+              </span>
+              <Badge color={STATUS_COLORS[client.status]}>
+                {STATUS_LABELS[client.status]}
+              </Badge>
+              <span
+                style={{
+                  fontSize: 13,
+                  color: client.budget ? "var(--gold)" : "var(--grey-3)",
+                }}
+              >
                 {client.budget ? `${client.budget}€` : "—"}
               </span>
-              <div style={{ textAlign: "right" }}>
-                <span style={{ fontSize: 11, color: "var(--blue)", fontWeight: 600 }}>Voir →</span>
-              </div>
-            </div>
+              <ListActions>
+                <ActionButton
+                  variant="primary"
+                  onClick={() => router.push(`/admin/crm/clients/${client.id}`)}
+                >
+                  Ouvrir →
+                </ActionButton>
+              </ListActions>
+            </ListRow>
           ))}
-        </div>
+        </ListTable>
       )}
     </div>
   );

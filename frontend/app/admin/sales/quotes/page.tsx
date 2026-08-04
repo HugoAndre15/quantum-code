@@ -3,7 +3,16 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
-import { PageHeader, Badge, Empty, TabBar } from "@/app/admin/components/SharedUI";
+import {
+  ActionButton,
+  Badge,
+  Empty,
+  ListActions,
+  ListRow,
+  ListTable,
+  PageHeader,
+  TabBar,
+} from "@/app/admin/components/SharedUI";
 
 const API = "/api";
 
@@ -55,27 +64,75 @@ export default function QuotesPage() {
     setLoading(false);
   }, [apiFetch]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const filtered = tab === "all" ? quotes : quotes.filter((q) => q.status === tab);
-  const tabsWithCounts = TABS.map((t) => ({ ...t, count: t.key === "all" ? quotes.length : quotes.filter((q) => q.status === t.key).length }));
+  const filtered =
+    tab === "all" ? quotes : quotes.filter((q) => q.status === tab);
+  const tabsWithCounts = TABS.map((t) => ({
+    ...t,
+    count:
+      t.key === "all"
+        ? quotes.length
+        : quotes.filter((q) => q.status === t.key).length,
+  }));
 
-  const totalEnAttente = quotes.filter((q) => q.status === "ENVOYE").reduce((s, q) => s + q.totalHT, 0);
-  const totalAccepte = quotes.filter((q) => q.status === "ACCEPTE").reduce((s, q) => s + q.totalHT, 0);
+  const totalEnAttente = quotes
+    .filter((q) => q.status === "ENVOYE")
+    .reduce((s, q) => s + q.totalHT, 0);
+  const totalAccepte = quotes
+    .filter((q) => q.status === "ACCEPTE")
+    .reduce((s, q) => s + q.totalHT, 0);
 
   return (
     <div>
-      <PageHeader title="Devis" subtitle="Propositions commerciales" count={filtered.length} onAdd={() => router.push("/admin/sales/quotes/new")} addLabel="Nouveau devis" />
+      <PageHeader
+        title="Devis"
+        subtitle="Propositions commerciales"
+        count={filtered.length}
+        onAdd={() => router.push("/admin/sales/quotes/new")}
+        addLabel="Nouveau devis"
+      />
 
       {/* Summary bar */}
       <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
         {[
-          { label: "En attente de réponse", value: `${totalEnAttente.toFixed(0)}€`, color: "var(--blue)" },
-          { label: "Acceptés (à facturer)", value: `${totalAccepte.toFixed(0)}€`, color: "var(--green)" },
+          {
+            label: "En attente de réponse",
+            value: `${totalEnAttente.toFixed(0)}€`,
+            color: "var(--blue)",
+          },
+          {
+            label: "Acceptés (à facturer)",
+            value: `${totalAccepte.toFixed(0)}€`,
+            color: "var(--green)",
+          },
         ].map((kpi) => (
-          <div key={kpi.label} style={{ background: "var(--black-2)", border: "1px solid var(--border)", borderRadius: 8, padding: "12px 20px", flex: 1 }}>
-            <div style={{ fontSize: 11, color: "var(--grey-3)", marginBottom: 4, textTransform: "uppercase", letterSpacing: ".04em" }}>{kpi.label}</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: kpi.color }}>{kpi.value}</div>
+          <div
+            key={kpi.label}
+            style={{
+              background: "var(--black-2)",
+              border: "1px solid var(--border)",
+              borderRadius: 8,
+              padding: "12px 20px",
+              flex: 1,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                color: "var(--grey-3)",
+                marginBottom: 4,
+                textTransform: "uppercase",
+                letterSpacing: ".04em",
+              }}
+            >
+              {kpi.label}
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: kpi.color }}>
+              {kpi.value}
+            </div>
           </div>
         ))}
       </div>
@@ -83,34 +140,82 @@ export default function QuotesPage() {
       <TabBar tabs={tabsWithCounts} activeTab={tab} onTabChange={setTab} />
 
       {loading ? (
-        <div style={{ padding: 40, textAlign: "center", color: "var(--grey-3)" }}>Chargement...</div>
+        <div
+          style={{ padding: 40, textAlign: "center", color: "var(--grey-3)" }}
+        >
+          Chargement...
+        </div>
       ) : filtered.length === 0 ? (
         <Empty>Aucun devis</Empty>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "110px 1fr 100px 80px 120px 100px", gap: 12, padding: "6px 16px", fontSize: 11, color: "var(--grey-3)", fontWeight: 600, letterSpacing: ".05em", textTransform: "uppercase" }}>
-            <span>Numéro</span><span>Client</span><span>Statut</span><span>Total HT</span><span>Validité</span><span style={{ textAlign: "right" }}>Actions</span>
-          </div>
+        <ListTable
+          columns="110px minmax(220px, 1fr) 110px 90px 130px 100px"
+          minWidth={820}
+          header={
+            <>
+              <span>Numéro</span>
+              <span>Client</span>
+              <span>Statut</span>
+              <span>Total HT</span>
+              <span>Validité</span>
+              <span style={{ textAlign: "right" }}>Actions</span>
+            </>
+          }
+        >
           {filtered.map((q) => (
-            <div key={q.id} style={{ display: "grid", gridTemplateColumns: "110px 1fr 100px 80px 120px 100px", gap: 12, padding: "12px 16px", background: "var(--black-2)", border: "1px solid var(--border)", borderRadius: 8, alignItems: "center" }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--white)", fontFamily: "var(--font-mono)" }}>{q.number}</span>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--white)" }}>{q.client?.company || "—"}</div>
-                <div style={{ fontSize: 11, color: "var(--grey-3)" }}>{q.client?.contactName}</div>
-              </div>
-              <Badge color={STATUS_COLORS[q.status]}>{STATUS_LABELS[q.status]}</Badge>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--gold)" }}>{q.totalHT.toFixed(0)}€</span>
-              <span style={{ fontSize: 12, color: "var(--grey-3)" }}>
-                {q.validUntil ? new Date(q.validUntil).toLocaleDateString("fr-FR") : "—"}
+            <ListRow
+              key={q.id}
+              onOpen={() => router.push(`/admin/sales/quotes/${q.id}`)}
+              openLabel={`Ouvrir le devis ${q.number}`}
+            >
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "var(--white)",
+                  fontFamily: "var(--font-mono)",
+                }}
+              >
+                {q.number}
               </span>
-              <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                <button onClick={() => router.push(`/admin/sales/quotes/${q.id}`)} style={{ fontSize: 11, padding: "4px 10px", background: "var(--black-3)", border: "1px solid var(--border-2)", borderRadius: "var(--r)", color: "var(--grey-2)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-                  Voir
-                </button>
+              <div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--white)",
+                  }}
+                >
+                  {q.client?.company || "—"}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--grey-3)" }}>
+                  {q.client?.contactName}
+                </div>
               </div>
-            </div>
+              <Badge color={STATUS_COLORS[q.status]}>
+                {STATUS_LABELS[q.status]}
+              </Badge>
+              <span
+                style={{ fontSize: 13, fontWeight: 700, color: "var(--gold)" }}
+              >
+                {q.totalHT.toFixed(0)}€
+              </span>
+              <span style={{ fontSize: 12, color: "var(--grey-3)" }}>
+                {q.validUntil
+                  ? new Date(q.validUntil).toLocaleDateString("fr-FR")
+                  : "—"}
+              </span>
+              <ListActions>
+                <ActionButton
+                  variant="primary"
+                  onClick={() => router.push(`/admin/sales/quotes/${q.id}`)}
+                >
+                  Ouvrir →
+                </ActionButton>
+              </ListActions>
+            </ListRow>
           ))}
-        </div>
+        </ListTable>
       )}
     </div>
   );

@@ -127,7 +127,7 @@ export default function ConversionsPage() {
                 <div key={source.name} style={{ display: "grid", gridTemplateColumns: "1fr 60px 60px 60px", gap: 8, padding: "9px 0", borderBottom: "1px solid var(--border)", fontSize: 12 }}>
                   <span style={{ color: "var(--grey-2)", overflow: "hidden", textOverflow: "ellipsis" }}>{source.name}</span>
                   <span style={{ color: "var(--white)", textAlign: "right" }}>{source.sessions} visites</span>
-                  <span style={{ color: "var(--gold)", textAlign: "right" }}>{source.leads} leads</span>
+                  <span style={{ color: "var(--gold)", textAlign: "right" }}>{source.leads} prospects</span>
                   <span style={{ color: "var(--green)", textAlign: "right" }}>{source.clients} signés</span>
                 </div>
               ))}
@@ -152,7 +152,7 @@ export default function ConversionsPage() {
                           <span style={{ color: "var(--grey-4)" }}>›</span>
                           <Step active={session.simulatorStarted} label="Sim." />
                           <span style={{ color: "var(--grey-4)" }}>›</span>
-                          <Step active={session.lead} label="Lead" />
+                          <Step active={session.lead} label="Prospect" />
                           <span style={{ color: "var(--grey-4)" }}>›</span>
                           <Step active={session.quote} label="Devis" />
                           <span style={{ color: "var(--grey-4)" }}>›</span>

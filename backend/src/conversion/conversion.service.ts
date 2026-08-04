@@ -135,7 +135,7 @@ export class ConversionService {
       },
       {
         key: 'leads',
-        label: 'Leads',
+        label: 'Prospects',
         count: sessions.filter((session) => session.lead).length,
       },
       {

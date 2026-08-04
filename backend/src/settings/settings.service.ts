@@ -43,7 +43,7 @@ export class SettingsService {
     const deleted = await this.prisma.lead.deleteMany();
 
     return {
-      message: `${deleted.count} lead(s) supprimé(s)`,
+      message: `${deleted.count} prospect(s) supprimé(s)`,
       deleted: { leads: deleted.count },
     };
   }
@@ -101,7 +101,7 @@ export class SettingsService {
     ] = await this.prisma.$transaction([
       this.prisma.lead.updateMany({
         where: { convertedClientId: { not: null } },
-        data: { convertedClientId: null, status: 'QUALIFIE' },
+        data: { convertedClientId: null, status: 'A_CONTACTER' },
       }),
       this.prisma.payment.deleteMany(),
       this.prisma.subscription.deleteMany(),

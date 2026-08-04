@@ -755,7 +755,7 @@ export class DevisService {
       throw new BadRequestException('Ce devis ne peut plus être accepté');
     }
     if (devis.acceptTokenExpiresAt && devis.acceptTokenExpiresAt < new Date()) {
-      await this.prisma.devis.update({
+      const expired = await this.prisma.devis.update({
         where: { id: devis.id },
         data: {
           status: 'EXPIRE',
@@ -763,6 +763,7 @@ export class DevisService {
           acceptTokenExpiresAt: null,
         },
       });
+      await this.recordStatusChange(expired, devis.status);
       throw new BadRequestException(
         'Ce lien a expiré. Contactez-nous pour un nouveau devis.',
       );
@@ -819,6 +820,13 @@ export class DevisService {
         },
       });
 
+      if (devis.sourceLeadId) {
+        await tx.lead.update({
+          where: { id: devis.sourceLeadId },
+          data: { status: 'GAGNE', lastContactAt: new Date() },
+        });
+      }
+
       return accepted;
     });
 
@@ -832,7 +840,13 @@ export class DevisService {
   }
 
   private async recordStatusChange(
-    devis: { id: string; number: string; clientId: string; status: string },
+    devis: {
+      id: string;
+      number: string;
+      clientId: string;
+      status: string;
+      sourceLeadId?: string | null;
+    },
     previousStatus: string,
   ) {
     await this.prisma.crmActivity.create({
@@ -845,6 +859,12 @@ export class DevisService {
     });
 
     if (devis.status === 'ENVOYE') {
+      if (devis.sourceLeadId) {
+        await this.prisma.lead.update({
+          where: { id: devis.sourceLeadId },
+          data: { status: 'DEVIS_ENVOYE', lastContactAt: new Date() },
+        });
+      }
       const dueAt = new Date();
       dueAt.setDate(dueAt.getDate() + 4);
       const existing = await this.prisma.crmTask.findFirst({
@@ -880,6 +900,40 @@ export class DevisService {
         },
         data: { status: TaskStatus.TERMINEE, completedAt: new Date() },
       });
+    }
+
+    if (devis.sourceLeadId && devis.status === 'ACCEPTE') {
+      await this.prisma.lead.update({
+        where: { id: devis.sourceLeadId },
+        data: { status: 'GAGNE', lastContactAt: new Date() },
+      });
+    }
+
+    if (
+      devis.sourceLeadId &&
+      (devis.status === 'REFUSE' || devis.status === 'EXPIRE')
+    ) {
+      const otherOpenQuote = await this.prisma.devis.findFirst({
+        where: {
+          sourceLeadId: devis.sourceLeadId,
+          id: { not: devis.id },
+          status: { notIn: ['REFUSE', 'EXPIRE'] },
+        },
+        select: { id: true },
+      });
+      if (!otherOpenQuote) {
+        await this.prisma.lead.update({
+          where: { id: devis.sourceLeadId },
+          data: {
+            status: 'PERDU',
+            lastContactAt: new Date(),
+            lostReason:
+              devis.status === 'REFUSE'
+                ? `Devis ${devis.number} refusé`
+                : `Devis ${devis.number} expiré`,
+          },
+        });
+      }
     }
 
     if (devis.status === 'ACCEPTE') {
