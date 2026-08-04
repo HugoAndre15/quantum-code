@@ -12,6 +12,7 @@ import { LeadsService } from './leads.service';
 import {
   ConvertLeadDto,
   CreateLeadDto,
+  ImportLeadsDto,
   UpdateLeadDto,
 } from './dto/lead.dto';
 import { JwtAuthGuard, RoleGuard } from '../../auth/guards/jwt.guard';
@@ -26,6 +27,11 @@ export class LeadsController {
   @Get()
   findAll() {
     return this.leadsService.findAll();
+  }
+
+  @Post('import')
+  importCsv(@Body() dto: ImportLeadsDto) {
+    return this.leadsService.importCsv(dto);
   }
 
   @Get(':id')
@@ -48,7 +54,7 @@ export class LeadsController {
     return this.leadsService.remove(id);
   }
 
-  /** Convertit le lead en Client → crée l'enregistrement Client */
+  /** Crée ou rattache la fiche Client nécessaire aux documents commerciaux. */
   @Post(':id/convert')
   convert(@Param('id') id: string, @Body() dto: ConvertLeadDto) {
     return this.leadsService.convert(id, dto);
