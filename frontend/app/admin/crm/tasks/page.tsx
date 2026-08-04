@@ -3,7 +3,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
-import { Badge, Empty, PageHeader, TabBar } from "@/app/admin/components/SharedUI";
+import {
+  ActionButton,
+  Badge,
+  Empty,
+  ListActions,
+  ListRow,
+  ListTable,
+  PageHeader,
+  TabBar,
+} from "@/app/admin/components/SharedUI";
 
 const API = "/api";
 
@@ -58,7 +67,9 @@ export default function TasksPage() {
     setLoading(false);
   }, [apiFetch, tab]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function setStatus(id: string, status: Task["status"]) {
     const response = await apiFetch(`${API}/crm/tasks/${id}`, {
@@ -69,58 +80,143 @@ export default function TasksPage() {
   }
 
   function openContext(task: Task) {
-    if (task.project) return router.push(`/admin/crm/projects/${task.project.id}`);
+    if (task.project)
+      return router.push(`/admin/crm/projects/${task.project.id}`);
     if (task.devis) return router.push(`/admin/sales/quotes/${task.devis.id}`);
-    if (task.facture) return router.push(`/admin/sales/invoices/${task.facture.id}`);
+    if (task.facture)
+      return router.push(`/admin/sales/invoices/${task.facture.id}`);
     if (task.client) return router.push(`/admin/crm/clients/${task.client.id}`);
-    if (task.lead) return router.push(`/admin/crm/leads/${task.lead.id}`);
+    if (task.lead) return router.push(`/admin/crm/prospects/${task.lead.id}`);
   }
 
-  const overdueCount = tasks.filter((task) => new Date(task.dueAt).getTime() < new Date().setHours(0, 0, 0, 0)).length;
+  const overdueCount = tasks.filter(
+    (task) => new Date(task.dueAt).getTime() < new Date().setHours(0, 0, 0, 0),
+  ).length;
 
   return (
     <div>
-      <PageHeader title="Tâches & relances" subtitle={tab === "A_FAIRE" ? `${overdueCount} action${overdueCount !== 1 ? "s" : ""} en retard` : "Historique des actions commerciales"} count={tasks.length} />
+      <PageHeader
+        title="Tâches & relances"
+        subtitle={
+          tab === "A_FAIRE"
+            ? `${overdueCount} action${overdueCount !== 1 ? "s" : ""} en retard`
+            : "Historique des actions commerciales"
+        }
+        count={tasks.length}
+      />
       <TabBar tabs={TABS} activeTab={tab} onTabChange={setTab} />
 
       {loading ? (
-        <div style={{ padding: 40, color: "var(--grey-3)", textAlign: "center" }}>Chargement...</div>
+        <div
+          style={{ padding: 40, color: "var(--grey-3)", textAlign: "center" }}
+        >
+          Chargement...
+        </div>
       ) : tasks.length === 0 ? (
         <Empty>Aucune tâche dans cette catégorie.</Empty>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+        <ListTable
+          columns="minmax(260px, 1fr) 130px 110px 130px 190px"
+          minWidth={850}
+          header={
+            <>
+              <span>Tâche / contexte</span>
+              <span>Type</span>
+              <span>Priorité</span>
+              <span>Échéance</span>
+              <span style={{ textAlign: "right" }}>Actions</span>
+            </>
+          }
+        >
           {tasks.map((task) => {
-            const overdue = task.status === "A_FAIRE" && new Date(task.dueAt).getTime() < new Date().setHours(0, 0, 0, 0);
-            const context = task.client?.company || task.lead?.company || task.lead?.name || task.project?.name || "Tâche générale";
+            const overdue =
+              task.status === "A_FAIRE" &&
+              new Date(task.dueAt).getTime() < new Date().setHours(0, 0, 0, 0);
+            const context =
+              task.client?.company ||
+              task.lead?.company ||
+              task.lead?.name ||
+              task.project?.name ||
+              "Tâche générale";
+            const hasContext = Boolean(
+              task.project ||
+              task.devis ||
+              task.facture ||
+              task.client ||
+              task.lead,
+            );
             return (
-              <div key={task.id} style={{ display: "grid", gridTemplateColumns: "32px 1fr 130px 110px 110px", gap: 12, alignItems: "center", padding: "13px 16px", background: "var(--black-2)", border: `1px solid ${overdue ? "rgba(255,107,107,.35)" : "var(--border)"}`, borderRadius: 8 }}>
-                {task.status === "A_FAIRE" ? (
-                  <button onClick={() => setStatus(task.id, "TERMINEE")} style={checkButton} title="Terminer">✓</button>
-                ) : <span style={{ color: task.status === "TERMINEE" ? "var(--green)" : "var(--grey-3)", textAlign: "center" }}>{task.status === "TERMINEE" ? "✓" : "—"}</span>}
-                <button onClick={() => openContext(task)} style={{ background: "none", border: 0, padding: 0, textAlign: "left", cursor: "pointer" }}>
-                  <div style={{ fontSize: 13, color: "var(--white)", fontWeight: 650 }}>{task.title}</div>
-                  <div style={{ fontSize: 11, color: "var(--grey-3)", marginTop: 3 }}>{context}{task.devis ? ` · ${task.devis.number}` : ""}{task.facture ? ` · ${task.facture.number}` : ""}</div>
-                </button>
-                <Badge color="var(--blue)">{TYPE_LABELS[task.type] || task.type}</Badge>
-                <Badge color={PRIORITY_COLORS[task.priority]}>{task.priority.toLowerCase()}</Badge>
-                <span style={{ fontSize: 11, color: overdue ? "#ff6b6b" : "var(--grey-2)", fontWeight: overdue ? 700 : 500 }}>
-                  {new Date(task.dueAt).toLocaleDateString("fr-FR")}{overdue ? " · retard" : ""}
+              <ListRow
+                key={task.id}
+                onOpen={hasContext ? () => openContext(task) : undefined}
+                openLabel={
+                  hasContext ? `Ouvrir le contexte de ${task.title}` : undefined
+                }
+                style={
+                  overdue ? { borderColor: "rgba(255,107,107,.42)" } : undefined
+                }
+              >
+                <div>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: "var(--white)",
+                      fontWeight: 650,
+                    }}
+                  >
+                    {task.title}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "var(--grey-3)",
+                      marginTop: 3,
+                    }}
+                  >
+                    {context}
+                    {task.devis ? ` · ${task.devis.number}` : ""}
+                    {task.facture ? ` · ${task.facture.number}` : ""}
+                  </div>
+                </div>
+                <Badge color="var(--blue)">
+                  {TYPE_LABELS[task.type] || task.type}
+                </Badge>
+                <Badge color={PRIORITY_COLORS[task.priority]}>
+                  {task.priority.toLowerCase()}
+                </Badge>
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: overdue ? "#ff6b6b" : "var(--grey-2)",
+                    fontWeight: overdue ? 700 : 500,
+                  }}
+                >
+                  {new Date(task.dueAt).toLocaleDateString("fr-FR")}
+                  {overdue ? " · retard" : ""}
                 </span>
-              </div>
+                <ListActions>
+                  {task.status === "A_FAIRE" && (
+                    <ActionButton
+                      variant="positive"
+                      onClick={() => setStatus(task.id, "TERMINEE")}
+                    >
+                      Terminer
+                    </ActionButton>
+                  )}
+                  {hasContext && (
+                    <ActionButton
+                      variant="primary"
+                      onClick={() => openContext(task)}
+                    >
+                      Ouvrir →
+                    </ActionButton>
+                  )}
+                </ListActions>
+              </ListRow>
             );
           })}
-        </div>
+        </ListTable>
       )}
     </div>
   );
 }
-
-const checkButton: React.CSSProperties = {
-  width: 26,
-  height: 26,
-  borderRadius: "50%",
-  border: "1px solid var(--border-2)",
-  background: "var(--black-3)",
-  color: "var(--green)",
-  cursor: "pointer",
-};
