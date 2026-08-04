@@ -35,8 +35,8 @@ interface DestructiveAction {
 const ACTIONS: DestructiveAction[] = [
   {
     key: "leads",
-    title: "Supprimer tous les leads",
-    description: "Vide la liste des prospects, y compris les leads déjà convertis.",
+    title: "Supprimer tous les prospects",
+    description: "Vide la liste des prospects, y compris ceux déjà liés à un client.",
     detail: "Les clients déjà créés sont conservés.",
     confirmation: "SUPPRIMER LES LEADS",
     accent: "#f0a94b",
@@ -53,14 +53,14 @@ const ACTIONS: DestructiveAction[] = [
     key: "clients",
     title: "Supprimer tous les clients",
     description: "Supprime les clients et toutes leurs données commerciales liées.",
-    detail: "Les leads sont conservés et repassent à l’état qualifié.",
+    detail: "Les prospects sont conservés et repassent à l’étape « À contacter ».",
     confirmation: "SUPPRIMER LES CLIENTS",
     accent: "#ef6666",
   },
   {
     key: "reset",
     title: "Réinitialiser le CRM",
-    description: "Efface les leads, clients, devis, factures, projets, paiements et parcours de conversion.",
+    description: "Efface les prospects, clients, devis, factures, projets, paiements et parcours de conversion.",
     detail: "Le portfolio, les avis manuels, les packs, options et codes promo sont conservés.",
     confirmation: "RÉINITIALISER LE CRM",
     accent: "#dc3d55",
@@ -137,7 +137,7 @@ export default function CrmSettingsPage() {
 
   const metrics = summary
     ? [
-        { label: "Leads", value: summary.leads },
+        { label: "Prospects", value: summary.leads },
         { label: "Clients", value: summary.clients },
         { label: "Devis", value: summary.quotes },
         { label: "Factures", value: summary.invoices },
