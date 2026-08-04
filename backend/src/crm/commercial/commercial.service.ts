@@ -69,7 +69,7 @@ export class CommercialService {
       ...leads.map((lead) => ({
         id: `lead-created-${lead.id}`,
         type: ActivityType.CREATION,
-        title: 'Lead créé',
+        title: 'Prospect créé',
         description: lead.company || lead.name,
         leadId: lead.id,
         createdAt: lead.createdAt,
