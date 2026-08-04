@@ -198,7 +198,11 @@ export class LeadsService {
 
     const normalized = this.normalizeUpdateData(dto);
     const merged = { ...existing, ...normalized } as LeadScoreInput;
-    this.assertContactable(merged);
+    const contactDetailsChanged =
+      dto.email !== undefined ||
+      dto.phone !== undefined ||
+      dto.website !== undefined;
+    if (contactDetailsChanged) this.assertContactable(merged);
     const score = this.calculateScore(merged);
     const statusChanged = Boolean(dto.status && dto.status !== existing.status);
     const lastContactAt =
