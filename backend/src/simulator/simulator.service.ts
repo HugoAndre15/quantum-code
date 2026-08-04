@@ -3,7 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { SimulatorLeadDto } from './dto/simulator-lead.dto';
-import { LeadSource, ServiceOption } from '@prisma/client';
+import {
+  LeadSource,
+  ProspectWebsiteStatus,
+  ServiceOption,
+} from '@prisma/client';
 import { ConversionService } from '../conversion/conversion.service';
 
 type PricingSnapshot = {
@@ -46,6 +50,12 @@ export class SimulatorService {
         email: dto.email,
         phone: dto.phone,
         company: dto.company,
+        trade: dto.trade || dto.sector,
+        website: dto.website,
+        websiteStatus: dto.website
+          ? ProspectWebsiteStatus.INCONNU
+          : ProspectWebsiteStatus.ABSENT,
+        need: dto.primaryGoal || dto.message,
         budget: pricing.oneTimeTotal,
         delayMonths: this.delayMonths(dto.timeline),
         pageCount: dto.pages,
@@ -87,11 +97,11 @@ export class SimulatorService {
       'MAIL_ADMIN_TO',
       this.config.get('MAIL_FROM', 'contact@quantum-code.fr'),
     );
-    const adminUrl = `${this.config.get('FRONTEND_URL', 'http://localhost:3000')}/admin/crm/leads/${lead.id}`;
+    const adminUrl = `${this.config.get('FRONTEND_URL', 'http://localhost:3000')}/admin/crm/prospects/${lead.id}`;
     try {
       await this.mail.sendMail({
         to: adminEmail,
-        subject: `Nouveau lead simulateur – ${dto.company || dto.contactName}`,
+        subject: `Nouveau prospect simulateur – ${dto.company || dto.contactName}`,
         replyTo: dto.email,
         html: this.buildAdminNotificationEmail(
           dto,
@@ -293,7 +303,7 @@ export class SimulatorService {
     return `<div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;">
       <div style="background:#282828;padding:24px;border-radius:8px 8px 0 0;">
         <h1 style="color:#fff;margin:0;font-size:20px;">Quantum Code</h1>
-        <p style="color:#aaa;margin:4px 0 0;font-size:12px;">Nouveau lead issu du simulateur</p>
+        <p style="color:#aaa;margin:4px 0 0;font-size:12px;">Nouveau prospect issu du simulateur</p>
       </div>
       <div style="padding:24px;border:1px solid #eee;border-top:none;border-radius:0 0 8px 8px;">
         <div style="background:#eef5ff;border:1px solid #2d6fff;border-radius:8px;padding:12px 20px;margin-bottom:16px;display:inline-block;">
@@ -305,7 +315,7 @@ export class SimulatorService {
         ${renderTable(simRows)}
         ${messageBlock}
         <div style="margin-top:24px;text-align:center;">
-          <a href="${escapeHtml(adminUrl)}" style="display:inline-block;background:#2d6fff;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:bold;">Voir le lead dans le CRM</a>
+          <a href="${escapeHtml(adminUrl)}" style="display:inline-block;background:#2d6fff;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:bold;">Voir le prospect dans le CRM</a>
         </div>
       </div>
     </div>`;
