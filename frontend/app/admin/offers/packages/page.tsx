@@ -3,15 +3,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/app/context/AuthContext";
 import {
+  ActionButton,
   Badge,
-  Card,
   Empty,
   ErrorMsg,
   Field,
   FormButtons,
+  ListActions,
+  ListRow,
+  ListTable,
   Modal,
   PageHeader,
-  SmallBtn,
   TabBar,
   inputStyle,
 } from "@/app/admin/components/SharedUI";
@@ -322,127 +324,105 @@ export default function PackagesPage() {
         (packs.length === 0 ? (
           <Empty>Aucun pack défini</Empty>
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-              gap: 16,
-            }}
+          <ListTable
+            columns="minmax(240px, 1fr) 150px minmax(200px, .9fr) 100px 100px 190px"
+            minWidth={980}
+            header={
+              <>
+                <span>Pack</span>
+                <span>Contenu</span>
+                <span>Options incluses</span>
+                <span>Prix</span>
+                <span>Statut</span>
+                <span style={{ textAlign: "right" }}>Actions</span>
+              </>
+            }
           >
             {[...packs]
               .sort((a, b) => a.position - b.position)
               .map((pack) => (
-                <Card key={pack.id}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      gap: 12,
-                      marginBottom: 8,
-                    }}
-                  >
+                <ListRow
+                  key={pack.id}
+                  onOpen={() => openEditPack(pack)}
+                  openLabel={`Modifier le pack ${pack.name}`}
+                >
+                  <div style={{ minWidth: 0 }}>
                     <div
                       style={{
-                        fontSize: 15,
-                        fontWeight: 700,
                         color: "var(--white)",
+                        fontSize: 13,
+                        fontWeight: 700,
                       }}
                     >
                       {pack.name}
                     </div>
-                    <Badge color={pack.active ? "var(--green)" : "#aaa"}>
-                      {pack.active ? "Actif" : "Inactif"}
-                    </Badge>
-                  </div>
-                  {pack.description && (
                     <div
                       style={{
-                        minHeight: 36,
-                        marginBottom: 10,
-                        color: "var(--grey-3)",
-                        fontSize: 12,
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      {pack.description}
-                    </div>
-                  )}
-                  <div
-                    style={{
-                      marginBottom: 8,
-                      color: "var(--gold)",
-                      fontSize: 22,
-                      fontWeight: 800,
-                    }}
-                  >
-                    {pack.price} €{" "}
-                    <span
-                      style={{
+                        marginTop: 2,
+                        overflow: "hidden",
                         color: "var(--grey-3)",
                         fontSize: 10,
-                        fontWeight: 400,
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
                       }}
                     >
-                      prix final
-                    </span>
-                  </div>
-                  {pack.features?.length > 0 && (
-                    <ul
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 3,
-                        margin: "0 0 12px",
-                        padding: "0 0 0 18px",
-                        color: "var(--grey-2)",
-                        fontSize: 12,
-                      }}
-                    >
-                      {pack.features.map((feature) => (
-                        <li key={feature}>{feature}</li>
-                      ))}
-                    </ul>
-                  )}
-                  {(pack.includedOptions || []).length > 0 && (
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: 5,
-                        marginBottom: 12,
-                      }}
-                    >
-                      {(pack.includedOptions || []).map((entry) => (
-                        <span
-                          key={entry.serviceOptionId}
-                          style={{
-                            padding: "4px 7px",
-                            borderRadius: 5,
-                            color: "var(--green)",
-                            background: "rgba(93,216,160,.08)",
-                            fontSize: 10,
-                          }}
-                        >
-                          {entry.serviceOption?.name || "Option incluse"}
-                        </span>
-                      ))}
+                      {pack.description || "Aucune description"}
                     </div>
-                  )}
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <SmallBtn onClick={() => openEditPack(pack)}>
+                  </div>
+                  <span style={{ color: "var(--grey-2)", fontSize: 11 }}>
+                    {pack.includedPages} page{pack.includedPages > 1 ? "s" : ""}{" "}
+                    · {pack.features?.length || 0} fonctionnalité
+                    {pack.features?.length === 1 ? "" : "s"}
+                  </span>
+                  <span
+                    style={{
+                      overflow: "hidden",
+                      color: (pack.includedOptions || []).length
+                        ? "var(--grey-2)"
+                        : "var(--grey-3)",
+                      fontSize: 11,
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {(pack.includedOptions || []).length
+                      ? (pack.includedOptions || [])
+                          .map(
+                            (entry) =>
+                              entry.serviceOption?.name || "Option incluse",
+                          )
+                          .join(" · ")
+                      : "Aucune"}
+                  </span>
+                  <span
+                    style={{
+                      color: "var(--gold)",
+                      fontSize: 14,
+                      fontWeight: 750,
+                    }}
+                  >
+                    {pack.price} €
+                  </span>
+                  <Badge color={pack.active ? "var(--green)" : "#aaa"}>
+                    {pack.active ? "Actif" : "Inactif"}
+                  </Badge>
+                  <ListActions>
+                    <ActionButton
+                      variant="primary"
+                      onClick={() => openEditPack(pack)}
+                    >
                       Modifier
-                    </SmallBtn>
-                    <SmallBtn
+                    </ActionButton>
+                    <ActionButton
+                      variant={pack.active ? "danger" : "positive"}
                       onClick={() => togglePack(pack.id, pack.active)}
-                      danger={pack.active}
                     >
                       {pack.active ? "Désactiver" : "Activer"}
-                    </SmallBtn>
-                  </div>
-                </Card>
+                    </ActionButton>
+                  </ListActions>
+                </ListRow>
               ))}
-          </div>
+          </ListTable>
         ))}
 
       {tab !== "packs" &&
@@ -453,24 +433,28 @@ export default function PackagesPage() {
               : "Aucune option ponctuelle définie"}
           </Empty>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+          <ListTable
+            columns="minmax(240px, 1fr) 120px 100px 190px"
+            minWidth={760}
+            header={
+              <>
+                <span>Option / abonnement</span>
+                <span>Prix</span>
+                <span>Statut</span>
+                <span style={{ textAlign: "right" }}>Actions</span>
+              </>
+            }
+          >
             {visibleServices.map((option) => (
-              <div
+              <ListRow
                 key={option.id}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "minmax(220px, 1fr) 130px 100px 150px",
-                  gap: 14,
-                  alignItems: "center",
-                  padding: "14px 16px",
-                  border: `1px solid ${
-                    option.recurring ? "rgba(45,111,255,.2)" : "var(--border)"
-                  }`,
-                  borderRadius: 9,
-                  background: option.recurring
-                    ? "linear-gradient(90deg, rgba(45,111,255,.06), var(--black-2) 45%)"
-                    : "var(--black-2)",
-                }}
+                onOpen={() => openEditService(option)}
+                openLabel={`Modifier ${option.name}`}
+                style={
+                  option.recurring
+                    ? { borderColor: "rgba(45,111,255,.28)" }
+                    : undefined
+                }
               >
                 <div>
                   <div
@@ -516,26 +500,23 @@ export default function PackagesPage() {
                 <Badge color={option.active ? "var(--green)" : "#aaa"}>
                   {option.active ? "Actif" : "Inactif"}
                 </Badge>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "flex-end",
-                    gap: 6,
-                  }}
-                >
-                  <SmallBtn onClick={() => openEditService(option)}>
+                <ListActions>
+                  <ActionButton
+                    variant="primary"
+                    onClick={() => openEditService(option)}
+                  >
                     Modifier
-                  </SmallBtn>
-                  <SmallBtn
+                  </ActionButton>
+                  <ActionButton
+                    variant={option.active ? "danger" : "positive"}
                     onClick={() => toggleService(option.id, option.active)}
-                    danger={option.active}
                   >
                     {option.active ? "Désactiver" : "Activer"}
-                  </SmallBtn>
-                </div>
-              </div>
+                  </ActionButton>
+                </ListActions>
+              </ListRow>
             ))}
-          </div>
+          </ListTable>
         ))}
 
       {showPackForm && (
