@@ -10,10 +10,13 @@ import {
   UseGuards,
   BadRequestException,
   Logger,
+  Header,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { DevisService } from './devis.service';
-import { CreateDevisDto, UpdateDevisDto } from './dto/devis.dto';
+import { ContractOffer } from './contract';
+import { renderContractPdf } from './contract-pdf';
+import { CreateDevisDto, UpdateDevisDto, SignContractDto } from './dto/devis.dto';
 import { JwtAuthGuard, RoleGuard } from '../auth/guards/jwt.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Public } from '../auth/decorators/public.decorator';
@@ -34,6 +37,25 @@ export class DevisController {
     private config: ConfigService,
   ) {}
 
+  private frontendUrl() {
+    return this.config.get<string>('FRONTEND_URL', 'http://localhost:3000')
+      .split(',')[0].trim().replace(/\/$/, '');
+  }
+
+  private async quotePdf(devis: Pick<Awaited<ReturnType<DevisService['findAcceptanceDocument']>>,
+    'id' | 'number' | 'createdAt' | 'validUntil' | 'client' | 'items' | 'totalHT' | 'notes' | 'discountAmount' | 'promoCode' | 'contractOffer' | 'status'>) {
+    if (devis.contractOffer) {
+      if (devis.status === 'ACCEPTE') return this.devisService.archivedPdf(devis.id);
+      return renderContractPdf(devis.contractOffer);
+    }
+    // Historical quotes keep their original PDF and are never labelled as signed.
+    return this.pdfService.generate({
+      type: 'devis', number: devis.number, date: devis.createdAt, validUntil: devis.validUntil,
+      client: devis.client, items: devis.items, totalHT: devis.totalHT, notes: devis.notes,
+      discountAmount: devis.discountAmount, promoCode: devis.promoCode?.code,
+    });
+  }
+
   @Get()
   findAll() {
     return this.devisService.findAll();
@@ -45,6 +67,7 @@ export class DevisController {
   }
 
   @Public()
+  @Header('Cache-Control', 'private, no-store')
   @Get('accept/:token')
   getAcceptancePreview(@Param('token') token: string) {
     return this.devisService.getAcceptancePreview(token);
@@ -67,25 +90,7 @@ export class DevisController {
       );
     }
 
-    const pdf = await this.pdfService.generate({
-      type: 'devis',
-      number: devis.number,
-      date: devis.createdAt,
-      validUntil: devis.validUntil,
-      client: devis.client,
-      items: devis.items.map((item) => ({
-        label: item.label,
-        description: item.description,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        recurring: item.recurring,
-        recurringUnit: item.recurringUnit,
-      })),
-      totalHT: devis.totalHT,
-      notes: devis.notes,
-      discountAmount: devis.discountAmount,
-      promoCode: devis.promoCode?.code,
-    });
+    const pdf = await this.quotePdf(devis);
 
     res.set({
       'Content-Type': 'application/pdf',
@@ -124,29 +129,12 @@ export class DevisController {
   @Get(':id/pdf')
   async downloadPdf(@Param('id') id: string, @Res() res: Response) {
     const devis = await this.devisService.findOne(id);
-    const pdf = await this.pdfService.generate({
-      type: 'devis',
-      number: devis.number,
-      date: devis.createdAt,
-      validUntil: devis.validUntil,
-      client: devis.client,
-      items: devis.items.map((i) => ({
-        label: i.label,
-        description: i.description,
-        quantity: i.quantity,
-        unitPrice: i.unitPrice,
-        recurring: i.recurring,
-        recurringUnit: i.recurringUnit,
-      })),
-      totalHT: devis.totalHT,
-      notes: devis.notes,
-      discountAmount: devis.discountAmount,
-      promoCode: devis.promoCode?.code,
-    });
+    const pdf = await this.quotePdf(devis);
 
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="${devis.number}.pdf"`,
+      'Cache-Control': 'private, no-store',
       'Content-Length': pdf.length,
     });
     res.end(pdf);
@@ -155,45 +143,28 @@ export class DevisController {
   @Post(':id/send-email')
   async sendByEmail(@Param('id') id: string) {
     const devis = await this.devisService.findOne(id);
-
-    if (!devis.client.email) {
+    const frozen: ContractOffer | null = devis.contractOffer ? JSON.parse(devis.contractOffer) : null;
+    const client = frozen?.client ?? devis.client;
+    if (!client.email) {
       throw new BadRequestException("Le client n'a pas d'adresse email");
     }
 
-    const pdf = await this.pdfService.generate({
-      type: 'devis',
-      number: devis.number,
-      date: devis.createdAt,
-      validUntil: devis.validUntil,
-      client: devis.client,
-      items: devis.items.map((i) => ({
-        label: i.label,
-        description: i.description,
-        quantity: i.quantity,
-        unitPrice: i.unitPrice,
-        recurring: i.recurring,
-        recurringUnit: i.recurringUnit,
-      })),
-      totalHT: devis.totalHT,
-      notes: devis.notes,
-      discountAmount: devis.discountAmount,
-      promoCode: devis.promoCode?.code,
-    });
+    const pdf = await this.quotePdf(devis);
 
     const html = this.mailService.buildDevisEmail({
       number: devis.number,
-      contactName: devis.client.contactName,
-      company: devis.client.company,
-      total: devis.totalHT,
-      validUntil: devis.validUntil,
-      discountAmount: devis.discountAmount,
-      promoCode: devis.promoCode?.code,
-      items: devis.items,
+      contactName: client.contactName,
+      company: client.company,
+      total: frozen?.totalHT ?? devis.totalHT,
+      validUntil: frozen ? new Date(frozen.validUntil) : devis.validUntil,
+      discountAmount: frozen?.discountAmount ?? devis.discountAmount,
+      promoCode: frozen ? frozen.promoCode : devis.promoCode?.code,
+      items: frozen?.items ?? devis.items,
     });
 
     await this.mailService.sendDocument({
-      to: devis.client.email,
-      subject: `${devis.client.contactName}, voici votre devis ${devis.number}`,
+      to: client.email,
+      subject: `${client.contactName}, voici votre ${devis.signature ? 'contrat signé' : 'devis'} ${devis.number}`,
       html,
       pdf,
       filename: `${devis.number}.pdf`,
@@ -213,53 +184,33 @@ export class DevisController {
    */
   @Post(':id/send-accept-token')
   async sendAcceptToken(@Param('id') id: string) {
-    const devis = await this.devisService.generateAcceptToken(id);
-    const frontendUrl = this.config.get(
-      'FRONTEND_URL',
-      'http://localhost:3000',
-    );
+    const devis = await this.devisService.generateAcceptToken(id, this.config.get<string>('CONTRACT_ISSUER_ADDRESS', ''));
+    const frontendUrl = this.frontendUrl();
     const acceptUrl = `${frontendUrl}/devis/accept/${devis.acceptToken}`;
-    const pdf = await this.pdfService.generate({
-      type: 'devis',
-      number: devis.number,
-      date: devis.createdAt,
-      validUntil: devis.validUntil,
-      client: devis.client,
-      items: devis.items.map((item) => ({
-        label: item.label,
-        description: item.description,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        recurring: item.recurring,
-        recurringUnit: item.recurringUnit,
-      })),
-      totalHT: devis.totalHT,
-      notes: devis.notes,
-      discountAmount: devis.discountAmount,
-      promoCode: devis.promoCode?.code,
-    });
-
+    const offer: ContractOffer = JSON.parse(devis.contractOffer!);
+    const pdf = await this.quotePdf(devis);
     const html = this.mailService.buildDevisEmail({
-      number: devis.number,
-      contactName: devis.client.contactName,
-      company: devis.client.company,
-      total: devis.totalHT,
-      validUntil: devis.validUntil,
-      discountAmount: devis.discountAmount,
-      promoCode: devis.promoCode?.code,
-      items: devis.items,
+      number: offer.number,
+      contactName: offer.client.contactName,
+      company: offer.client.company,
+      total: offer.totalHT,
+      validUntil: new Date(offer.validUntil),
+      discountAmount: offer.discountAmount,
+      promoCode: offer.promoCode,
+      items: offer.items,
       acceptUrl,
     });
 
     await this.mailService.sendDocument({
-      to: devis.client.email!,
-      subject: `${devis.client.contactName}, votre proposition est prête`,
+      to: offer.client.email,
+      subject: `${devis.client.contactName}, votre contrat est prêt à signer`,
       html,
       pdf,
       filename: `${devis.number}.pdf`,
     });
 
-    return { message: "Devis envoyé avec lien d'acceptation", devisId: id };
+    await this.devisService.markInvitationSent(id, devis.acceptToken!);
+    return { message: 'Invitation à signer transmise au service email', devisId: id };
   }
 
   /**
@@ -267,15 +218,12 @@ export class DevisController {
    */
   @Public()
   @Post('accept/:token')
-  async acceptByToken(@Param('token') token: string) {
-    const result = await this.devisService.acceptByToken(token);
+  async acceptByToken(@Param('token') token: string, @Body() signature: SignContractDto) {
+    const result = await this.devisService.acceptByToken(token, signature);
     if (result.alreadyAccepted) return result;
 
     const devis = await this.devisService.findOne(result.devisId);
-    const frontendUrl = this.config.get(
-      'FRONTEND_URL',
-      'http://localhost:3000',
-    );
+    const frontendUrl = this.frontendUrl();
     const adminEmail = this.config.get(
       'MAIL_ADMIN_TO',
       this.config.get('MAIL_FROM', 'contact@quantum-code.fr'),
@@ -294,19 +242,21 @@ export class DevisController {
       }),
     ];
 
-    if (devis.client.email) {
+    const offer: ContractOffer = JSON.parse(devis.contractOffer!);
+    if (offer.client.email) {
       notifications.push(
-        this.mailService.sendMail({
-          to: devis.client.email,
-          subject: `Accord bien reçu — devis ${devis.number}`,
+        this.devisService.archivedPdf(devis.id).then((pdf) => this.mailService.sendDocument({
+          pdf, filename: `${devis.number}-signe.pdf`,
+          to: offer.client.email,
+          subject: `Votre contrat signé — ${devis.number}`,
           html: this.mailService.buildQuoteAcceptedClientEmail({
             number: devis.number,
-            contactName: devis.client.contactName,
-            company: devis.client.company,
-            total: devis.totalHT,
-            subscriptions: devis.items.filter((item) => item.recurring),
+            contactName: offer.client.contactName,
+            company: offer.client.company,
+            total: offer.totalHT,
+            subscriptions: offer.items.filter((item) => item.recurring),
           }),
-        }),
+        })),
       );
     }
 

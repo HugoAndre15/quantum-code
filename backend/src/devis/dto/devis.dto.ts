@@ -10,8 +10,24 @@ import {
   Min,
   IsNotEmpty,
   ArrayMinSize,
+  Equals,
+  Matches,
+  Length,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+
+export class SignContractDto {
+  @IsString() @Length(2, 100) @Matches(/^\S[^\r\n\u0000-\u001f\u007f]*\S$/u)
+  signerName: string;
+
+  @IsString() @Length(2, 100) @Matches(/^\S[^\r\n\u0000-\u001f\u007f]*\S$/u)
+  signerRole: string;
+
+  @Equals(true) acceptsContract: boolean;
+  @Equals(true) confirmsB2BRemote: boolean;
+  @IsString() @Matches(/^[a-f0-9]{64}$/)
+  digest: string;
+}
 
 export class CreateDevisItemDto {
   @IsString()

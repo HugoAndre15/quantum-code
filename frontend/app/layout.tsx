@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Instrument_Serif, JetBrains_Mono } from "next/font/google";
-import { Analytics } from "@vercel/analytics/next";
 import ConversionTracker from "@/components/ConversionTracker";
 import "@/styles/globals.css";
 
@@ -45,7 +44,6 @@ export default function RootLayout({
       <body>
         <ConversionTracker />
         {children}
-        <Analytics />
       </body>
     </html>
   );

@@ -1,6 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+  async headers() {
+    return [{ source: "/devis/accept/:path*", headers: [
+      { key: "Referrer-Policy", value: "no-referrer" },
+      { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
+    ] }];
+  },
   images: {
     remotePatterns: [],
   },

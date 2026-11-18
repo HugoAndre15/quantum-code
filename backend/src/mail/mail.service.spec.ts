@@ -36,7 +36,7 @@ describe('MailService templates', () => {
     expect(html).toContain('Montant ponctuel');
     expect(html).toContain('Maintenance');
     expect(html).toContain('/ mois');
-    expect(html).toContain('Consulter et accepter le devis');
+    expect(html).toContain('Lire et signer le contrat et les CGV');
     expect(html).not.toContain('890,00&nbsp;€ HT');
   });
 

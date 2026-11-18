@@ -78,6 +78,7 @@ interface Quote {
   number: string;
   clientId: string;
   status: QuoteStatus;
+  signature?: { signerName: string; signerRole: string; signedAt: string; version: string; offerDigest: string } | null;
   validUntil?: string;
   notes?: string;
   totalHT: number;
@@ -519,7 +520,7 @@ export default function QuoteEditor({ quoteId }: { quoteId?: string }) {
             target="_blank"
             style={actionLink}
           >
-            Télécharger le PDF
+              {quote.signature ? "Télécharger le contrat signé" : "Télécharger le PDF"}
           </a>
           <button
             type="button"
@@ -530,16 +531,17 @@ export default function QuoteEditor({ quoteId }: { quoteId?: string }) {
           </button>
           <button
             type="button"
-            title="Envoie le PDF avec un lien permettant au client d’accepter le devis"
+            title="Pour un client professionnel et une négociation exclusivement à distance"
+            disabled={!(quote.status === "BROUILLON" || quote.status === "ENVOYE")}
             style={actionButton}
             onClick={() =>
               action(
                 "send-accept-token",
-                "Devis et lien d’acceptation envoyés.",
+                "Contrat et invitation à signer transmis au service email.",
               )
             }
           >
-            Envoyer avec acceptation
+            Envoyer le contrat à signer
           </button>
           {quote.status === "ACCEPTE" && !quote.project && (
             <button
@@ -598,6 +600,10 @@ export default function QuoteEditor({ quoteId }: { quoteId?: string }) {
         </div>
       )}
 
+      {quote?.signature && <Card>
+        <strong>Contrat signé</strong>
+        <p>{quote.signature.signerName} · {quote.signature.signerRole} · {new Date(quote.signature.signedAt).toLocaleString("fr-FR")} · CGV {quote.signature.version}</p>
+      </Card>}
       <form onSubmit={save}>
         <Card>
           <div
@@ -626,6 +632,7 @@ export default function QuoteEditor({ quoteId }: { quoteId?: string }) {
             <Field label="Valide jusqu’au">
               <input
                 type="date"
+                disabled={Boolean(quote?.signature)}
                 style={inputStyle}
                 value={validUntil}
                 onChange={(event) => setValidUntil(event.target.value)}
@@ -633,14 +640,14 @@ export default function QuoteEditor({ quoteId }: { quoteId?: string }) {
             </Field>
             <Field label="Statut">
               <select
-                disabled={!quoteId}
+                disabled={!quoteId || Boolean(quote?.signature)}
                 style={inputStyle}
                 value={status}
                 onChange={(event) =>
                   setStatus(event.target.value as QuoteStatus)
                 }
               >
-                {(Object.keys(STATUS_LABELS) as QuoteStatus[]).map((value) => (
+                {(Object.keys(STATUS_LABELS) as QuoteStatus[]).filter(value => value !== "ACCEPTE" || quote?.status === "ACCEPTE").map((value) => (
                   <option key={value} value={value}>
                     {STATUS_LABELS[value]}
                   </option>
@@ -675,6 +682,7 @@ export default function QuoteEditor({ quoteId }: { quoteId?: string }) {
           <Field label="Notes">
             <textarea
               rows={3}
+              disabled={Boolean(quote?.signature)}
               style={{ ...inputStyle, resize: "vertical" }}
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
@@ -805,7 +813,7 @@ export default function QuoteEditor({ quoteId }: { quoteId?: string }) {
 
         <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
           <button
-            disabled={saving}
+            disabled={saving || Boolean(quote?.signature)}
             type="submit"
             style={{
               ...actionButton,
@@ -823,7 +831,7 @@ export default function QuoteEditor({ quoteId }: { quoteId?: string }) {
           >
             Retour
           </button>
-          {quoteId && (
+          {quoteId && !quote?.signature && (
             <button
               type="button"
               style={{
