@@ -151,7 +151,7 @@ export class MailService {
 
     return this.emailLayout({
       preheader: hasAcceptance
-        ? `Votre devis ${data.number} est prêt à être consulté et accepté.`
+        ? `Votre devis ${data.number} et vos CGV sont prêts à signer.`
         : `Votre devis ${data.number} est joint à cet email.`,
       eyebrow: hasAcceptance ? 'Votre proposition est prête' : 'Votre devis',
       title: hasAcceptance
@@ -180,7 +180,7 @@ export class MailService {
           hasAcceptance
             ? this.emailButton(
                 data.acceptUrl!,
-                'Consulter et accepter le devis',
+                'Lire et signer le contrat et les CGV',
               )
             : ''
         }

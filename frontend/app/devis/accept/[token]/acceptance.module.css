@@ -460,6 +460,8 @@
 }
 
 .acceptAction {
+  display: grid;
+  gap: 14px;
   padding: 20px;
   border: 1px solid var(--accept-border);
   border-radius: 14px;
@@ -665,6 +667,7 @@
 }
 
 .footer {
+  align-items: center;
   display: flex;
   justify-content: space-between;
   gap: 24px;
@@ -673,6 +676,15 @@
   color: #626a7b;
   font-size: 9px;
 }
+
+.signField { display: grid; gap: 6px; font-size: 14px; font-weight: 600; color: inherit; }
+.signField input { width: 100%; min-height: 44px; padding: 9px 12px; box-sizing: border-box; border: 1px solid #8091a7; border-radius: 6px; background: white; color: #192435; font: inherit; }
+.signField input:focus-visible, .clauses summary:focus-visible { outline: 2px solid #5585d9; outline-offset: 2px; }
+.clauses { margin: 20px 0; }
+.clauses summary { cursor: pointer; padding: 8px 0; font-weight: 650; }
+.clauses h3 { font-size: 1rem; margin: 16px 0 4px; }
+.clauses section p { font-size: 14px; color: #cbd2dd; line-height: 1.65; }
+.particulars { white-space: pre-wrap; overflow-wrap: anywhere; }
 
 @keyframes spin {
   to {

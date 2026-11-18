@@ -24,6 +24,9 @@ interface AcceptancePreview {
   promoCode?: string;
   client: { company: string; contactName: string };
   items: AcceptanceItem[];
+  notes?: string | null;
+  contract?: { version: string; digest: string; scope: string; consent: string; clauses: { title: string; text: string }[] } | null;
+  signature?: { signerName: string; signerRole: string; signedAt: string; version: string } | null;
 }
 
 export default function AcceptQuotePage({
@@ -35,6 +38,9 @@ export default function AcceptQuotePage({
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [eligible, setEligible] = useState(false);
+  const [signerName, setSignerName] = useState("");
+  const [signerRole, setSignerRole] = useState("");
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
@@ -62,32 +68,30 @@ export default function AcceptQuotePage({
   }, [params.token]);
 
   useEffect(() => {
-    load();
+    setQuote(null);
+    setSignerName("");
+    setSignerRole("");
+    setAgreed(false);
+    setEligible(false);
+    void load();
   }, [load]);
 
   async function acceptQuote() {
-    if (!agreed || accepting) return;
+    if (!agreed || !eligible || !quote?.contract || !signerName.trim() || !signerRole.trim() || accepting) return;
     setAccepting(true);
     setError("");
     try {
       const response = await fetch(`/api/devis/accept/${params.token}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signerName: signerName.trim(), signerRole: signerRole.trim(), acceptsContract: agreed, confirmsB2BRemote: eligible, digest: quote.contract.digest }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setError(data.message || "L’acceptation du devis a échoué.");
+        setError(Array.isArray(data.message) ? "Vérifiez votre nom, votre qualité et les deux déclarations." : data.message || "La signature n’a pas été enregistrée.");
         return;
       }
-      setQuote((current) =>
-        current
-          ? {
-              ...current,
-              status: "ACCEPTE",
-              acceptedAt: new Date().toISOString(),
-            }
-          : current,
-      );
+      await load();
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
       setError(
@@ -186,7 +190,7 @@ export default function AcceptQuotePage({
                   rel="noreferrer"
                   className={styles.documentLink}
                 >
-                  Télécharger le devis PDF <span>↗</span>
+                  {quote.contract ? "Télécharger le devis et les CGV" : "Télécharger le devis PDF"} <span>↗</span>
                 </a>
               </aside>
             </section>
@@ -298,27 +302,41 @@ export default function AcceptQuotePage({
               </div>
               <div>
                 <span>Propriété claire</span>
-                <p>Le code livré vous appartient après le paiement intégral.</p>
+                <p>Les droits sur les créations spécifiques et les licences des composants sont distingués dans le contrat.</p>
               </div>
             </section>
 
             <section className={styles.acceptCard}>
               <div>
-                <span className={styles.acceptLabel}>03 · Votre accord</span>
-                <h2>Prêt à lancer le projet ?</h2>
-                <p>
-                  Après votre confirmation, je vous recontacte personnellement
-                  pour fixer le planning et organiser le démarrage.
-                </p>
+                <span className={styles.acceptLabel}>03 · Contrat et CGV</span>
+                <h2>Vérifier puis signer</h2>
+                {quote.contract && <>
+                  <p>Version {quote.contract.version}. Relisez le document complet. Pour corriger une information, contactez Hugo avant de signer.</p>
+                  {quote.notes && <p className={styles.particulars}><strong>Conditions particulières</strong><br />{quote.notes}</p>}
+                  <details className={styles.clauses}>
+                    <summary>Lire les conditions générales de vente</summary>
+                    {quote.contract.clauses.map(c => <section key={c.title}><h3>{c.title}</h3><p>{c.text}</p></section>)}
+                  </details>
+                  <a className={styles.documentLink} href={`/api/devis/accept/${params.token}/pdf`} target="_blank" rel="noreferrer">Conserver le document avant signature ↗</a>
+                </>}
               </div>
 
-              {quote.status === "EXPIRE" ? (
+              {quote.status !== "ENVOYE" || !quote.contract ? (
                 <div className={styles.expiredBox}>
-                  Ce devis a expiré. Écrivez-moi pour recevoir une proposition
-                  actualisée.
+                  Cette invitation ne permet pas de signer. Contactez Hugo pour recevoir un devis et un contrat à jour.
                 </div>
               ) : (
-                <div className={styles.acceptAction}>
+                <form className={styles.acceptAction} onSubmit={event => { event.preventDefault(); void acceptQuote(); }}>
+                  <label className={styles.signField}>Prénom et nom du signataire
+                    <input required autoComplete="name" minLength={2} maxLength={100} value={signerName} onChange={e => setSignerName(e.target.value)} />
+                  </label>
+                  <label className={styles.signField}>Qualité dans l’entreprise
+                    <input required autoComplete="organization-title" placeholder="Ex. : gérante, artisan en EI" minLength={2} maxLength={100} value={signerRole} onChange={e => setSignerRole(e.target.value)} />
+                  </label>
+                  <label className={styles.checkbox}>
+                    <input type="checkbox" checked={eligible} onChange={e => setEligible(e.target.checked)} />
+                    <span>{quote.contract.scope} Si ce n’est pas votre situation, demandez un contrat adapté.</span>
+                  </label>
                   <label className={styles.checkbox}>
                     <input
                       type="checkbox"
@@ -326,27 +344,23 @@ export default function AcceptQuotePage({
                       onChange={(event) => setAgreed(event.target.checked)}
                     />
                     <span>
-                      J’ai lu le devis PDF et j’accepte les prestations, les
-                      montants, les abonnements éventuels et les conditions
-                      présentés.
+                      {quote.contract.consent}
                     </span>
                   </label>
-                  {error && <div className={styles.inlineError}>{error}</div>}
+                  {error && <div role="alert" className={styles.inlineError}>{error}</div>}
                   <button
-                    type="button"
-                    disabled={!agreed || accepting}
-                    onClick={acceptQuote}
+                    type="submit"
+                    disabled={!agreed || !eligible || signerName.trim().length < 2 || signerRole.trim().length < 2 || accepting}
                     className={styles.acceptButton}
                   >
                     {accepting
                       ? "Enregistrement de votre accord…"
-                      : "Accepter le devis et démarrer"}
+                      : "Signer le devis et les CGV"}
                   </button>
                   <small>
-                    Votre accord est horodaté et enregistré dans le suivi du
-                    projet.
+                    Signature électronique simple, sans débit immédiat. Un exemplaire signé sera disponible ici.
                   </small>
-                </div>
+                </form>
               )}
             </section>
           </>
@@ -354,7 +368,7 @@ export default function AcceptQuotePage({
 
         <footer className={styles.footer}>
           <span>Quantum Code · Hugo André</span>
-          <span>SIRET 102 934 916 00010 · Oise, Hauts-de-France</span>
+          <span>Hugo André EI · <Link href="/mentions-legales">Mentions légales</Link></span>
         </footer>
       </div>
     </main>
@@ -375,12 +389,12 @@ function SuccessState({
       <h1>
         Merci {firstName(quote.client.contactName)}.
         <br />
-        <span>Le projet peut commencer.</span>
+        <span>{quote.signature ? "Votre contrat est signé." : "Votre accord a été enregistré."}</span>
       </h1>
       <p className={styles.successIntro}>
         L’acceptation du devis <strong>{quote.number}</strong> pour{" "}
-        <strong>{quote.client.company}</strong> est bien enregistrée. Une
-        confirmation vient également de vous être envoyée par email.
+        <strong>{quote.client.company}</strong> est bien enregistrée.
+        {quote.signature ? ` Signé par ${quote.signature.signerName}, ${quote.signature.signerRole}, le ${formatDate(quote.signature.signedAt)} (CGV ${quote.signature.version}). Conservez votre exemplaire ci-dessous, même si l’email ne vous parvient pas.` : " Ce devis historique ne comporte pas de signature des nouvelles CGV."}
       </p>
 
       <div className={styles.nextSteps}>
@@ -408,7 +422,7 @@ function SuccessState({
           rel="noreferrer"
           className={styles.primaryLink}
         >
-          Conserver le devis PDF
+          {quote.signature ? "Télécharger mon contrat signé" : "Conserver le devis PDF"}
         </a>
         <a
           href="mailto:contact@quantum-code.fr"
@@ -472,6 +486,7 @@ function formatMoney(amount: number) {
 
 function formatDate(date: string) {
   return new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "Europe/Paris",
     day: "numeric",
     month: "long",
     year: "numeric",

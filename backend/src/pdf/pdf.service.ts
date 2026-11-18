@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import * as PDFDocument from 'pdfkit';
+import { CONTRACT_ISSUER } from '../devis/contract';
 
 const INTER_REGULAR =
   require.resolve('@fontsource/inter/files/inter-latin-400-normal.woff');
@@ -93,6 +94,12 @@ export class PdfService {
 
       const contentWidth = PAGE.width - PAGE.margin * 2;
       const isQuote = data.type === 'devis';
+      // Preserve the issuer block and the wording of pre-release documents.
+      const priorEdition = new Date(data.date).getTime() < Date.parse('2026-11-18T00:00:00Z');
+      const issuer = priorEdition ? COMPANY : {
+        ...COMPANY, siret: 'SIRET ' + CONTRACT_ISSUER.siret,
+        address: process.env.CONTRACT_ISSUER_ADDRESS?.trim() || COMPANY.address,
+      };
       const oneTimeItems = data.items.filter((item) => !item.recurring);
       const recurringItems = data.items.filter((item) => item.recurring);
       const documentLabel = isQuote ? 'DEVIS' : 'FACTURE';
@@ -600,7 +607,7 @@ export class PdfService {
               'Un acompte de 30 % est demandé après acceptation. Le solde est dû à la livraison.',
               "Toute demande hors du périmètre présenté fera l'objet d'un avenant ou d'un devis complémentaire.",
               'Le planning est confirmé après validation du devis et réception des éléments nécessaires.',
-              'Le code source livré devient la propriété du client après paiement intégral.',
+              priorEdition ? 'Le code source livré devient la propriété du client après paiement intégral.' : 'Les droits sur les créations spécifiques et les licences des éléments réutilisables sont précisés au contrat.',
               'Quatorze jours de suivi post-livraison sont inclus pour les corrections de bugs et ajustements mineurs.',
               'Les abonnements retenus sont optionnels et facturés séparément selon leur périodicité.',
             ]
@@ -608,7 +615,7 @@ export class PdfService {
               'Paiement par virement bancaire sous 30 jours.',
               "En cas de retard, une pénalité égale à trois fois le taux d'intérêt légal sera appliquée.",
               'Indemnité forfaitaire de recouvrement : 40 EUR, conformément à l’article L441-10 du Code de commerce.',
-              'Le code source livré devient la propriété du client après paiement intégral.',
+              priorEdition ? 'Le code source livré devient la propriété du client après paiement intégral.' : 'Les modalités de cession des créations spécifiques et les licences applicables sont celles du contrat signé.',
               'Les abonnements souscrits sont facturés séparément selon leur périodicité.',
             ];
 
@@ -667,7 +674,7 @@ export class PdfService {
             .fontSize(6.5)
             .fill(COLOR.muted)
             .text(
-              `${COMPANY.name}  |  ${COMPANY.owner}  |  ${COMPANY.siret}`,
+              `${issuer.name}  |  ${issuer.owner}  |  ${issuer.siret}`,
               PAGE.margin,
               PAGE.footerY,
               { width: contentWidth - 50 },
@@ -682,7 +689,7 @@ export class PdfService {
             .fontSize(6.2)
             .fill(COLOR.subtle)
             .text(
-              `${COMPANY.address}  |  ${COMPANY.email}  |  ${COMPANY.phone}`,
+              `${issuer.address}  |  ${issuer.email}  |  ${issuer.phone}`,
               PAGE.margin,
               PAGE.footerY + 10,
               { width: contentWidth },

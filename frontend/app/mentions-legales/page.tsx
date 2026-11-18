@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function LegalNoticePage() {
   return (
-    <LegalPage title="Mentions légales" updatedAt="28 juillet 2026">
+    <LegalPage title="Mentions légales" updatedAt="18 novembre 2026">
       <section>
         <h2>1. Éditeur du site</h2>
         <p>
@@ -18,7 +18,7 @@ export default function LegalNoticePage() {
         <ul>
           <li>Nom commercial : Quantum Code</li>
           <li>Forme juridique : entrepreneur individuel</li>
-          <li>SIRET : 102 934 916 00010</li>
+          <li>SIRET : 102 934 916 00028</li>
           <li>Siège : Oise, Hauts-de-France, France</li>
           <li>Email : <a href="mailto:contact@quantum-code.fr">contact@quantum-code.fr</a></li>
           <li>Téléphone : <a href="tel:+33603681198">+33 6 03 68 11 98</a></li>

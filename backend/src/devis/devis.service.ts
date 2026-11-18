@@ -2,13 +2,17 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateDevisDto,
   CreateDevisItemDto,
   UpdateDevisDto,
+  SignContractDto,
 } from './dto/devis.dto';
+import { ContractOffer, freezeOffer, offerDigest, signatureDeadline } from './contract';
+import { renderContractPdf } from './contract-pdf';
 import { randomUUID } from 'crypto';
 import {
   ActivityType,
@@ -216,6 +220,7 @@ export class DevisService {
 
   async findAll() {
     return this.prisma.devis.findMany({
+      omit: { contractOffer: true },
       include: {
         client: {
           select: { id: true, company: true, contactName: true, email: true },
@@ -249,6 +254,7 @@ export class DevisService {
       where: { id },
       include: {
         client: true,
+        signature: { select: { signerName: true, signerRole: true, signedAt: true, version: true, offerDigest: true } },
         items: { include: { pack: true, serviceOption: true } },
         factures: { orderBy: { createdAt: 'asc' } },
         project: true,
@@ -455,6 +461,19 @@ export class DevisService {
       include: { items: true, promoCode: true },
     });
     if (!devis) throw new NotFoundException('Devis introuvable');
+    if (devis.status === 'ACCEPTE' && devis.contractOffer) {
+      throw new BadRequestException('Le contrat signé est figé. Créez un avenant ou un nouveau devis.');
+    }
+    if (dto.status === 'ACCEPTE' && devis.status !== 'ACCEPTE') {
+      throw new BadRequestException('Le client doit signer le contrat depuis son invitation.');
+    }
+    // On a revised or withdrawn offer, the old token must never authorize a signature.
+    const revoke = devis.acceptToken && (
+      dto.items !== undefined || dto.promoCode !== undefined ||
+      (dto.notes !== undefined && dto.notes !== devis.notes) ||
+      (dto.validUntil !== undefined && new Date(dto.validUntil).getTime() !== devis.validUntil?.getTime()) ||
+      (dto.status !== undefined && dto.status !== devis.status)
+    ) ? { acceptToken: null, acceptTokenExpiresAt: null, contractOffer: null } : {};
 
     const pricingChanged =
       dto.items !== undefined || dto.promoCode !== undefined;
@@ -481,13 +500,10 @@ export class DevisService {
       const totalHT = this.roundMoney(subtotalHT - discountAmount);
 
       const updated = await this.prisma.devis.update({
-        where: { id },
+        where: { id, status: devis.status, updatedAt: devis.updatedAt },
         data: {
+          ...revoke,
           status: dto.status as any,
-          acceptedAt:
-            dto.status === 'ACCEPTE' && devis.status !== 'ACCEPTE'
-              ? new Date()
-              : undefined,
           validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,
           notes: dto.notes,
           totalHT,
@@ -522,13 +538,10 @@ export class DevisService {
     }
 
     const updated = await this.prisma.devis.update({
-      where: { id },
+      where: { id, status: devis.status, updatedAt: devis.updatedAt },
       data: {
+        ...revoke,
         status: dto.status as any,
-        acceptedAt:
-          dto.status === 'ACCEPTE' && devis.status !== 'ACCEPTE'
-            ? new Date()
-            : undefined,
         validUntil: dto.validUntil ? new Date(dto.validUntil) : undefined,
         notes: dto.notes,
       },
@@ -550,6 +563,9 @@ export class DevisService {
       throw new BadRequestException(
         'Impossible de supprimer un devis lié à une facture',
       );
+    }
+    if (devis.status === 'ACCEPTE' && devis.contractOffer) {
+      throw new BadRequestException('Un contrat signé ne peut pas être supprimé.');
     }
     await this.prisma.devis.delete({ where: { id } });
     return { message: 'Devis supprimé' };
@@ -653,7 +669,20 @@ export class DevisService {
       devis.acceptTokenExpiresAt &&
       devis.acceptTokenExpiresAt < new Date(),
     );
+    if (devis.contractOffer) {
+      const offer: ContractOffer = JSON.parse(devis.contractOffer);
+      return {
+        number: offer.number, createdAt: offer.createdAt, validUntil: offer.validUntil,
+        items: offer.items, notes: offer.notes, totalHT: offer.totalHT,
+        discountAmount: offer.discountAmount, promoCode: offer.promoCode,
+        client: { company: offer.client.company, contactName: offer.client.contactName },
+        status: expired ? 'EXPIRE' : devis.status, acceptedAt: devis.acceptedAt,
+        contract: { version: offer.version, digest: offerDigest(devis.contractOffer), clauses: offer.clauses, scope: offer.scope, consent: offer.consent },
+        signature: devis.signature,
+      };
+    }
     return {
+      contract: null, signature: null,
       number: devis.number,
       status: expired ? 'EXPIRE' : devis.status,
       createdAt: devis.createdAt,
@@ -684,6 +713,7 @@ export class DevisService {
         client: true,
         items: true,
         promoCode: true,
+        signature: { select: { signerName: true, signerRole: true, signedAt: true, version: true } },
       },
     });
     if (!devis) throw new NotFoundException('Lien invalide ou expiré');
@@ -691,17 +721,21 @@ export class DevisService {
   }
 
   /**
-   * Génère un token d'acceptation et passe le devis en ENVOYE.
-   * Retourne le devis mis à jour avec le client (pour l'email).
+   * Fige le contenu à envoyer, sans enregistrer un envoi qui n'a pas encore eu lieu.
    */
-  async generateAcceptToken(id: string) {
+  async generateAcceptToken(id: string, issuerAddress: string) {
     const devis = await this.prisma.devis.findUnique({
       where: { id },
-      include: { client: true },
+      include: { client: true, items: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }, promoCode: true },
     });
     if (!devis) throw new NotFoundException('Devis introuvable');
     if (!devis.client.email) {
       throw new BadRequestException("Le client n'a pas d'adresse email");
+    }
+    if (!issuerAddress.trim() || !devis.client.address?.trim()) {
+      throw new BadRequestException(!issuerAddress.trim()
+        ? 'Configurez CONTRACT_ISSUER_ADDRESS (adresse professionnelle complète) avant l’envoi pour signature.'
+        : 'Renseignez l’adresse de facturation du client avant l’envoi pour signature.');
     }
     if (devis.status === 'ACCEPTE') {
       throw new BadRequestException('Ce devis est déjà accepté');
@@ -712,30 +746,50 @@ export class DevisService {
       );
     }
 
-    const token = randomUUID();
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
-
-    const updated = await this.prisma.devis.update({
-      where: { id },
+    const now = new Date();
+    const expiresAt = devis.validUntil || !devis.acceptTokenExpiresAt || devis.acceptTokenExpiresAt <= now
+      ? signatureDeadline(devis.validUntil, now) : devis.acceptTokenExpiresAt;
+    if (expiresAt <= now) throw new BadRequestException('Le devis a expiré : révisez sa validité avant envoi.');
+    const snapshot = freezeOffer(devis, issuerAddress.trim(), expiresAt);
+    if (devis.acceptToken && devis.contractOffer === snapshot) return devis;
+    return this.prisma.devis.update({
+      where: { id, status: devis.status, updatedAt: devis.updatedAt },
       data: {
-        acceptToken: token,
+        contractOffer: snapshot, acceptToken: randomUUID(),
         acceptTokenExpiresAt: expiresAt,
-        status: 'ENVOYE',
       },
       include: { client: true, items: true, promoCode: true },
     });
-    if (devis.status !== 'ENVOYE') {
-      await this.recordStatusChange(updated, devis.status);
+  }
+
+  async markInvitationSent(id: string, token: string) {
+    const result = await this.prisma.devis.updateMany({
+      where: { id, acceptToken: token, status: 'BROUILLON' }, data: { status: 'ENVOYE' },
+    });
+    if (result.count) {
+      await this.recordStatusChange(await this.findOne(id), 'BROUILLON');
+      return;
     }
-    return updated;
+    const current = await this.prisma.devis.findUnique({
+      where: { id }, select: { status: true, acceptToken: true },
+    });
+    if (current?.acceptToken !== token || (current.status !== 'ENVOYE' && current.status !== 'ACCEPTE')) {
+      throw new ConflictException('Le devis a changé pendant l’envoi. Vérifiez le devis et renvoyez la dernière invitation.');
+    }
+  }
+
+  async archivedPdf(devisId: string) {
+    const signature = await this.prisma.devisSignature.findUniqueOrThrow({
+      where: { devisId }, select: { signedPdf: true },
+    });
+    return Buffer.from(signature.signedPdf);
   }
 
   /**
    * Accepte un devis via token public (lien reçu par email).
    * La finalisation reste volontairement confirmée dans l'administration.
    */
-  async acceptByToken(token: string) {
+  async acceptByToken(token: string, dto?: SignContractDto) {
     const devis = await this.prisma.devis.findUnique({
       where: { acceptToken: token },
       include: { client: true, project: true },
@@ -751,32 +805,40 @@ export class DevisService {
         requiresFinalization: !devis.project,
       };
     }
-    if (devis.status === 'REFUSE' || devis.status === 'EXPIRE') {
+    if (devis.status !== 'ENVOYE') {
       throw new BadRequestException('Ce devis ne peut plus être accepté');
     }
-    if (devis.acceptTokenExpiresAt && devis.acceptTokenExpiresAt < new Date()) {
-      const expired = await this.prisma.devis.update({
-        where: { id: devis.id },
-        data: {
-          status: 'EXPIRE',
-          acceptToken: null,
-          acceptTokenExpiresAt: null,
-        },
-      });
-      await this.recordStatusChange(expired, devis.status);
+    if (!devis.acceptTokenExpiresAt || devis.acceptTokenExpiresAt <= new Date()) {
       throw new BadRequestException(
         'Ce lien a expiré. Contactez-nous pour un nouveau devis.',
       );
     }
-
-    const updatedDevis = await this.prisma.$transaction(async (tx) => {
-      const accepted = await tx.devis.update({
-        where: { id: devis.id },
+    const snapshot = devis.contractOffer;
+    if (!snapshot) throw new BadRequestException('Cette ancienne invitation doit être réémise avec le contrat.');
+    if (!dto || dto.acceptsContract !== true || dto.confirmsB2BRemote !== true ||
+        !dto.signerName?.trim() || !dto.signerRole?.trim()) {
+      throw new BadRequestException('Renseignez le signataire et confirmez les deux déclarations.');
+    }
+    const digest = offerDigest(snapshot);
+    if (dto.digest !== digest) throw new ConflictException('Le document a changé. Rouvrez l’invitation avant de signer.');
+    const offer: ContractOffer = JSON.parse(snapshot);
+    const signer = { signerName: dto.signerName.trim(), signerRole: dto.signerRole.trim(), signedAt: new Date() };
+    const signedPdf = await renderContractPdf(snapshot, signer);
+    const firstSignature = await this.prisma.$transaction(async (tx) => {
+      // Only one request can claim this live, unexpired invitation. All effects roll back together.
+      const claimed = await tx.devis.updateMany({
+        where: { id: devis.id, status: 'ENVOYE', acceptToken: token, contractOffer: snapshot, acceptTokenExpiresAt: { gt: new Date() } },
         data: {
           status: 'ACCEPTE',
-          acceptedAt: new Date(),
+          acceptedAt: signer.signedAt,
         },
       });
+      if (claimed.count !== 1) {
+        const current = await tx.devis.findUnique({ where: { id: devis.id }, select: { status: true, acceptToken: true } });
+        if (current?.status === 'ACCEPTE' && current.acceptToken === token) return false;
+        throw new ConflictException('Cette invitation a changé ou expiré. Demandez un nouveau lien.');
+      }
+      await tx.devisSignature.create({ data: { devisId: devis.id, version: offer.version, offerDigest: digest, ...signer, signedPdf: new Uint8Array(signedPdf) } });
 
       await tx.crmTask.updateMany({
         where: {
@@ -813,7 +875,7 @@ export class DevisService {
       await tx.crmActivity.create({
         data: {
           type: ActivityType.DEVIS,
-          title: `Devis ${devis.number} accepté par le client`,
+          title: `Contrat ${devis.number} signé par ${signer.signerName}`,
           clientId: devis.clientId,
           devisId: devis.id,
           leadId: devis.sourceLeadId,
@@ -827,14 +889,14 @@ export class DevisService {
         });
       }
 
-      return accepted;
+      return true;
     });
 
     return {
       message: 'Devis accepté avec succès',
-      devisId: updatedDevis.id,
+      devisId: devis.id,
       clientId: devis.clientId,
-      alreadyAccepted: false,
+      alreadyAccepted: !firstSignature,
       requiresFinalization: true,
     };
   }

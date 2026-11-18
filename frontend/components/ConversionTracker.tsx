@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { Analytics } from "@vercel/analytics/next";
 import { trackConversion } from "@/lib/conversion";
 
 export default function ConversionTracker() {
@@ -31,5 +32,6 @@ export default function ConversionTracker() {
     return () => document.removeEventListener("click", trackClick);
   }, []);
 
-  return null;
+  // Bearer links to signed copies must not be sent as analytics page URLs.
+  return <Analytics beforeSend={event => event.url.includes("/devis/accept/") ? null : event} />;
 }

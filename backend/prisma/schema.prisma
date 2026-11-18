@@ -182,6 +182,8 @@ model Devis {
   acceptToken          String?        @unique
   acceptTokenExpiresAt DateTime?
   acceptedAt           DateTime?
+  contractOffer        String?        // Frozen UTF-8 JSON of the offer shown before signature
+  signature            DevisSignature?
   items                DevisItem[]
   factures             Facture[]
   project              ClientProject?
@@ -191,6 +193,19 @@ model Devis {
   updatedAt            DateTime       @updatedAt
 
   @@index([sourceLeadId])
+}
+
+// Separate relation: list endpoints do not load PDF bytes, and a CRM purge cannot
+// silently delete a signed contract (the surrounding reset transaction rolls back).
+model DevisSignature {
+  devisId        String   @id
+  devis          Devis    @relation(fields: [devisId], references: [id], onDelete: Restrict)
+  version        String
+  offerDigest    String
+  signerName     String
+  signerRole     String
+  signedAt       DateTime
+  signedPdf      Bytes
 }
 
 model DevisItem {
