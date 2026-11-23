@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import styles from "./payment.module.css";
 
 type Invoice = {
@@ -19,7 +19,8 @@ type Invoice = {
 
 const API = "/api";
 
-export default function PaymentPage({ params }: { params: { token: string } }) {
+export default function PaymentPage({ params: paramsPromise }: { params: Promise<{ token: string }> }) {
+  const params = use(paramsPromise);
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
   const [redirecting, setRedirecting] = useState(false);

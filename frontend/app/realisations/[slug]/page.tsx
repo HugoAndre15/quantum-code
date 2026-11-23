@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -19,7 +19,8 @@ interface CaseStudy {
   features: string[];
 }
 
-export default function CaseStudyPage({ params }: { params: { slug: string } }) {
+export default function CaseStudyPage({ params: paramsPromise }: { params: Promise<{ slug: string }> }) {
+  const params = use(paramsPromise);
   const [project, setProject] = useState<CaseStudy | null>(null);
   const [missing, setMissing] = useState(false);
 

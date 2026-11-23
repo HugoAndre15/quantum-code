@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import styles from "./acceptance.module.css";
 
@@ -29,11 +29,8 @@ interface AcceptancePreview {
   signature?: { signerName: string; signerRole: string; signedAt: string; version: string } | null;
 }
 
-export default function AcceptQuotePage({
-  params,
-}: {
-  params: { token: string };
-}) {
+export default function AcceptQuotePage({ params: paramsPromise }: { params: Promise<{ token: string }> }) {
+  const params = use(paramsPromise);
   const [quote, setQuote] = useState<AcceptancePreview | null>(null);
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);

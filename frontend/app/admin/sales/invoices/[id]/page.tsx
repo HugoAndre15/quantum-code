@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import CommercialPanel from "@/app/admin/components/CommercialPanel";
 import {
@@ -66,11 +66,8 @@ const METHOD_LABELS: Record<InvoicePayment["method"], string> = {
   AUTRE: "Autre",
 };
 
-export default function InvoiceDetailsPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default function InvoiceDetailsPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = use(paramsPromise);
   const { apiFetch } = useAuth();
   const router = useRouter();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
