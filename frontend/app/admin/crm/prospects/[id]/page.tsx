@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import CommercialPanel from "@/app/admin/components/CommercialPanel";
 import { useAuth } from "@/app/context/AuthContext";
@@ -19,11 +19,8 @@ import styles from "../prospects.module.css";
 
 const API = "/api";
 
-export default function ProspectDetailsPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default function ProspectDetailsPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = use(paramsPromise);
   const { apiFetch } = useAuth();
   const router = useRouter();
   const [prospect, setProspect] = useState<Prospect | null>(null);

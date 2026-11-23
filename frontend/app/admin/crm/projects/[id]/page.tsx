@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
 import { Card, ErrorMsg, Field, PageHeader, inputStyle } from "@/app/admin/components/SharedUI";
@@ -27,7 +27,8 @@ const LABELS: Record<ProjectStatus, string> = {
   ARCHIVE: "Archivé",
 };
 
-export default function ProjectDetailsPage({ params }: { params: { id: string } }) {
+export default function ProjectDetailsPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = use(paramsPromise);
   const { apiFetch } = useAuth();
   const router = useRouter();
   const [project, setProject] = useState<Project | null>(null);
